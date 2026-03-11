@@ -1,0 +1,87 @@
+import axios from 'axios';
+
+const API_BASE = '/api';
+
+const api = axios.create({
+  baseURL: API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// --- Members ---
+export const getMembers = () => api.get('/members');
+export const createMember = (data) => api.post('/members', data);
+export const updateMember = (id, data) => api.put(`/members/${id}`, data);
+export const deleteMember = (id) => api.delete(`/members/${id}`);
+
+// --- Credentials ---
+export const setCredentials = (memberId, data) => api.post(`/members/${memberId}/credentials`, data);
+export const getCredentials = (memberId) => api.get(`/members/${memberId}/credentials`);
+export const getDecryptedCredentials = (memberId) => api.get(`/members/${memberId}/credentials/decrypted`);
+export const deleteCredentials = (memberId) => api.delete(`/members/${memberId}/credentials`);
+
+// --- Bulk Credentials ---
+export const verifyMasterPassword = (password) => api.post('/members/verify-password', { password });
+export const exportCredentials = () => api.get('/members/export-credentials');
+export const importCredentials = (credentials) => api.post('/members/import-credentials', { credentials });
+
+
+// --- Companies ---
+export const getCompanies = (params) => api.get('/companies', { params });
+export const getSectors = () => api.get('/companies/sectors');
+
+// --- Transactions ---
+export const getTransactions = (params) => api.get('/transactions', { params });
+export const createTransaction = (data) => api.post('/transactions', data);
+export const updateTransaction = (id, data) => api.put(`/transactions/${id}`, data);
+export const uploadHistory = (memberId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post(`/transactions/upload?member_id=${memberId}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+export const uploadDpStatement = (memberId, symbol, format, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post(`/transactions/upload-dp?member_id=${memberId}&symbol=${symbol}&dp_format=${format}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+export const deleteTransaction = (id) => api.delete(`/transactions/${id}`);
+
+// --- Portfolio ---
+export const getPortfolioSummary = (params = {}) =>
+  api.get('/portfolio/summary', { params });
+export const getHoldings = (params) => api.get('/portfolio/holdings', { params });
+export const getPortfolioHistory = (params) => api.get('/portfolio/history', { params });
+export const takeSnapshot = () => api.post('/portfolio/snapshot');
+
+// --- Prices ---
+export const getMergedPrices = (params) => api.get('/prices', { params });
+export const getIssuePrice = (symbol) => api.get('/prices/issue-price', { params: { symbol } });
+export const refreshPrices = () => api.post('/scraper/prices');
+export const refreshNav = () => api.post('/scraper/nav');
+
+// --- Fee Config ---
+export const getFeeConfig = () => api.get('/config/fees');
+export const updateFeeConfig = (key, value) => api.put(`/config/fees/${key}`, { value });
+export const getFeeConfigHistory = (key) => api.get(`/config/fees/history/${key}`);
+export const addFeeConfigVersion = (data) => api.post('/config/fees/version', data);
+
+// --- Scrapers ---
+export const scrapeCompanies = () => api.post('/scraper/companies');
+export const scrapeNav = () => api.post('/scraper/nav');
+export const scrapePrices = () => api.post('/scraper/prices');
+export const syncMeroshare = (memberIds) => api.post('/scraper/meroshare/sync', memberIds ? { member_ids: memberIds } : null);
+
+// --- Health ---
+export const healthCheck = () => api.get('/health');
+
+// --- IPO API ---
+export const getOpenIPOs = (member_id) => api.get('/ipo/open', { params: { member_id } });
+export const applyIPOs = (data) => api.post('/ipo/apply', data);
+export const getIPOJobStatus = (job_id) => api.get(`/ipo/status/${job_id}`);
+
+export default api;

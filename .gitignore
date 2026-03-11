@@ -1,0 +1,53 @@
+# Python stuff
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.env_key
+*.egg-info/
+dist/
+build/
+
+# Databases
+*.db
+*.db-journal
+*.sqlite
+
+# Logs & Debugging
+*.log
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.html
+meroshare_diag.log
+meroshare_before_login.png
+meroshare_after_login.png
+meroshare_login_failed.png
+meroshare_login_stuck.png
+meroshare_page.html
+tmp_downloads/
+.pytest_cache/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+.eslintcache
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Project Specific
+legacy/
+uploads/
+results/
+temp/
