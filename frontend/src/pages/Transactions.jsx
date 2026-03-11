@@ -121,7 +121,7 @@ function Transactions() {
     });
 
     const uploadDpMutation = useMutation({
-        mutationFn: ({ memberId, format, file }) => uploadDpStatement(memberId, format, file),
+        mutationFn: ({ memberId, symbol, format, file }) => uploadDpStatement(memberId, symbol, format, file),
         onSuccess: (res) => {
             message.success(res.data?.message || 'DP Statement Imported Successfully');
             queryClient.invalidateQueries({ queryKey: ['transactions'] });

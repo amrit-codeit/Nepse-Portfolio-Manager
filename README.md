@@ -1,38 +1,51 @@
-# Nepal Portfolio Manager
+# Nepal Portfolio Manager (Premium Edition)
 
-A powerful, personal portfolio management system designed specifically for the Nepali stock market (NEPSE). Track your investments with dual-WACC logic, separating real cash flow from tax reporting.
+A professional-grade personal portfolio management system designed specifically for the Nepali stock market (NEPSE). Track investments with precision using dual-WACC logic, automated MeroShare synchronization, and DP statement reconciliation for mutual funds.
 
 ## 🚀 One-Click Setup (Windows)
 
-The project includes an automated setup script for easy installation.
+The project includes automated scripts for a frictionless start.
 
 1. **Prerequisites**:
-   - Install [Python 3.10+](https://www.python.org/downloads/)
-   - Install [Node.js](https://nodejs.org/)
+   - [Python 3.10+](https://www.python.org/downloads/)
+   - [Node.js](https://nodejs.org/)
 
 2. **Installation**:
    - Double-click **`setup.bat`** in the root folder.
-   - This script will automatically create a virtual environment, install all dependencies (backend & frontend), and generate a secure encryption key for your credentials.
+   - This creates a virtual environment, installs dependencies (FastAPI & React), and generates your local encryption keys.
 
 3. **Running the App**:
-   - Simply double-click **`run.bat`** in the root folder.
-   - This will launch both the Backend (FastAPI) and Frontend (React) in separate windows.
+   - Double-click **`run.bat`**.
+   - Accessible at: `http://localhost:5173`
 
-## ✨ Key Features
+## ✨ Advanced Features
 
-- **Dual WACC Tracking**:
-  - **True WACC**: Bonus/Right shares at actual cost (Rs. 0 for bonus). Shows real ROI.
-  - **Tax WACC**: Matches MeroShare/CDSC rules (Rs. 100 for bonus). Essential for CGT calculation.
-- **Automated Sync**: Scrapes transaction history directly from MeroShare.
-- **Live Prices**: Real-time LTP updates from ShareSansar/NEPSE.
-- **Security**: Credentials are encrypted locally on your machine.
-- **Multi-Member**: Track portfolios for multiple family members in one place.
+- **📊 Advanced Transaction Management**:
+  - **Equity vs SIP Separation**: Dedicated tabs for managing secondary market shares and open-ended mutual funds.
+  - **DP Statement Import**: Pure data import for SIPs (NI31, NIBLSF, NMBSBFE, etc.) directly from official PDF/CSV statements.
+  - **Smart Classification**: Strict priority-based tagging (IPO, FPO, Bonus, Right, Merge, Buy, Sell) using advanced regex and quantity validation.
 
-## 🛡️ Privacy & Security
+- **📈 Dual WACC Engine**:
+  - **True WACC**: Bonus/Right shares at actual cost (Rs. 0 for bonus). Reflects your true financial ROI.
+  - **Tax WACC**: Matches MeroShare/CDSC rules (Rs. 100 for bonus). Critical for Capital Gains Tax (CGT) accuracy.
 
-- All data stays on **your local machine** in a SQLite database (`portfolio.db`).
-- The `.env` file contains your private encryption key. **Never share this file or commit it to Git.**
-- The repository is pre-configured with a `.gitignore` to keep your personal data safe.
+- **🔄 Intelligent Scraping**:
+  - **MeroShare Sync**: Automated transaction history extraction.
+  - **Live Pricing**: Real-time LTP updates and Mutual Fund NAV scraping from ShareSansar/NEPSE data.
+
+- **🛡️ Secure & Private**:
+  - **Local-First**: All data is stored in a local SQLite database (`portfolio.db`).
+  - **Encrypted**: Your MeroShare credentials are encrypted locally on your machine.
+
+## ⚖️ License & Intellectual Property
+
+This software is provided for personal, non-commercial use. 
+
+### Recommended License: MIT License
+If you plan to share this on GitHub, the **MIT License** is the industry standard for lightweight, open-source projects. 
+- **Permission**: Commercial use, modification, distribution, and private use.
+- **Condition**: The above copyright notice and this permission notice shall be included in all copies.
+- **Limitation**: No Liability; No Warranty.
 
 ---
 *Created with ❤️ for Nepali Investors.*
