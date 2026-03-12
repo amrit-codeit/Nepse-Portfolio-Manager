@@ -148,7 +148,13 @@ function Dashboard() {
                     key: 'performance',
                     label: <span><LineChartOutlined /> Performance</span>,
                     children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
-                        <PerformanceTab summary={displaySummary} context={selectedContext} members={members} />
+                        <PerformanceTab 
+                            summary={displaySummary} 
+                            context={selectedContext} 
+                            members={members} 
+                            isSipMode={topLevelTab === 'sips'}
+                            pricesData={pricesData}
+                        />
                     ),
                 },
                 {

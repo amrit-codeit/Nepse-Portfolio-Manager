@@ -164,6 +164,19 @@ export default function DashboardHoldings({ summary, context, isSipMode }) {
             ) : '—',
         },
         {
+            title: 'XIRR',
+            dataIndex: 'xirr',
+            key: 'xirr',
+            align: 'right',
+            width: 90,
+            sorter: (a, b) => (a.xirr || 0) - (b.xirr || 0),
+            render: (v) => v !== null && v !== undefined ? (
+                <span style={{ fontWeight: 600, color: v >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                    {v >= 0 ? '+' : ''}{v}%
+                </span>
+            ) : '—',
+        },
+        {
             title: '% Portfolio',
             key: 'portfolio_pct',
             align: 'right',

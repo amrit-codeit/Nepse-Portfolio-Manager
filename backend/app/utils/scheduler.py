@@ -48,6 +48,10 @@ def _take_portfolio_snapshot():
 
     db = SessionLocal()
     try:
+        # Trigger a fresh price scrape before snapshot so history is accurate
+        print(f"[Scheduler] Refreshing prices for daily snapshot at {datetime.now()}")
+        scrape_live_prices(db)
+
         today = datetime.now().date()
         members = db.query(Member).filter(Member.is_active == True).all()
         count = 0
@@ -87,18 +91,20 @@ def start_scheduler():
     # Refresh prices every 5 minutes, Sun-Thu 11:00-15:15 NPT
     # Using timezone="Asia/Kathmandu" - hours should be local.
     # day_of_week="sun-thu" fails because Sun(6) > Thu(3). Correct: "sun,mon,tue,wed,thu"
-    scheduler.add_job(
-        _refresh_prices,
-        CronTrigger(
-            day_of_week="sun,mon,tue,wed,thu",
-            hour="11-15",
-            minute="*/5",
-            timezone="Asia/Kathmandu",
-        ),
-        id="refresh_prices",
-        name="Refresh live prices",
-        replace_existing=True,
-    )
+    # To avoid rate limiting/blocking, automatic 5-minute sync is disabled by default.
+    # Users can manually refresh from the Prices tab.
+    # scheduler.add_job(
+    #     _refresh_prices,
+    #     CronTrigger(
+    #         day_of_week="sun,mon,tue,wed,thu",
+    #         hour="11-15",
+    #         minute="*/5",
+    #         timezone="Asia/Kathmandu",
+    #     ),
+    #     id="refresh_prices",
+    #     name="Refresh live prices",
+    #     replace_existing=True,
+    # )
 
     # Refresh NAVs daily at 18:00 NPT (12:15 UTC)
     scheduler.add_job(

@@ -246,7 +246,6 @@ def parse_meroshare_csv(
                         Transaction.txn_type == txn_type,
                         Transaction.quantity == quantity,
                         Transaction.txn_date == txn_date,
-                        Transaction.source == TransactionSource.MEROSHARE.value,
                     )
                     .first()
                 )

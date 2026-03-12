@@ -84,6 +84,9 @@ def list_holdings(
         if current_value is not None:
             tax_profit = current_value - (h.current_qty * h.tax_wacc)
 
+        from app.services.portfolio_engine import get_xirr_for_holding
+        xirr_val = get_xirr_for_holding(db, h.member_id, h.symbol, current_value or 0)
+
         result.append(HoldingResponse(
             id=h.id,
             member_id=h.member_id,
@@ -101,7 +104,8 @@ def list_holdings(
             unrealized_pnl=round(
                 unrealized_pnl, 2) if unrealized_pnl is not None else None,
             pnl_pct=round(pnl_pct, 2) if pnl_pct is not None else None,
-            tax_profit=round(tax_profit, 2)
+            tax_profit=round(tax_profit, 2),
+            xirr=xirr_val
         ))
 
     return result

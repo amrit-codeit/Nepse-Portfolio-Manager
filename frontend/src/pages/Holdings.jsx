@@ -229,12 +229,30 @@ function Holdings() {
             dataIndex: 'pnl_pct',
             key: 'pnl_pct',
             align: 'right',
+            width: 90,
+            sorter: (a, b) => (a.pnl_pct || 0) - (b.pnl_pct || 0),
             render: (v) => v !== null && v !== undefined ? (
                 <span className={`glow-badge ${v >= 0 ? 'green' : 'red'}`}>
                     {v >= 0 ? '+' : ''}{v}%
                 </span>
             ) : '—',
-            sorter: (a, b) => a.pnl_pct - b.pnl_pct,
+        },
+        {
+            title: (
+                <Tooltip title="Extended Internal Rate of Return. Considers the timing of all buy/sell transactions.">
+                    XIRR
+                </Tooltip>
+            ),
+            dataIndex: 'xirr',
+            key: 'xirr',
+            align: 'right',
+            width: 90,
+            render: (v) => v !== null && v !== undefined ? (
+                <span style={{ fontWeight: 600, color: v >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                    {v >= 0 ? '+' : ''}{v}%
+                </span>
+            ) : '—',
+            sorter: (a, b) => (a.xirr || 0) - (b.xirr || 0),
         }
     ];
 
@@ -289,7 +307,7 @@ function Holdings() {
         sorter: (a, b) => (a.tax_profit || 0) - (b.tax_profit || 0),
     };
 
-    const equityColumns = [...commonColumns, ...equitySpecificColumns, ...endingColumns.slice(0, 3), taxProfitColumn, endingColumns[3]];
+    const equityColumns = [...commonColumns, ...equitySpecificColumns, ...endingColumns.slice(0, 3), taxProfitColumn, ...endingColumns.slice(3)];
     const sipColumns = [...commonColumns, ...sipSpecificColumns, ...endingColumns];
 
 

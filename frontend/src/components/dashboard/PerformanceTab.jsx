@@ -50,7 +50,7 @@ function computeXIRR(transactions, currentValue) {
     return null;
 }
 
-export default function PerformanceTab({ summary, context, members }) {
+export default function PerformanceTab({ summary, context, members, isSipMode, pricesData }) {
     // Build query params for history
     const historyParams = useMemo(() => {
         const p = { days: 90 };
@@ -88,33 +88,48 @@ export default function PerformanceTab({ summary, context, members }) {
         return Object.values(memberMap).sort((a, b) => b.currentValue - a.currentValue);
     }, [summary]);
 
+    const filteredTxnData = useMemo(() => {
+        if (!txnData) return [];
+        
+        const isSip = (symbol) => {
+            const priceInfo = pricesData?.find(p => p.symbol === symbol);
+            if (priceInfo) {
+                if (priceInfo.instrument === 'Open-End Mutual Fund') return true;
+                if (priceInfo.instrument === 'Equity' || priceInfo.instrument === 'Mutual Fund') return false;
+            }
+            return symbol?.length > 5; // Fallback heuristic
+        };
+
+        return txnData.filter(t => {
+            const sip = isSip(t.symbol);
+            return isSipMode ? sip : !sip;
+        });
+    }, [txnData, isSipMode, pricesData]);
+
     // XIRR calculation
     const xirrValue = useMemo(() => {
-        if (!txnData || !summary?.current_value) return null;
-        return computeXIRR(txnData, summary.current_value);
-    }, [txnData, summary]);
+        if (!filteredTxnData.length || !summary?.current_value) return null;
+        return computeXIRR(filteredTxnData, summary.current_value);
+    }, [filteredTxnData, summary]);
 
     // Dividend income
     const dividendIncome = useMemo(() => {
-        if (!txnData) return 0;
-        return txnData
+        return filteredTxnData
             .filter(t => t.txn_type === 'DIVIDEND')
             .reduce((sum, t) => sum + (t.total_cost || 0), 0);
-    }, [txnData]);
+    }, [filteredTxnData]);
 
-    // Realized profit — proceeds from SELL minus cost basis of sold shares
+    // Realized profit
     const realizedProfit = useMemo(() => {
-        if (!txnData) return 0;
-        const totalBought = txnData
+        const totalBought = filteredTxnData
             .filter(t => ['BUY', 'IPO', 'FPO', 'RIGHT', 'AUCTION'].includes(t.txn_type))
             .reduce((sum, t) => sum + ((t.total_cost && t.total_cost > 0) ? t.total_cost : ((t.rate || 0) * (t.quantity || 0))), 0);
-        const totalSold = txnData
+        const totalSold = filteredTxnData
             .filter(t => t.txn_type === 'SELL')
             .reduce((sum, t) => sum + ((t.total_cost && t.total_cost > 0) ? t.total_cost : ((t.rate || 0) * (t.quantity || 0))), 0);
         const currentHoldingValue = summary?.current_value || 0;
-        // Realized = (current portfolio value + total sold) - total bought
         return (currentHoldingValue + totalSold) - totalBought;
-    }, [txnData, summary]);
+    }, [filteredTxnData, summary]);
 
     // Format history for line chart — group by date, one line per member
     const lineChartData = useMemo(() => {
@@ -204,8 +219,8 @@ export default function PerformanceTab({ summary, context, members }) {
                     <div className="stat-card">
                         <div className="stat-label"><ClockCircleOutlined /> Portfolio Age</div>
                         <div className="stat-value">
-                            {txnData?.length > 0 ? (() => {
-                                const earliest = new Date(Math.min(...txnData.map(t => new Date(t.txn_date))));
+                            {filteredTxnData?.length > 0 ? (() => {
+                                const earliest = new Date(Math.min(...filteredTxnData.map(t => new Date(t.txn_date))));
                                 const days = Math.floor((new Date() - earliest) / (1000 * 60 * 60 * 24));
                                 return days > 365 ? `${(days / 365).toFixed(1)} years` : `${days} days`;
                             })() : '—'}

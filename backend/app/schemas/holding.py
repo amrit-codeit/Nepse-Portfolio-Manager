@@ -25,6 +25,7 @@ class HoldingResponse(BaseModel):
     pnl_pct: Optional[float] = None
     # Taxable Profit (Current Value - (Qty * Tax WACC))
     tax_profit: Optional[float] = None
+    xirr: Optional[float] = None
 
     model_config = {"from_attributes": True}
 

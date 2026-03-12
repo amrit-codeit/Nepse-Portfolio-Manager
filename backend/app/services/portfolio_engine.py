@@ -5,6 +5,8 @@ Handles the core business logic of computing weighted average cost of capital,
 unrealized P&L, and aggregating holdings across members.
 """
 
+from datetime import date
+from scipy.optimize import newton
 from sqlalchemy.orm import Session
 from app.models.holding import Holding
 from app.models.transaction import Transaction, TransactionType
@@ -138,6 +140,95 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
     db.commit()
 
 
+def calculate_xirr(cashflows: list[tuple[date, float]]) -> float:
+    """
+    Calculate XIRR from a list of (date, amount) tuples.
+    Amount: negative for investment (cash out), positive for returns/current value (cash in).
+    """
+    if not cashflows or len(cashflows) < 2:
+        return 0.0
+
+    # Group by date to handle multiple transactions on same day
+    grouped = {}
+    for d, a in cashflows:
+        grouped[d] = grouped.get(d, 0.0) + a
+
+    cf = sorted(grouped.items())
+
+    # Ensure there's at least one negative and one positive
+    has_pos = any(a > 0 for _, a in cf)
+    has_neg = any(a < 0 for _, a in cf)
+    if not (has_pos and has_neg):
+        return 0.0
+
+    d0 = cf[0][0]
+
+    def npv(r):
+        total = 0.0
+        for d, a in cf:
+            total += a / (1 + r)**((d - d0).days / 365.25)
+        return total
+
+    try:
+        # Newton-Raphson solver. Guessing 10% annual return.
+        result = newton(npv, 0.1, maxiter=100)
+        # Convert decimal rate to percent and round
+        return round(float(result) * 100, 2)
+    except Exception:
+        # If it fails to converge, return 0 (could be extreme losses/gains)
+        return 0.0
+
+
+def get_xirr_for_holding(db: Session, member_id: int, symbol: str, current_value: float) -> float:
+    """Calculate XIRR for a specific member's holding including all historical transactions."""
+    from datetime import date as date_type
+    txns = db.query(Transaction).filter(
+        Transaction.member_id == member_id,
+        Transaction.symbol == symbol
+    ).all()
+
+    if not txns:
+        return 0.0
+
+    cashflows = []
+    for t in txns:
+        if not t.txn_date:
+            continue
+        # User Invests: (BUY / IPO / ...) -> Negative cash flow
+        if t.txn_type in (
+            TransactionType.BUY.value,
+            TransactionType.IPO.value,
+            TransactionType.FPO.value,
+            TransactionType.RIGHT.value,
+            TransactionType.AUCTION.value,
+            TransactionType.TRANSFER_IN.value,
+        ):
+            cost = t.total_cost if t.total_cost else (t.amount or 0)
+            if cost > 0:
+                cashflows.append((t.txn_date, -cost))
+
+        # User Returns / Reductions: (SELL / ...) -> Positive cash flow
+        elif t.txn_type in (
+            TransactionType.SELL.value,
+            TransactionType.TRANSFER_OUT.value,
+        ):
+            # For SELL, total_cost was stored as net received in our recent fix
+            receivable = t.total_cost
+            if receivable > 0:
+                cashflows.append((t.txn_date, receivable))
+
+        # Cash Dividend (If implemented/tracked)
+        elif t.txn_type == TransactionType.DIVIDEND.value:
+            if t.amount:
+                cashflows.append((t.txn_date, t.amount))
+
+    # Add final market value as today's cash flow
+    if current_value > 0:
+        cashflows.append((date_type.today(), current_value))
+
+    return calculate_xirr(cashflows)
+
+
 def get_portfolio_summary(
     db: Session, member_id: int | None = None, member_ids: list[int] | None = None
 ) -> PortfolioSummary:
@@ -223,7 +314,8 @@ def get_portfolio_summary(
                 unrealized_pnl=round(
                     unrealized_pnl, 2) if unrealized_pnl else None,
                 pnl_pct=round(pnl_pct, 2) if pnl_pct else None,
-                tax_profit=round(tax_profit, 2)
+                tax_profit=round(tax_profit, 2),
+                xirr=get_xirr_for_holding(db, h.member_id, h.symbol, current_value or 0)
             )
         )
 

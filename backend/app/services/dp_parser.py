@@ -128,15 +128,37 @@ def parse_NI31_excel(file_bytes: bytes):
 def reconcile_dp_statement(db: Session, member_id: int, symbol: str, records: list):
     """
     Inserts newly parsed DP records for the member/symbol. 
-    Does not attempt to reconcile with MeroShare history.
+    Prevents duplicates by checking existing transactions.
     """
     new_added = 0
-    
+    matched = 0
+
     for rec in records:
         dp_units = rec["units"]
-        # Treat DP statements as BUYs unless negative, though parses mostly extract positive units for purchases.
+        txn_date = rec["date"]
+        # Treat DP statements as BUYs for now
         txn_type = 'BUY'
-        
+
+        # Duplicate check: member, symbol, date, and quantity
+        existing = db.query(Transaction).filter(
+            Transaction.member_id == member_id,
+            Transaction.symbol == symbol,
+            Transaction.txn_date == txn_date,
+            Transaction.quantity == dp_units,
+            Transaction.txn_type == txn_type
+        ).first()
+
+        if existing:
+            matched += 1
+            # Optional: update rate/cost if they were missing or zero
+            if not existing.rate or existing.rate == 0:
+                 existing.rate = rec["nav"]
+                 existing.amount = dp_units * rec["nav"]
+                 existing.dp_charge = rec["charge"]
+                 existing.total_cost = (dp_units * rec["nav"]) + rec["charge"]
+                 existing.source = 'SYSTEM' # Upgrade source to SYSTEM if we have better data
+            continue
+
         new_txn = Transaction(
             member_id=member_id,
             symbol=symbol,
@@ -146,8 +168,8 @@ def reconcile_dp_statement(db: Session, member_id: int, symbol: str, records: li
             amount=dp_units * rec["nav"],
             dp_charge=rec["charge"],
             total_cost=(dp_units * rec["nav"]) + rec["charge"],
-            txn_date=rec["date"],
-            actual_date=rec["date"],
+            txn_date=txn_date,
+            actual_date=txn_date,
             actual_units=dp_units,
             nav=rec["nav"],
             charge=rec["charge"],
@@ -157,10 +179,10 @@ def reconcile_dp_statement(db: Session, member_id: int, symbol: str, records: li
         )
         db.add(new_txn)
         new_added += 1
-            
+
     db.commit()
-    
+
     return {
-        "matched": 0,
+        "matched": matched,
         "new_added": new_added
     }
