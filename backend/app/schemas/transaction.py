@@ -14,6 +14,9 @@ class TransactionCreate(BaseModel):
     txn_date: Optional[date] = None
     remarks: Optional[str] = None
     dp_charge: Optional[float] = None
+    cgt: Optional[float] = None
+    broker_commission: Optional[float] = None
+    sebon_fee: Optional[float] = None
 
 
 class TransactionUpdate(BaseModel):
@@ -25,6 +28,9 @@ class TransactionUpdate(BaseModel):
     txn_date: Optional[date] = None
     remarks: Optional[str] = None
     dp_charge: Optional[float] = None
+    cgt: Optional[float] = None
+    broker_commission: Optional[float] = None
+    sebon_fee: Optional[float] = None
 
 
 class TransactionResponse(BaseModel):

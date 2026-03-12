@@ -86,7 +86,8 @@ def create_transaction(data: TransactionCreate, db: Session = Depends(get_db)):
 
     if txn_type_up == TransactionType.BUY.value and amount:
         fees = calculate_buy_costs(
-            db, amount, instrument or "equity", txn_date=data.txn_date, manual_dp=manual_dp)
+            db, amount, instrument or "equity", txn_date=data.txn_date, 
+            manual_dp=manual_dp, manual_broker=data.broker_commission, manual_sebon=data.sebon_fee)
 
     elif txn_type_up == TransactionType.SELL.value and amount:
         from app.models.holding import Holding
@@ -95,7 +96,7 @@ def create_transaction(data: TransactionCreate, db: Session = Depends(get_db)):
         wacc = holding.wacc if holding else 0
         fees = calculate_sell_costs(
             db, amount, wacc, data.quantity, 0, instrument or "equity",
-            txn_date=data.txn_date, manual_dp=manual_dp)
+            txn_date=data.txn_date, manual_dp=manual_dp, manual_cgt=data.cgt)
     else:
         # Defaults for IPO, RIGHT, BONUS, FPO, etc.
         if manual_dp is not None:
@@ -172,7 +173,7 @@ async def upload_dp_statement(
     """Upload a DP statement (PDF or CSV) to reconcile SIP transactions."""
     content = await file.read()
     
-    from app.services.dp_parser import parse_nmbsbfe_pdf, parse_niblsf_csv, reconcile_dp_statement
+    from app.services.dp_parser import parse_nmbsbfe_pdf, parse_niblsf_csv, parse_NI31_excel, reconcile_dp_statement
     
     if dp_format == "NMBSBFE":
         if not file.filename.lower().endswith(".pdf"):
@@ -183,6 +184,10 @@ async def upload_dp_statement(
              raise HTTPException(status_code=400, detail="NIBLSF format requires a CSV file.")
         csv_content = content.decode("utf-8", errors="ignore")
         records = parse_niblsf_csv(csv_content)
+    elif dp_format == "NEW_NI31":
+        if not file.filename.lower().endswith(".xlsx"):
+             raise HTTPException(status_code=400, detail="NI31 format requires an XLSX file.")
+        records = parse_NI31_excel(content)
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {dp_format}")
         
@@ -239,7 +244,8 @@ def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depen
         manual_dp = data.dp_charge
         if txn.txn_type == TransactionType.BUY.value:
             fees = calculate_buy_costs(
-                db, txn.amount, instrument, txn_date=txn.txn_date, manual_dp=manual_dp)
+                db, txn.amount, instrument, txn_date=txn.txn_date, 
+                manual_dp=manual_dp, manual_broker=data.broker_commission, manual_sebon=data.sebon_fee)
             txn.broker_commission = fees["broker_commission"]
             txn.sebon_fee = fees["sebon_fee"]
             txn.dp_charge = fees["dp_charge"]
@@ -253,7 +259,8 @@ def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depen
             ).first()
             wacc = holding.wacc if holding else 0
             fees = calculate_sell_costs(db, txn.amount, wacc, txn.quantity, 0, instrument,
-                                        txn_date=txn.txn_date, manual_dp=manual_dp)
+                                        txn_date=txn.txn_date, manual_dp=manual_dp, manual_cgt=data.cgt,
+                                        manual_broker=data.broker_commission, manual_sebon=data.sebon_fee)
             txn.broker_commission = fees["broker_commission"]
             txn.sebon_fee = fees["sebon_fee"]
             txn.dp_charge = fees["dp_charge"]

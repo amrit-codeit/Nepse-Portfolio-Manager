@@ -9,7 +9,7 @@ function formatNPR(value) {
     return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function DashboardHoldings({ summary, context }) {
+export default function DashboardHoldings({ summary, context, isSipMode }) {
     const [search, setSearch] = useState('');
 
     const summaryParams = useMemo(() => {
@@ -58,7 +58,7 @@ export default function DashboardHoldings({ summary, context }) {
         );
     }, [summary, search, realizedPnLMap]);
 
-    const columns = [
+    let columns = [
         {
             title: 'Member',
             dataIndex: 'member_name',
@@ -177,6 +177,12 @@ export default function DashboardHoldings({ summary, context }) {
             },
         },
     ];
+
+    if (isSipMode) {
+        columns = columns.filter(c => c.key !== 'wacc');
+        const ltpCol = columns.find(c => c.key === 'ltp');
+        if (ltpCol) ltpCol.title = 'NAV';
+    }
 
     return (
         <div className="animate-in">

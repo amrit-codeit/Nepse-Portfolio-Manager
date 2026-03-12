@@ -1,8 +1,8 @@
 import csv
 import io
 import re
-import math
 import pdfplumber
+import pandas as pd
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models.transaction import Transaction
@@ -93,6 +93,36 @@ def parse_niblsf_csv(csv_content: str):
             except (ValueError, IndexError):
                 continue
                 
+    return records
+
+def parse_NI31_excel(file_bytes: bytes):
+    """Parses NI31 structured Excel."""
+    df = pd.read_excel(io.BytesIO(file_bytes))
+    records = []
+    
+    # Iterate through rows
+    # Columns: Date, Type, Units, NAV, DP Fee
+    for _, row in df.iterrows():
+        txn_type = str(row.get('Type', '')).strip().upper()
+        # We only care about purchase types for now
+        if txn_type in ('SIP INSTALLMENT', 'IPO', 'FRACTIONAL ALLOTMENT'):
+            try:
+                date_val = row.get('Date')
+                # Handle different date formats in pandas
+                if isinstance(date_val, str):
+                    parsed_date = datetime.strptime(date_val, "%d-%m-%Y").date()
+                else:
+                    parsed_date = date_val.date()
+                
+                records.append({
+                    "date": parsed_date,
+                    "units": float(row.get('Units', 0)),
+                    "nav": float(row.get('NAV', 0)),
+                    "charge": float(row.get('DP Fee', 0))
+                })
+            except (ValueError, AttributeError, TypeError):
+                continue
+    
     return records
 
 def reconcile_dp_statement(db: Session, member_id: int, symbol: str, records: list):

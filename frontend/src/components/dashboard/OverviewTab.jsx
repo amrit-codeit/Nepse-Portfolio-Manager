@@ -41,7 +41,7 @@ const CustomTooltip = ({ active, payload }) => {
     return null;
 };
 
-export default function OverviewTab({ summary, context, members, onTabChange }) {
+export default function OverviewTab({ summary, context, members, onTabChange, isSipMode }) {
     const stats = useMemo(() => [
         {
             label: 'Total Investment',
@@ -175,6 +175,7 @@ export default function OverviewTab({ summary, context, members, onTabChange }) 
             {/* Charts Row */}
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 {/* Sector Allocation */}
+                {!isSipMode && (
                 <Col xs={24} lg={12}>
                     <div className="chart-card" style={{ height: 420 }}>
                         <div className="chart-title">
@@ -224,9 +225,10 @@ export default function OverviewTab({ summary, context, members, onTabChange }) 
                         </div>
                     </div>
                 </Col>
+                )}
 
                 {/* Top Gainers & Losers */}
-                <Col xs={24} lg={12}>
+                <Col xs={24} lg={isSipMode ? 24 : 12}>
                     <div className="chart-card" style={{ height: 420 }}>
                         <div className="chart-title">
                             <BarChartOutlined /> Top Gainers & Losers

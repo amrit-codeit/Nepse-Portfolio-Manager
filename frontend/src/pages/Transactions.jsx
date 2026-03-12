@@ -56,8 +56,8 @@ function Transactions() {
     });
 
     const { data: pricesData } = useQuery({
-        queryKey: ['prices', 'Open-End Mutual Fund'],
-        queryFn: () => getMergedPrices({ instrument: 'Open-End Mutual Fund' }).then(r => r.data),
+        queryKey: ['prices'],
+        queryFn: () => getMergedPrices().then(r => r.data),
     });
 
     const { data: txnData, isLoading } = useQuery({
@@ -135,12 +135,19 @@ function Transactions() {
     });
 
     const isSip = (txn) => {
+        // High priority: Remarks from DP/SIP import
         if (txn.remarks && (txn.remarks.toLowerCase().includes('ca-rearrangement') || txn.remarks.toLowerCase().includes('dp statement'))) {
             return true;
         }
-        if (pricesData && pricesData.some(p => p.symbol === txn.symbol)) {
-            return true;
+        
+        // Priority: Metadata from NEPSE
+        const priceInfo = pricesData?.find(p => p.symbol === txn.symbol);
+        if (priceInfo) {
+            if (priceInfo.instrument === 'Open-End Mutual Fund') return true;
+            if (priceInfo.instrument === 'Equity' || priceInfo.instrument === 'Mutual Fund') return false;
         }
+
+        // Potential fallback for transactions without metadata
         return false;
     };
     const allTransactions = (txnData?.transactions || []).filter(t =>
@@ -257,15 +264,6 @@ function Transactions() {
             key: 'dp_charge',
             align: 'right',
             render: (v) => v > 0 ? v.toFixed(2) : '—',
-        },
-        {
-            title: 'Additional Charges',
-            key: 'additional_charges',
-            align: 'right',
-            render: (_, r) => {
-                const addl = (r.broker_commission || 0) + (r.sebon_fee || 0);
-                return addl > 0 ? addl.toFixed(2) : '—';
-            },
         }
     ];
 
@@ -304,6 +302,9 @@ function Transactions() {
                                 quantity: r.quantity,
                                 rate: r.rate,
                                 dp_charge: r.dp_charge,
+                                broker_commission: r.broker_commission,
+                                sebon_fee: r.sebon_fee,
+                                cgt: r.cgt,
                                 txn_date: r.txn_date ? dayjs(r.txn_date) : null,
                                 remarks: r.remarks,
                             });
@@ -414,13 +415,15 @@ function Transactions() {
                 form.setFieldsValue({ rate: 100 });
             }
 
-            // DP Fee logic
-            if (['IPO', 'FPO', 'RIGHT'].includes(type)) {
-                form.setFieldsValue({ dp_charge: 5 });
-            } else if (type === 'BONUS') {
-                form.setFieldsValue({ dp_charge: 0 });
-            } else {
-                form.setFieldsValue({ dp_charge: 25 });
+            // DP Fee logic - only autocalculate for non-SIP mode
+            if (activeTab === 'equity') {
+                if (['IPO', 'FPO', 'RIGHT'].includes(type)) {
+                    form.setFieldsValue({ dp_charge: 5 });
+                } else if (type === 'BONUS') {
+                    form.setFieldsValue({ dp_charge: 0 });
+                } else {
+                    form.setFieldsValue({ dp_charge: 25 });
+                }
             }
 
             // Auto-fetch issue price if symbol is already selected
@@ -468,6 +471,9 @@ function Transactions() {
             txn_date: values.txn_date ? values.txn_date.format('YYYY-MM-DD') : null,
             remarks: values.remarks || null,
             dp_charge: values.dp_charge || null,
+            cgt: values.cgt || null,
+            broker_commission: activeTab === 'equity' ? (values.broker_commission || null) : 0,
+            sebon_fee: activeTab === 'equity' ? (values.sebon_fee || null) : 0,
         };
 
         if (editingTxn) {
@@ -642,6 +648,19 @@ function Transactions() {
                         <Form.Item name="dp_charge" label="DP Fee" style={{ flex: 1 }}>
                             <InputNumber style={{ width: '100%' }} min={0} step={1} />
                         </Form.Item>
+                        {activeTab === 'equity' && (
+                            <>
+                                <Form.Item name="broker_commission" label="Broker Comm." style={{ flex: 1 }}>
+                                    <InputNumber style={{ width: '100%' }} min={0} step={0.01} />
+                                </Form.Item>
+                                <Form.Item name="sebon_fee" label="SEBON Fee" style={{ flex: 1 }}>
+                                    <InputNumber style={{ width: '100%' }} min={0} step={0.01} />
+                                </Form.Item>
+                            </>
+                        )}
+                        <Form.Item name="cgt" label="CGT" style={{ flex: 1 }}>
+                            <InputNumber style={{ width: '100%' }} min={0} step={0.01} />
+                        </Form.Item>
                     </Space>
                     <Form.Item name="txn_date" label="Date">
                         <DatePicker style={{ width: '100%' }} />
@@ -742,12 +761,15 @@ function Transactions() {
                         onChange={setImportDpFormat}
                         options={[
                             { value: 'NIBLSF', label: 'NIBLSF (CSV Format)' },
-                            { value: 'NMBSBFE', label: 'NMBSBFE (PDF Format)' }
+                            { value: 'NMBSBFE', label: 'NMBSBFE (PDF Format)' },
+                            { value: 'NEW_NI31', label: 'NI31 (Excel Format)' }
                         ]}
                     />
                 </div>
                 <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Statement File ({importDpFormat === 'NIBLSF' ? 'CSV' : 'PDF'}):</label>
+                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                        Statement File ({importDpFormat === 'NIBLSF' ? 'CSV' : importDpFormat === 'NEW_NI31' ? 'XLSX' : 'PDF'}):
+                    </label>
                     <Upload
                         beforeUpload={(file) => {
                             setImportFile(file);
@@ -756,7 +778,7 @@ function Transactions() {
                         onRemove={() => setImportFile(null)}
                         fileList={importFile ? [importFile] : []}
                         maxCount={1}
-                        accept={importDpFormat === 'NIBLSF' ? ".csv" : ".pdf"}
+                        accept={importDpFormat === 'NIBLSF' ? ".csv" : importDpFormat === 'NEW_NI31' ? ".xlsx" : ".pdf"}
                     >
                         <Button icon={<UploadOutlined />}>Select File</Button>
                     </Upload>

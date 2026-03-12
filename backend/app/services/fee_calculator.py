@@ -200,13 +200,17 @@ def calculate_buy_costs(
     instrument: str = "equity",
     txn_date: date | None = None,
     manual_dp: float | None = None,
+    manual_broker: float | None = None,
+    manual_sebon: float | None = None,
 ) -> dict:
     """
     Calculate all costs for a BUY transaction.
     Returns dict with breakdown and total cost.
     """
-    broker = calculate_broker_commission(db, amount, txn_date)
-    sebon = calculate_sebon_fee(db, amount, instrument, txn_date)
+    broker = manual_broker if manual_broker is not None else calculate_broker_commission(
+        db, amount, txn_date)
+    sebon = manual_sebon if manual_sebon is not None else calculate_sebon_fee(
+        db, amount, instrument, txn_date)
     dp = manual_dp if manual_dp is not None else calculate_dp_charge(
         db, txn_date)
     name_transfer = calculate_name_transfer_fee(db, txn_date)
@@ -233,26 +237,36 @@ def calculate_sell_costs(
     instrument: str = "equity",
     txn_date: date | None = None,
     manual_dp: float | None = None,
+    manual_cgt: float | None = None,
+    manual_broker: float | None = None,
+    manual_sebon: float | None = None,
 ) -> dict:
     """
     Calculate all costs for a SELL transaction.
     Returns dict with breakdown, net received, and CGT.
     """
-    broker = calculate_broker_commission(db, sell_amount, txn_date)
-    sebon = calculate_sebon_fee(db, sell_amount, instrument, txn_date)
+    broker = manual_broker if manual_broker is not None else calculate_broker_commission(
+        db, sell_amount, txn_date)
+    sebon = manual_sebon if manual_sebon is not None else calculate_sebon_fee(
+        db, sell_amount, instrument, txn_date)
     dp = manual_dp if manual_dp is not None else calculate_dp_charge(
         db, txn_date)
 
-    # Calculate profit for CGT
-    total_buy_cost = buy_cost_per_unit * quantity
-    gross_profit = sell_amount - total_buy_cost
-    # Net profit after deducting sell-side fees
-    net_profit = gross_profit - broker - sebon - dp
+    if manual_cgt is not None:
+        cgt = manual_cgt
+    else:
+        # Calculate profit for CGT
+        total_buy_cost = buy_cost_per_unit * quantity
+        gross_profit = sell_amount - total_buy_cost
+        # Net profit after deducting sell-side fees
+        net_profit = gross_profit - broker - sebon - dp
+        cgt = calculate_cgt(db, net_profit, holding_days, txn_date)
 
-    cgt = calculate_cgt(db, net_profit, holding_days, txn_date)
     total_deductions = broker + sebon + dp + cgt
     net_received = sell_amount - total_deductions
 
+    # For SELL transactions, the 'total_cost' used in the transaction record
+    # should be the net amount received (Amount - all fees).
     return {
         "amount": round(sell_amount, 2),
         "broker_commission": broker,
@@ -260,10 +274,10 @@ def calculate_sell_costs(
         "dp_charge": dp,
         "name_transfer_fee": 0,
         "cgt": cgt,
-        "total_cost": round(total_deductions, 2),
+        "total_cost": round(net_received, 2),
         "net_received": round(net_received, 2),
-        "gross_profit": round(gross_profit, 2),
-        "net_profit": round(net_profit, 2),
+        "gross_profit": round(gross_profit if manual_cgt is None else 0, 2),
+        "net_profit": round(net_profit if manual_cgt is None else 0, 2),
     }
 
 

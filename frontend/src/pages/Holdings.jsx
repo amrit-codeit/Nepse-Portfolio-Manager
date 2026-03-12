@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Table, Select, Input, Tag, Button, Card, Row, Col, Statistic, Tooltip, Dropdown } from 'antd';
+import { Table, Select, Input, Tag, Button, Card, Row, Col, Statistic, Tooltip, Dropdown, Tabs } from 'antd';
 import {
     SearchOutlined,
     DownloadOutlined,
     HistoryOutlined
 } from '@ant-design/icons';
-import { getHoldings, getMembers, getTransactions } from '../services/api';
+import { getHoldings, getMembers, getTransactions, getMergedPrices } from '../services/api';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
@@ -78,16 +78,24 @@ function Holdings() {
     const [memberId, setMemberId] = useState(null);
     const [selectedSector, setSelectedSector] = useState(null);
     const [search, setSearch] = useState('');
+    const [activeTab, setActiveTab] = useState('equity');
 
     const { data: members } = useQuery({
         queryKey: ['members'],
         queryFn: () => getMembers().then(r => r.data),
     });
 
-    const { data: holdings, isLoading } = useQuery({
+    const { data: holdings, isLoading: isHoldingsLoading } = useQuery({
         queryKey: ['holdings', memberId],
         queryFn: () => getHoldings({ member_id: memberId }).then(r => r.data),
     });
+
+    const { data: pricesData } = useQuery({
+        queryKey: ['prices'],
+        queryFn: () => getMergedPrices().then(r => r.data),
+    });
+
+    const isLoading = isHoldingsLoading;
 
     // Dynamically derive sectors from holdings
     const sectorOptions = useMemo(() => {
@@ -96,14 +104,36 @@ function Holdings() {
         return Array.from(sectors).sort().map(s => ({ value: s, label: s }));
     }, [holdings]);
 
+    const isSip = (h) => {
+        const priceInfo = pricesData?.find(p => p.symbol === h.symbol);
+        if (priceInfo) {
+            // If it's explicitly an open-end mutual fund, it's a SIP scrip
+            if (priceInfo.instrument === 'Open-End Mutual Fund') return true;
+            // If it's an Equity or closed-end mutual fund, it's NOT a SIP scrip
+            if (priceInfo.instrument === 'Equity' || priceInfo.instrument === 'Mutual Fund') return false;
+        }
+        
+        // Fallback to sector naming if instrument metadata is missing
+        const sector = (h.sector || '').toLowerCase();
+        if (sector.includes('mutual fund')) {
+            // Usually closed-enc funds are under "Mutual Fund" sector in NEPSE
+            // Open-end ones often have "Open Ended" in name or different sector metadata
+            return h.symbol.length > 5; // Heuristic: open-end funds often have longer/different symbols
+        }
+        return false;
+    };
+
     const filtered = (holdings || []).filter(h => {
         const matchesSearch = !search ||
             h.symbol.toLowerCase().includes(search.toLowerCase()) ||
             h.company_name?.toLowerCase().includes(search.toLowerCase());
 
         const matchesSector = !selectedSector || (h.sector || 'Others') === selectedSector;
+        
+        const isMutualFund = isSip(h);
+        const matchesTab = activeTab === 'equity' ? !isMutualFund : isMutualFund;
 
-        return matchesSearch && matchesSector;
+        return matchesSearch && matchesSector && matchesTab;
     });
 
     // Summary Calculations
@@ -113,7 +143,7 @@ function Holdings() {
     const totalPnl = totalVal - totalInv;
     const pnlPct = totalInv > 0 ? (totalPnl / totalInv * 100).toFixed(2) : 0;
 
-    const columns = [
+    const commonColumns = [
         {
             title: 'Member',
             dataIndex: 'member_name',
@@ -158,27 +188,10 @@ function Holdings() {
             align: 'right',
             render: (v) => v?.toFixed(2),
             sorter: (a, b) => a.wacc - b.wacc,
-        },
-        {
-            title: (
-                <Tooltip title="MeroShare-style WACC. Bonus shares are calculated at Rs. 100 par value. Use this for matching CDSC/SEBON tax values.">
-                    Tax WACC
-                </Tooltip>
-            ),
-            dataIndex: 'tax_wacc',
-            key: 'tax_wacc',
-            align: 'right',
-            render: (v) => v?.toFixed(2),
-            sorter: (a, b) => a.tax_wacc - b.tax_wacc,
-        },
-        {
-            title: 'LTP',
-            dataIndex: 'ltp',
-            key: 'ltp',
-            align: 'right',
-            render: (v) => v?.toFixed(2) || '—',
-            sorter: (a, b) => a.ltp - b.ltp,
-        },
+        }
+    ];
+
+    const endingColumns = [
         {
             title: 'Investment',
             dataIndex: 'total_investment',
@@ -212,22 +225,6 @@ function Holdings() {
             sorter: (a, b) => (a.unrealized_pnl || 0) - (b.unrealized_pnl || 0),
         },
         {
-            title: (
-                <Tooltip title="Profit subject to Capital Gains Tax (calculated using Tax WACC).">
-                    Taxable Profit
-                </Tooltip>
-            ),
-            dataIndex: 'tax_profit',
-            key: 'tax_profit',
-            align: 'right',
-            render: (v) => (
-                <span style={{ color: v > 0 ? 'var(--accent-secondary)' : 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                    {v ? formatNPR(v) : '—'}
-                </span>
-            ),
-            sorter: (a, b) => (a.tax_profit || 0) - (b.tax_profit || 0),
-        },
-        {
             title: 'P&L %',
             dataIndex: 'pnl_pct',
             key: 'pnl_pct',
@@ -238,8 +235,63 @@ function Holdings() {
                 </span>
             ) : '—',
             sorter: (a, b) => a.pnl_pct - b.pnl_pct,
-        },
+        }
     ];
+
+    const equitySpecificColumns = [
+        {
+            title: (
+                <Tooltip title="MeroShare-style WACC. Bonus shares are calculated at Rs. 100 par value. Use this for matching CDSC/SEBON tax values.">
+                    Tax WACC
+                </Tooltip>
+            ),
+            dataIndex: 'tax_wacc',
+            key: 'tax_wacc',
+            align: 'right',
+            render: (v) => v?.toFixed(2),
+            sorter: (a, b) => a.tax_wacc - b.tax_wacc,
+        },
+        {
+            title: 'LTP',
+            dataIndex: 'ltp',
+            key: 'ltp',
+            align: 'right',
+            render: (v) => v?.toFixed(2) || '—',
+            sorter: (a, b) => a.ltp - b.ltp,
+        }
+    ];
+
+    const sipSpecificColumns = [
+        {
+            title: 'NAV',
+            dataIndex: 'ltp',
+            key: 'ltp',
+            align: 'right',
+            render: (v) => v?.toFixed(2) || '—',
+            sorter: (a, b) => a.ltp - b.ltp,
+        }
+    ];
+
+    const taxProfitColumn = {
+        title: (
+            <Tooltip title="Profit subject to Capital Gains Tax (calculated using Tax WACC).">
+                Taxable Profit
+            </Tooltip>
+        ),
+        dataIndex: 'tax_profit',
+        key: 'tax_profit',
+        align: 'right',
+        render: (v) => (
+            <span style={{ color: v > 0 ? 'var(--accent-secondary)' : 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                {v ? formatNPR(v) : '—'}
+            </span>
+        ),
+        sorter: (a, b) => (a.tax_profit || 0) - (b.tax_profit || 0),
+    };
+
+    const equityColumns = [...commonColumns, ...equitySpecificColumns, ...endingColumns.slice(0, 3), taxProfitColumn, endingColumns[3]];
+    const sipColumns = [...commonColumns, ...sipSpecificColumns, ...endingColumns];
+
 
     const getExportData = () => {
         return filtered.map(h => ({
@@ -296,58 +348,7 @@ function Holdings() {
                 <p className="subtitle">Current share holdings across all members</p>
             </div>
 
-            {/* Top Summary Stats */}
-            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                <Col xs={24} sm={12} lg={6}>
-                    <Card className="stat-card" style={{ height: '100%' }}>
-                        <Statistic
-                            title="Total Investment"
-                            value={totalInv}
-                            precision={2}
-                            prefix="Rs."
-                            valueStyle={{ color: 'var(--text-primary)', fontSize: '1.5rem', fontWeight: 700 }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
-                    <Card className="stat-card" style={{ height: '100%' }}>
-                        <Statistic
-                            title="Current Market Value"
-                            value={totalVal}
-                            precision={2}
-                            prefix="Rs."
-                            valueStyle={{ color: 'var(--accent-secondary)', fontSize: '1.5rem', fontWeight: 700 }}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
-                    <Card className={`stat-card ${totalPnl >= 0 ? 'green' : 'red'}`} style={{ height: '100%' }}>
-                        <Statistic
-                            title="Total Real P&L"
-                            value={totalPnl}
-                            precision={2}
-                            prefix="Rs."
-                            valueStyle={{ color: totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)', fontSize: '1.5rem', fontWeight: 700 }}
-                            suffix={<span style={{ fontSize: '0.9rem', marginLeft: 8 }}>({pnlPct}%)</span>}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
-                    <Card className="stat-card" style={{ height: '100%' }}>
-                        <Statistic
-                            title={
-                                <Tooltip title="Estimated profit for Capital Gains Tax, calculated using par value (Rs. 100) for bonus shares as per SEBON rules.">
-                                    Total Taxable Profit
-                                </Tooltip>
-                            }
-                            value={totalTaxProfit}
-                            precision={2}
-                            prefix="Rs."
-                            valueStyle={{ color: 'var(--accent-secondary)', fontSize: '1.5rem', fontWeight: 700 }}
-                        />
-                    </Card>
-                </Col>
-            </Row>
+
 
             {/* Filters */}
             <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -387,9 +388,19 @@ function Holdings() {
                 </Dropdown>
             </div>
 
+            <Tabs
+                activeKey={activeTab}
+                onChange={setActiveTab}
+                items={[
+                    { key: 'equity', label: 'Equity' },
+                    { key: 'sips', label: 'SIPs & Mutual Funds' }
+                ]}
+                style={{ marginBottom: 16 }}
+            />
+
             <div className="portfolio-table">
                 <Table
-                    columns={columns}
+                    columns={activeTab === 'equity' ? equityColumns : sipColumns}
                     dataSource={filtered}
                     rowKey="id"
                     loading={isLoading}
