@@ -40,11 +40,30 @@ def parse_native_csv(db: Session, csv_content: str):
     skipped = 0
     symbols_affected = set()
 
+    # First, validate that all members in the CSV already exist
+    missing_members = set()
+    for m_name in df['Member'].unique():
+        if pd.isna(m_name): continue
+        m_name = str(m_name).strip()
+        if not db.query(Member).filter(Member.name == m_name).first():
+            missing_members.add(m_name)
+    
+    if missing_members:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400, 
+            detail=f"The following members must be created in the 'Sync & Credentials' tab before importing: {', '.join(missing_members)}"
+        )
+
     for _, row in df.iterrows():
         try:
             member_name = str(row.get('Member', '')).strip()
+            if not member_name:
+                continue
+
             member_id = member_map.get(member_name)
             if not member_id:
+                # Should not happen due to validation above, but safety first
                 continue
 
             symbol = str(row.get('Symbol', '')).strip().upper()

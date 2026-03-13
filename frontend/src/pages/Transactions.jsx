@@ -614,7 +614,7 @@ function Transactions() {
                     icon={<UploadOutlined />} 
                     onClick={() => setNativeImportModalOpen(true)}
                 >
-                    Import Portfolio CSV
+                    {activeTab === 'equity' ? 'Import Equity Backup' : 'Import SIP Backup'}
                 </Button>
 
                 <Tooltip title="Automatically find and fill missing prices for IPO, Right, and FPO shares using historical data.">
@@ -883,14 +883,17 @@ function Transactions() {
             
             {/* Import Native Portfolio CSV Modal */}
             <Modal
-                title="Import Portfolio CSV"
+                title={activeTab === 'equity' ? 'Import Equity Portfolio Backup' : 'Import SIP Portfolio Backup'}
                 open={nativeImportModalOpen}
                 onCancel={() => { setNativeImportModalOpen(false); setImportFile(null); }}
                 onOk={handleNativeImportSubmit}
                 confirmLoading={nativeImportMutation.isPending}
-                okText="Import"
+                okText="Restore"
             >
-                <p>Upload a previously exported Portfolio CSV to restore transactions. This supports both Equity and SIP files.</p>
+                <p>
+                    Restore your {activeTab === 'equity' ? 'Equity' : 'SIP'} transactions from a CSV backup.
+                    This will preserve all manual rates, fees, and remarks exactly as they were exported.
+                </p>
                 <div style={{ marginBottom: 16, marginTop: 16 }}>
                     <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Select Portfolio CSV:</label>
                     <Upload
