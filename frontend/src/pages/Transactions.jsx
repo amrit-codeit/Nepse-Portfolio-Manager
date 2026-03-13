@@ -4,8 +4,8 @@ import {
     Table, Select, Input, Button, Modal, Form, InputNumber,
     DatePicker, Tag, message, Popconfirm, Space, Tooltip, Dropdown, Upload, Tabs
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, SearchOutlined, EditOutlined, DownloadOutlined, ImportOutlined, UploadOutlined } from '@ant-design/icons';
-import { getTransactions, createTransaction, updateTransaction, deleteTransaction, getMembers, getCompanies, getIssuePrice, uploadHistory, uploadDpStatement, getMergedPrices } from '../services/api';
+import { PlusOutlined, DeleteOutlined, SearchOutlined, EditOutlined, DownloadOutlined, ImportOutlined, UploadOutlined, SyncOutlined } from '@ant-design/icons';
+import api, { getTransactions, createTransaction, updateTransaction, deleteTransaction, getMembers, getCompanies, getIssuePrice, uploadHistory, uploadDpStatement, getMergedPrices } from '../services/api';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
@@ -132,6 +132,16 @@ function Transactions() {
             setImportMemberId(null);
         },
         onError: (err) => message.error(err.response?.data?.detail || 'Failed to import DP Statement'),
+    });
+
+    const syncIssuePricesMutation = useMutation({
+        mutationFn: () => api.post('/scraper/issues'),
+        onSuccess: (res) => {
+            message.success('Historical IPO/Right/FPO prices synced and filled.');
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['holdings'] });
+        },
+        onError: (err) => message.error(err.response?.data?.detail || 'Failed to sync issue prices'),
     });
 
     const isSip = (txn) => {
@@ -411,8 +421,16 @@ function Transactions() {
         // Auto-rate logic
         if (changedValues.txn_type) {
             const type = changedValues.txn_type;
-            if (['IPO', 'RIGHT', 'BONUS', 'FPO'].includes(type) && (!allValues.rate || allValues.rate === 0)) {
+            if (['IPO', 'RIGHT', 'FPO'].includes(type) && (!allValues.rate || allValues.rate === 0)) {
                 form.setFieldsValue({ rate: 100 });
+            }
+            
+            // Specifically reset rate to 0 and DP charge to 0 for BONUS
+            if (type === 'BONUS') {
+                if (!allValues.rate || allValues.rate === 100) {
+                    form.setFieldsValue({ rate: 0 });
+                }
+                form.setFieldsValue({ dp_charge: 0 });
             }
 
             // DP Fee logic - only autocalculate for non-SIP mode
@@ -421,7 +439,7 @@ function Transactions() {
                     form.setFieldsValue({ dp_charge: 5 });
                 } else if (type === 'BONUS') {
                     form.setFieldsValue({ dp_charge: 0 });
-                } else {
+                } else if (type === 'BUY' || type === 'SELL' || type === 'AUCTION') {
                     form.setFieldsValue({ dp_charge: 25 });
                 }
             }
@@ -440,21 +458,38 @@ function Transactions() {
 
     const handleFetchIssuePrice = async () => {
         const symbol = form.getFieldValue('symbol');
+        const currentType = form.getFieldValue('txn_type');
+        
+        if (currentType === 'BONUS') {
+            form.setFieldsValue({ rate: 0, dp_charge: 0 });
+            message.info('Bonus shares are treated as Rs. 0 cost by default.');
+            return;
+        }
+
         if (!symbol) {
             message.warning('Please select a symbol first');
             return;
         }
 
         try {
-            const res = await getIssuePrice(symbol);
+            // Pass the current type to avoid fetching the wrong record for the same symbol
+            const res = await getIssuePrice(symbol, currentType);
             if (res.data && res.data.price) {
-                form.setFieldsValue({
-                    rate: res.data.price,
-                    txn_type: res.data.type || form.getFieldValue('txn_type')
-                });
-                message.success(`Fetched ${res.data.type} price for ${symbol}: Rs. ${res.data.price}`);
+                const fetchedType = res.data.type;
+                
+                // Update the form
+                const updates = { rate: res.data.price };
+                
+                // Only overwrite type if it's not already set to a matching valid type, 
+                // OR if it's a completely new transaction.
+                if (!currentType || (!['IPO', 'RIGHT', 'FPO'].includes(currentType) && !editingTxn)) {
+                    updates.txn_type = fetchedType;
+                }
+                
+                form.setFieldsValue(updates);
+                message.success(`Fetched ${fetchedType} price for ${symbol}: Rs. ${res.data.price}`);
             } else {
-                message.info(`No stored IPO/Right/FPO price found for ${symbol}`);
+                message.info(`No stored ${currentType || 'issue'} price found for ${symbol}`);
             }
         } catch (err) {
             message.error('Failed to fetch issue price');
@@ -530,6 +565,16 @@ function Transactions() {
                       Import SIP Data
                   </Button>
                 )}
+
+                <Tooltip title="Automatically find and fill missing prices for IPO, Right, and FPO shares using historical data.">
+                    <Button 
+                        icon={<SyncOutlined spin={syncIssuePricesMutation.isPending} />} 
+                        onClick={() => syncIssuePricesMutation.mutate()}
+                        loading={syncIssuePricesMutation.isPending}
+                    >
+                        Auto-Fill Rates
+                    </Button>
+                </Tooltip>
                 
                 <Dropdown menu={{ items: exportItems }} disabled={activeTab === 'equity' ? equityTransactions.length === 0 : sipTransactions.length === 0}>
                     <Button type="primary" icon={<DownloadOutlined />}>

@@ -60,7 +60,7 @@ export const takeSnapshot = () => api.post('/portfolio/snapshot');
 
 // --- Prices ---
 export const getMergedPrices = (params) => api.get('/prices', { params });
-export const getIssuePrice = (symbol) => api.get('/prices/issue-price', { params: { symbol } });
+export const getIssuePrice = (symbol, issueType) => api.get('/prices/issue-price', { params: { symbol, issue_type: issueType } });
 export const refreshPrices = () => api.post('/scraper/prices');
 export const refreshNav = () => api.post('/scraper/nav');
 

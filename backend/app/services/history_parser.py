@@ -47,7 +47,7 @@ MEROSHARE_TYPE_MAP = {
 }
 
 
-def detect_txn_type(description: str, credit_qty: float = 0, debit_qty: float = 0) -> str:
+def detect_txn_type(description: str, credit_qty: float = 0, debit_qty: float = 0) -> str | None:
     """
     Detect transaction type from MeroShare description text or remark.
     Follows a strict priority order for robustness.
@@ -88,13 +88,10 @@ def detect_txn_type(description: str, credit_qty: float = 0, debit_qty: float = 
         return tag
 
     # 5. SIP / Open-Ended Mutual Funds
-    # Buy: Starts with CA-Rearrangement AND ends with CREDIT.
-    # Sell: Starts with CA-Rearrangement AND ends with DEBIT.
-    if desc_upper.startswith("CA-REARRANGEMENT"):
-        if desc_upper.endswith("CREDIT"):
-            return TransactionType.BUY.value
-        if desc_upper.endswith("DEBIT"):
-            return TransactionType.SELL.value
+    # We IGNORE these in MeroShare history sync because the data is low-quality (missing NAVs).
+    # These should only be imported via the official DP Statement importer.
+    if desc_upper.startswith("CA-REARRANGEMENT") or "REARRANGEMENT" in desc_upper:
+        return None # Explicitly skip these high-risk transactions from MeroShare sync
 
     # 6. Secondary Market
     # Buy: Contains ON-CR (On-market Credit).
@@ -212,6 +209,12 @@ def parse_meroshare_csv(
             else:
                 quantity = credit_val if credit_val > 0 else debit_val
 
+            # Skip SIP symbols (Open-End Mutual Funds) entirely from MeroShare sync
+            company = db.query(Company).filter(Company.symbol == symbol).first()
+            if company and company.instrument == 'Open-End Mutual Fund':
+                skipped += 1
+                continue
+
             # Robust type detection: check both symbol and description columns
             txn_type_from_desc = detect_txn_type(description, credit_val, debit_val)
             txn_type_from_sym = detect_txn_type(symbol, credit_val, debit_val)
@@ -225,6 +228,11 @@ def parse_meroshare_csv(
                 new_symbol = description.split()[0].upper()
                 symbol = new_symbol
 
+            if not txn_type:
+                # This catches CA-REARRANGEMENT (SIPs) which we explicitly want to skip
+                skipped += 1
+                continue
+
             if quantity <= 0:
                 continue
 
@@ -236,22 +244,39 @@ def parse_meroshare_csv(
                 except Exception:
                     txn_date = None
 
-            # Skip duplicates
+            # Skip duplicates or REPAIR corrupted types
             if skip_duplicates:
+                # Search by Member, Symbol, Date, Qty (Relaxed Type check to catch the fetch bug edits)
                 existing = (
                     db.query(Transaction)
                     .filter(
                         Transaction.member_id == member_id,
                         Transaction.symbol == symbol,
-                        Transaction.txn_type == txn_type,
                         Transaction.quantity == quantity,
                         Transaction.txn_date == txn_date,
                     )
                     .first()
                 )
+                
                 if existing:
-                    skipped += 1
-                    continue
+                    # If the type matches, we skip as usual
+                    if existing.txn_type == txn_type:
+                        skipped += 1
+                        continue
+                    
+                    # REPAIR LOGIC: If the type is different but it's an 'issue' category transaction,
+                    # we assume it was corrupted by the earlier fetch bug and fix it.
+                    issue_types = ['IPO', 'FPO', 'RIGHT', 'BONUS']
+                    if existing.txn_type in issue_types and txn_type in issue_types:
+                        print(f"Repairing transaction {existing.id}: Type {existing.txn_type} -> {txn_type}")
+                        existing.txn_type = txn_type
+                        # Rate will also be corrected in the logic below if it's 0 or 100
+                        skipped += 1 # Count as skipped for the 'created' metric
+                        continue
+                    else:
+                        # If it's a completely different category (e.g. BUY vs IPO), 
+                        # we treat it as a new transaction to be safe.
+                        pass
 
             # Link to company
             company = db.query(Company).filter(
@@ -276,7 +301,7 @@ def parse_meroshare_csv(
 
                 dp_charge = 5.0
             elif txn_type == TransactionType.BONUS.value:
-                rate = 100.0
+                rate = 0.0
                 dp_charge = 0.0
             elif txn_type in (TransactionType.BUY.value, TransactionType.SELL.value):
                 # MeroShare doesn't provide rate/fees for buy/sell in history, usually

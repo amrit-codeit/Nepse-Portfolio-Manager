@@ -13,10 +13,14 @@ router = APIRouter(prefix="/api/prices", tags=["Prices"])
 
 
 @router.get("/issue-price")
-def get_issue_price(symbol: str, db: Session = Depends(get_db)):
+def get_issue_price(symbol: str, issue_type: Optional[str] = Query(None), db: Session = Depends(get_db)):
     """Fetch stored IPO/Right/FPO price for a symbol."""
-    record = db.query(IssuePrice).filter(
-        IssuePrice.symbol == symbol.upper()).first()
+    query = db.query(IssuePrice).filter(IssuePrice.symbol == symbol.upper())
+    
+    if issue_type:
+        query = query.filter(IssuePrice.issue_type == issue_type.upper())
+    
+    record = query.first()
     if record:
         return {
             "symbol": record.symbol,
