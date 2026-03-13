@@ -51,6 +51,13 @@ class TransactionResponse(BaseModel):
     # MeroShare-matched WACC after this txn
     tax_wacc: Optional[float] = None
     txn_date: Optional[date] = None
+    # SIP Reconciliation Fields
+    actual_date: Optional[date] = None
+    actual_units: Optional[float] = None
+    nav: Optional[float] = None
+    charge: Optional[float] = None
+    is_reconciled: bool = False
+    
     source: str
     remarks: Optional[str] = None
     created_at: datetime

@@ -40,6 +40,7 @@ function Transactions() {
     const [importMemberId, setImportMemberId] = useState(null);
     const [importDpFormat, setImportDpFormat] = useState('NIBLSF');
     const [importDpSymbol, setImportDpSymbol] = useState(null);
+    const [nativeImportModalOpen, setNativeImportModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('equity');
     const [form] = Form.useForm();
     const queryClient = useQueryClient();
@@ -132,6 +133,25 @@ function Transactions() {
             setImportMemberId(null);
         },
         onError: (err) => message.error(err.response?.data?.detail || 'Failed to import DP Statement'),
+    });
+
+    const nativeImportMutation = useMutation({
+        mutationFn: ({ file }) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            return api.post('/transactions/import-native', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+        },
+        onSuccess: (res) => {
+            message.success(res.data?.message || 'Portfolio CSV Imported Successfully');
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['holdings'] });
+            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
+            setNativeImportModalOpen(false);
+            setImportFile(null);
+        },
+        onError: (err) => message.error(err.response?.data?.detail || 'Failed to import Portfolio CSV'),
     });
 
     const syncIssuePricesMutation = useMutation({
@@ -351,6 +371,11 @@ function Transactions() {
                 'Name Transfer Fee': t.name_transfer_fee || 0,
                 'CGT': t.cgt || 0,
                 'Total Cost/Received': t.total_cost || '',
+                'Actual Date': t.actual_date || '',
+                'Actual Units': t.actual_units || '',
+                'NAV': t.nav || '',
+                'SIP Charge': t.charge || '',
+                'Is Reconciled': t.is_reconciled ? 1 : 0,
                 Source: t.source,
                 Remarks: t.remarks || ''
             };
@@ -376,6 +401,11 @@ function Transactions() {
         document.body.removeChild(link);
     };
 
+    const handleExportBoth = () => {
+        handleExportCSV('equity');
+        handleExportCSV('sips');
+    };
+
     const exportItems = [
         {
             key: 'excel',
@@ -386,6 +416,11 @@ function Transactions() {
             key: 'csv',
             label: 'Export as CSV',
             onClick: () => handleExportCSV(activeTab),
+        },
+        {
+            key: 'csv_both',
+            label: 'Export Both (CSV)',
+            onClick: handleExportBoth,
         },
     ];
 
@@ -416,6 +451,14 @@ function Transactions() {
         }
         uploadDpMutation.mutate({ memberId: importMemberId, symbol: importDpSymbol, format: importDpFormat, file: importFile });
     }
+
+    const handleNativeImportSubmit = () => {
+        if (!importFile) {
+            message.warning("Please select a file");
+            return;
+        }
+        nativeImportMutation.mutate({ file: importFile });
+    };
 
     const handleValuesChange = (changedValues, allValues) => {
         // Auto-rate logic
@@ -565,6 +608,14 @@ function Transactions() {
                       Import SIP Data
                   </Button>
                 )}
+
+                <Button 
+                    type="default" 
+                    icon={<UploadOutlined />} 
+                    onClick={() => setNativeImportModalOpen(true)}
+                >
+                    Import Portfolio CSV
+                </Button>
 
                 <Tooltip title="Automatically find and fill missing prices for IPO, Right, and FPO shares using historical data.">
                     <Button 
@@ -827,6 +878,36 @@ function Transactions() {
                     >
                         <Button icon={<UploadOutlined />}>Select File</Button>
                     </Upload>
+                </div>
+            </Modal>
+            
+            {/* Import Native Portfolio CSV Modal */}
+            <Modal
+                title="Import Portfolio CSV"
+                open={nativeImportModalOpen}
+                onCancel={() => { setNativeImportModalOpen(false); setImportFile(null); }}
+                onOk={handleNativeImportSubmit}
+                confirmLoading={nativeImportMutation.isPending}
+                okText="Import"
+            >
+                <p>Upload a previously exported Portfolio CSV to restore transactions. This supports both Equity and SIP files.</p>
+                <div style={{ marginBottom: 16, marginTop: 16 }}>
+                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Select Portfolio CSV:</label>
+                    <Upload
+                        beforeUpload={(file) => {
+                            setImportFile(file);
+                            return false;
+                        }}
+                        onRemove={() => setImportFile(null)}
+                        fileList={importFile ? [importFile] : []}
+                        maxCount={1}
+                        accept=".csv"
+                    >
+                        <Button icon={<UploadOutlined />}>Select CSV File</Button>
+                    </Upload>
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem' }}>
+                    Note: This will skip transactions that already exist (matched by Date, Symbol, Type, and Quantity).
                 </div>
             </Modal>
         </div>

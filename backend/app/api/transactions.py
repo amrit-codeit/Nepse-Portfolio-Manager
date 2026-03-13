@@ -162,6 +162,27 @@ async def upload_history(
     }
 
 
+@router.post("/import-native")
+async def import_native_portfolio(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Import a Portfolio-format CSV file (previously exported)."""
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+
+    content = await file.read()
+    csv_content = content.decode("utf-8")
+
+    from app.services.native_parser import parse_native_csv
+    result = parse_native_csv(db, csv_content)
+
+    return {
+        "message": f"Imported {result['created']} transactions, skipped {result['skipped']} duplicates",
+        **result,
+    }
+
+
 @router.post("/upload-dp")
 async def upload_dp_statement(
     member_id: int = Query(...),
