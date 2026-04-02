@@ -1,20 +1,27 @@
 """Member management API routes."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.models.member import Member, MeroshareCredential
 from app.utils.encryption import encrypt_value, decrypt_value
 from app.config import settings
 from app.schemas.member import (
     MemberCreate, MemberUpdate, MemberResponse,
-    CredentialCreate, CredentialUpdate, CredentialResponse,
+    CredentialCreate, CredentialResponse,
     BulkImportRequest, MemberCredentialBulk, VerifyPasswordRequest
 )
 from app.scrapers.meroshare import sync_meroshare_for_member
 from fastapi import BackgroundTasks
 
 router = APIRouter(prefix="/api/members", tags=["Members"])
+
+
+def require_master_password(x_master_password: str = Header(..., alias="X-Master-Password")):
+    """FastAPI dependency that enforces master password on sensitive endpoints."""
+    if x_master_password != settings.MASTER_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid master password")
+    return True
 
 
 @router.get("", response_model=list[MemberResponse])
@@ -87,14 +94,15 @@ def delete_member(member_id: int, db: Session = Depends(get_db)):
 
 @router.post("/verify-password")
 def verify_password(data: VerifyPasswordRequest):
-    """Verify master password before allowing credential edits."""
+    """Verify master password before allowing credential edits.
+    Returns a confirmation so the frontend can store the password for subsequent header-based auth."""
     if data.password == settings.MASTER_PASSWORD:
         return {"status": "success", "message": "Password verified"}
     raise HTTPException(status_code=401, detail="Invalid master password")
 
 
 @router.get("/export-credentials", response_model=list[MemberCredentialBulk])
-def export_credentials(db: Session = Depends(get_db)):
+def export_credentials(db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Export all members and their credentials for backup."""
     members = db.query(Member).all()
     result = []
@@ -114,7 +122,7 @@ def export_credentials(db: Session = Depends(get_db)):
 
 
 @router.post("/import-credentials")
-def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Import members and credentials bulk (from credentials.csv)."""
     count = 0
     for item in data.credentials:
@@ -147,17 +155,23 @@ def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTask
             db.add(new_cred)
         
         count += 1
-        # Trigger sync in background for each member imported/updated
-        background_tasks.add_task(sync_meroshare_for_member, db, member.id)
 
     db.commit()
+
+    # Trigger sync in background for each member imported/updated
+    # Create a fresh DB session for the background task (CRIT-04 fix)
+    for item in data.credentials:
+        member = db.query(Member).filter(Member.name == item.owner).first()
+        if member:
+            background_tasks.add_task(_sync_member_in_background, member.id)
+
     return {"status": "success", "message": f"Successfully imported/updated {count} member(s)"}
 
 
 # --- Credential Endpoints ---
 
 @router.post("/{member_id}/credentials", response_model=CredentialResponse, status_code=201)
-def set_credentials(member_id: int, data: CredentialCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def set_credentials(member_id: int, data: CredentialCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Set MeroShare credentials for a member."""
     member = db.query(Member).filter(Member.id == member_id).first()
     if not member:
@@ -182,8 +196,8 @@ def set_credentials(member_id: int, data: CredentialCreate, background_tasks: Ba
     db.commit()
     db.refresh(cred)
 
-    # After saving credentials, automatically trigger historical download
-    background_tasks.add_task(sync_meroshare_for_member, db, member_id)
+    # After saving credentials, automatically trigger historical download (CRIT-04 fix)
+    background_tasks.add_task(_sync_member_in_background, member_id)
 
     return CredentialResponse.model_validate(cred)
 
@@ -202,8 +216,9 @@ def get_credentials(member_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{member_id}/credentials/decrypted")
-def get_decrypted_credentials(member_id: int, db: Session = Depends(get_db)):
-    """Get full credentials including decrypted password for editing."""
+def get_decrypted_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+    """Get full credentials including decrypted password for editing.
+    Requires X-Master-Password header (CRIT-01 fix)."""
     cred = db.query(MeroshareCredential).filter(MeroshareCredential.member_id == member_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="No credentials found")
@@ -219,10 +234,24 @@ def get_decrypted_credentials(member_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{member_id}/credentials", status_code=204)
-def delete_credentials(member_id: int, db: Session = Depends(get_db)):
+def delete_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Delete credentials for a member."""
     cred = db.query(MeroshareCredential).filter(MeroshareCredential.member_id == member_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="No credentials found")
     db.delete(cred)
     db.commit()
+
+
+def _sync_member_in_background(member_id: int):
+    """Background helper that creates its own DB session (CRIT-04 fix).
+    Prevents using the request's session which is closed after response."""
+    db = SessionLocal()
+    try:
+        member = db.query(Member).filter(Member.id == member_id).first()
+        if member:
+            sync_meroshare_for_member(db, member)
+    except Exception as e:
+        print(f"[Background Sync] Error syncing member {member_id}: {e}")
+    finally:
+        db.close()

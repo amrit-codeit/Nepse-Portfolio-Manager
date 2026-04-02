@@ -9,6 +9,15 @@ const api = axios.create({
   },
 });
 
+// CRIT-01 Fix: Automatically attach the master password header to requests if available
+api.interceptors.request.use((config) => {
+  const masterPassword = sessionStorage.getItem('masterAuth');
+  if (masterPassword) {
+    config.headers['X-Master-Password'] = masterPassword;
+  }
+  return config;
+});
+
 // --- Members ---
 export const getMembers = () => api.get('/members');
 export const createMember = (data) => api.post('/members', data);
@@ -29,6 +38,8 @@ export const importCredentials = (credentials) => api.post('/members/import-cred
 
 // --- Companies ---
 export const getCompanies = (params) => api.get('/companies', { params });
+export const getCompany = (symbol) => api.get(`/companies/${symbol}`);
+export const getInsights = (symbol) => api.get(`/insights/${symbol}`);
 export const getSectors = () => api.get('/companies/sectors');
 
 // --- Transactions ---
@@ -56,10 +67,13 @@ export const getPortfolioSummary = (params = {}) =>
   api.get('/portfolio/summary', { params });
 export const getHoldings = (params) => api.get('/portfolio/holdings', { params });
 export const getPortfolioHistory = (params) => api.get('/portfolio/history', { params });
+export const getComputedHistory = (params) => api.get('/portfolio/computed-history', { params });
+export const getClosedPositions = (params) => api.get('/portfolio/closed-positions', { params });
 export const takeSnapshot = () => api.post('/portfolio/snapshot');
 
 // --- Prices ---
 export const getMergedPrices = (params) => api.get('/prices', { params });
+export const getHistoricalPrices = (params) => api.get('/prices/historical', { params });
 export const getIssuePrice = (symbol, issueType) => api.get('/prices/issue-price', { params: { symbol, issue_type: issueType } });
 export const refreshPrices = () => api.post('/scraper/prices');
 export const refreshNav = () => api.post('/scraper/nav');
@@ -75,6 +89,7 @@ export const scrapeCompanies = () => api.post('/scraper/companies');
 export const scrapeNav = () => api.post('/scraper/nav');
 export const scrapePrices = () => api.post('/scraper/prices');
 export const syncMeroshare = (memberIds) => api.post('/scraper/meroshare/sync', memberIds ? { member_ids: memberIds } : null);
+export const syncHistory = () => api.post('/scraper/history');
 
 // --- Health ---
 export const healthCheck = () => api.get('/health');

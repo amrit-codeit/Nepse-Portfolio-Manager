@@ -41,7 +41,25 @@ const CustomTooltip = ({ active, payload }) => {
     return null;
 };
 
-export default function OverviewTab({ summary, context, members, onTabChange, isSipMode }) {
+export default function OverviewTab({ summary, context, members, onTabChange, isSipMode, pricesData }) {
+    // Today's Gain/Loss: (LTP - Prev Close) * Qty
+    const todayChange = useMemo(() => {
+        if (!summary?.holdings || !pricesData) return { value: 0, pct: 0 };
+        let totalChange = 0;
+        let prevTotalValue = 0;
+        summary.holdings.forEach(h => {
+            const priceInfo = pricesData?.find(p => p.symbol === h.symbol);
+            if (priceInfo?.change && h.current_qty) {
+                totalChange += priceInfo.change * h.current_qty;
+            }
+            if (priceInfo?.prev_close && h.current_qty) {
+                prevTotalValue += priceInfo.prev_close * h.current_qty;
+            }
+        });
+        const pct = prevTotalValue > 0 ? (totalChange / prevTotalValue) * 100 : 0;
+        return { value: totalChange, pct: pct.toFixed(2) };
+    }, [summary, pricesData]);
+
     const stats = useMemo(() => [
         {
             label: 'Total Investment',
@@ -63,12 +81,19 @@ export default function OverviewTab({ summary, context, members, onTabChange, is
             color: summary?.unrealized_pnl >= 0 ? 'green' : 'red',
         },
         {
+            label: "Today's Change",
+            value: formatNPR(todayChange.value),
+            change: todayChange.pct !== '0.00' ? `${todayChange.value > 0 ? '+' : ''}${todayChange.pct}%` : null,
+            icon: todayChange.value >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />,
+            color: todayChange.value > 0 ? 'green' : todayChange.value < 0 ? 'red' : '',
+        },
+        {
             label: 'Total Holdings',
             value: summary?.holdings_count || 0,
             icon: <FundOutlined />,
             color: '',
         },
-    ], [summary]);
+    ], [summary, todayChange]);
 
     const { sectorData, chartPnlData, totalVal } = useMemo(() => {
         const sectorMap = {};

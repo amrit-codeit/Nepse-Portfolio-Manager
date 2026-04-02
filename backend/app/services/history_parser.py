@@ -185,7 +185,7 @@ def parse_meroshare_csv(
                 if cv and cv != '-':
                     try:
                         credit_val = float(cv)
-                    except:
+                    except (ValueError, TypeError):
                         pass
 
             if debit_qty_col:
@@ -193,7 +193,7 @@ def parse_meroshare_csv(
                 if dv and dv != '-':
                     try:
                         debit_val = float(dv)
-                    except:
+                    except (ValueError, TypeError):
                         pass
 
             symbol = str(row[symbol_col]).strip().upper()
@@ -204,7 +204,7 @@ def parse_meroshare_csv(
             if qty_col and pd.notna(row[qty_col]) and str(row[qty_col]).strip() != '-':
                 try:
                     quantity = abs(float(str(row[qty_col]).replace(',', '')))
-                except:
+                except (ValueError, TypeError):
                     quantity = 0
             else:
                 quantity = credit_val if credit_val > 0 else debit_val

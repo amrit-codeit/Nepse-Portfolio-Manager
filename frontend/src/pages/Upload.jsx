@@ -23,7 +23,7 @@ const { TabPane } = Tabs;
 
 function Upload() {
     const [activeTab, setActiveTab] = useState('sync');
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(!!sessionStorage.getItem('masterAuth'));
     const [passwordInput, setPasswordInput] = useState('');
     const [selectedMemberIds, setSelectedMemberIds] = useState([]);
     const [syncResults, setSyncResults] = useState(null);
@@ -63,6 +63,7 @@ function Upload() {
     const verifyMutation = useMutation({
         mutationFn: (pwd) => verifyMasterPassword(pwd),
         onSuccess: () => {
+            sessionStorage.setItem('masterAuth', passwordInput);
             setIsAuthenticated(true);
             message.success('Authenticated successfully');
         },

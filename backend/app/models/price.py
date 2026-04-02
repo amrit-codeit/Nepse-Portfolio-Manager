@@ -1,6 +1,6 @@
 """Price-related models — live prices, NAV values, and fee configuration."""
 
-from sqlalchemy import Column, Integer, String, Float, DateTime, Date, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, Date, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
@@ -91,3 +91,46 @@ class IssuePrice(Base):
 
     def __repr__(self):
         return f"<IssuePrice(symbol='{self.symbol}', type='{self.issue_type}', price={self.price})>"
+
+
+class PriceHistory(Base):
+    """Historical daily closing prices per symbol."""
+    __tablename__ = "price_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String(20), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+    close = Column(Float, nullable=False)
+    high = Column(Float, nullable=True)
+    low = Column(Float, nullable=True)
+    open = Column(Float, nullable=True)
+    volume = Column(Float, nullable=True)
+
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("symbol", "date", name="uix_symbol_date"),
+    )
+
+    def __repr__(self):
+        return f"<PriceHistory(symbol='{self.symbol}', date='{self.date}', close={self.close})>"
+
+
+class IndexHistory(Base):
+    """Historical NEPSE index values."""
+    __tablename__ = "index_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    index_name = Column(String(100), nullable=False, index=True) # e.g. "NEPSE Index"
+    index_id = Column(Integer, nullable=True) # Official ID from NEPSE
+    date = Column(Date, nullable=False, index=True)
+    close = Column(Float, nullable=False)
+
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("index_name", "date", name="uix_index_date"),
+    )
+
+    def __repr__(self):
+        return f"<IndexHistory(name='{self.index_name}', date='{self.date}', close={self.close})>"

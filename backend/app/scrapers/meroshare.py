@@ -28,8 +28,9 @@ from app.services.history_parser import parse_meroshare_csv
 from app.scrapers.driver_factory import create_headless_driver
 import os
 import time
+import tempfile
 
-DIAG_LOG = "meroshare_diag.log"
+DIAG_LOG = os.path.join(tempfile.gettempdir(), "meroshare_diag.log")
 
 
 def log_diag(msg):
@@ -170,9 +171,15 @@ def sync_meroshare_for_member(db: Session, member: Member) -> dict:
             )
         except TimeoutException:
             # Check if there are any error messages on the page
-            driver.save_screenshot("meroshare_login_failed.png")
-            with open("meroshare_page.html", "w", encoding="utf-8") as f:
+            # MED-09: Save diagnostics to temp directory
+            ss_path = os.path.join(tempfile.gettempdir(), "meroshare_login_failed.png")
+            html_path = os.path.join(tempfile.gettempdir(), "meroshare_page.html")
+            
+            driver.save_screenshot(ss_path)
+            with open(html_path, "w", encoding="utf-8") as f:
                 f.write(driver.page_source)
+            
+            print(f"Diagnostics saved to {ss_path} and {html_path}")
             error_msg = driver.execute_script("""
                 var alerts = document.querySelectorAll('.alert, .error-msg, .toast-message, .invalid-feedback, .text-danger');
                 return Array.from(alerts).map(a => a.innerText.trim()).filter(a => a).join(' | ') || 'No specific error message found on page';

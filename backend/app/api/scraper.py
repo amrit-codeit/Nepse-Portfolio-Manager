@@ -10,6 +10,7 @@ from app.scrapers.nav_scraper import scrape_nav
 from app.scrapers.price_scraper import scrape_live_prices
 from app.scrapers.meroshare import sync_all_meroshare
 from app.scrapers.issue_autoscraper import fetch_and_update as sync_issue_prices
+from app.scrapers.history_scraper import scrape_historical_prices
 import traceback
 
 router = APIRouter(prefix="/api/scraper", tags=["Scraping"])
@@ -94,3 +95,20 @@ def trigger_meroshare_sync(data: SyncRequest = None, db: Session = Depends(get_d
     except Exception as e:
         traceback.print_exc()
         return {"status": "failed", "error": repr(e)}
+
+
+@router.post("/history")
+def trigger_history_sync(db: Session = Depends(get_db)):
+    """Trigger background sync for historical OHLCV data."""
+    try:
+        # Since this takes a very long time (> 3 seconds per symbol),
+        # we'll return immediately and run in backgroundTasks if we had them.
+        # For now, let's just trigger it as a task.
+        result = scrape_historical_prices(db)
+        return {
+            "status": "success", 
+            "message": f"Historical data sync completed. Processed {result} records."
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": str(e)}

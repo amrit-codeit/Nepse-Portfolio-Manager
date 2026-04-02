@@ -5,9 +5,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from app.database import get_db
 from app.models.company import Company
-from app.models.price import LivePrice, NavValue, IssuePrice
-from app.schemas.price import MergedPriceResponse
+from app.models.price import LivePrice, NavValue, IssuePrice, PriceHistory
+from app.schemas.price import MergedPriceResponse, PriceHistoryResponse
 from typing import List, Optional
+from datetime import date as date_type
 
 router = APIRouter(prefix="/api/prices", tags=["Prices"])
 
@@ -51,6 +52,8 @@ def get_merged_prices(
         LivePrice.change_pct,
         LivePrice.high,
         LivePrice.low,
+        LivePrice.open_price,
+        LivePrice.prev_close,
         LivePrice.volume,
         LivePrice.updated_at.label("live_updated_at"),
         NavValue.nav,
@@ -95,8 +98,28 @@ def get_merged_prices(
             "change_pct": r.change_pct,
             "high": r.high,
             "low": r.low,
+            "open_price": r.open_price,
+            "prev_close": r.prev_close,
             "volume": r.volume,
             "updated_at": updated_at
         })
 
     return merged_data
+
+
+@router.get("/historical", response_model=List[PriceHistoryResponse])
+def get_historical_prices(
+    symbol: str = Query(...),
+    start_date: Optional[date_type] = Query(None),
+    end_date: Optional[date_type] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Fetch historical OHLCV data for a symbol."""
+    query = db.query(PriceHistory).filter(PriceHistory.symbol == symbol.upper())
+    
+    if start_date:
+        query = query.filter(PriceHistory.date >= start_date)
+    if end_date:
+        query = query.filter(PriceHistory.date <= end_date)
+        
+    return query.order_by(PriceHistory.date.desc()).all()

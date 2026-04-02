@@ -11,6 +11,7 @@ class HoldingResponse(BaseModel):
     symbol: str
     company_name: str = ""
     sector: str = ""
+    instrument: str = ""
     current_qty: float
     # Weighted avg cost per unit (including fees)
     wacc: float
@@ -25,6 +26,7 @@ class HoldingResponse(BaseModel):
     pnl_pct: Optional[float] = None
     # Taxable Profit (Current Value - (Qty * Tax WACC))
     tax_profit: Optional[float] = None
+    realized_profit: Optional[float] = None
     xirr: Optional[float] = None
 
     model_config = {"from_attributes": True}
@@ -37,5 +39,7 @@ class PortfolioSummary(BaseModel):
     current_value: float = 0
     unrealized_pnl: float = 0
     pnl_pct: float = 0
+    realized_profit: float = 0
+    dividend_income: float = 0
     holdings_count: int = 0
     holdings: list[HoldingResponse] = []

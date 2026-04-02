@@ -17,22 +17,6 @@ from app.schemas.holding import HoldingResponse, PortfolioSummary
 
 
 def recalculate_holdings(db: Session, member_id: int, symbol: str):
-    """
-    Recalculate the holding (quantity, WACC, total_investment) for a specific
-    member + symbol based on all transactions.
-
-    WACC Logic:
-    - BUY / IPO / FPO / RIGHT / AUCTION: Add to position
-      WACC = (old_total_cost + new_total_cost) / (old_qty + new_qty)
-    - BONUS: Add quantity at zero cost (WACC decreases)
-      WACC = old_total_cost / (old_qty + bonus_qty)
-    - SELL: Reduce quantity, keep WACC unchanged
-      total_cost = old_wacc * remaining_qty
-    - TRANSFER_IN: Treat like buy at WACC=0 if no cost info
-    - TRANSFER_OUT: Treat like sell (reduce qty)
-    - MERGE / DEMERGE: Special handling (TODO)
-    """
-    # Get all transactions for this member+symbol, ordered by date
     txns = (
         db.query(Transaction)
         .filter(
@@ -48,6 +32,10 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
     tax_total_cost = 0.0      # MeroShare logic (Accounting Cost)
 
     for txn in txns:
+        # Capture state BEFORE this transaction
+        prev_wacc = total_cost / current_qty if current_qty > 0 else 0.0
+        prev_tax_wacc = tax_total_cost / current_qty if current_qty > 0 else 0.0
+        
         if txn.txn_type in (
             TransactionType.BUY.value,
             TransactionType.IPO.value,
@@ -56,55 +44,49 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
             TransactionType.AUCTION.value,
             TransactionType.TRANSFER_IN.value,
         ):
-            # Add to position
-            txn_cost = txn.total_cost if txn.total_cost else (txn.amount or 0)
-            current_qty += txn.quantity
+            txn_cost = float(txn.total_cost) if txn.total_cost else float(txn.amount or 0)
+            current_qty += float(txn.quantity)
             total_cost += txn_cost
             tax_total_cost += txn_cost
 
         elif txn.txn_type == TransactionType.BONUS.value:
-            # Bonus shares:
-            current_qty += txn.quantity
-            # True total_cost stays the same (no cash left bank)
-            # Tax cost increases by par value (usually 100) per share
-            # Note: For some scrips like SOHL this is 10, but 100 is the market default.
-            tax_total_cost += (txn.quantity * 100.0)
+            current_qty += float(txn.quantity)
+            tax_total_cost += (float(txn.quantity) * 100.0)
 
         elif txn.txn_type in (
             TransactionType.SELL.value,
             TransactionType.TRANSFER_OUT.value,
         ):
-            # Reduce position
             if current_qty > 0:
-                wacc = total_cost / current_qty
-                tax_wacc = tax_total_cost / current_qty
-
-                current_qty -= txn.quantity
-                total_cost = wacc * current_qty if current_qty > 0 else 0
-                tax_total_cost = tax_wacc * current_qty if current_qty > 0 else 0
+                # Store the WACC used for this exit
+                txn.wacc = round(prev_wacc, 2)
+                txn.tax_wacc = round(prev_tax_wacc, 2)
+                
+                sell_qty = float(txn.quantity)
+                # Pro-rata reduce the cost basis
+                total_cost = prev_wacc * (current_qty - sell_qty)
+                tax_total_cost = prev_tax_wacc * (current_qty - sell_qty)
+                current_qty -= sell_qty
+            else:
+                txn.wacc = 0.0
+                txn.tax_wacc = 0.0
 
         elif txn.txn_type == TransactionType.DIVIDEND.value:
-            # Cash dividend — doesn't affect holding quantity or WACC
             pass
 
-        elif txn.txn_type in (TransactionType.MERGE.value, TransactionType.DEMERGE.value):
-            # TODO: Handle mergers/demergers (requires ratio info)
-            pass
+        # For non-sell transactions, update the WACC after the transaction
+        if txn.txn_type not in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):
+            txn.wacc = round(total_cost / current_qty, 2) if current_qty > 0 else 0.0
+            txn.tax_wacc = round(tax_total_cost / current_qty, 2) if current_qty > 0 else 0.0
 
-        # Save the WACC states at this point in time
-        txn.wacc = round(total_cost / current_qty, 2) if current_qty > 0 else 0
-        txn.tax_wacc = round(tax_total_cost / current_qty,
-                             2) if current_qty > 0 else 0
+    # Round final values for DB
+    current_qty = round(float(current_qty), 4)
+    total_cost = round(float(total_cost), 2)
+    tax_total_cost = round(float(tax_total_cost), 2)
 
-    # Round final values
-    current_qty = round(current_qty, 4)
-    total_cost = round(total_cost, 2)
-    tax_total_cost = round(tax_total_cost, 2)
+    wacc = round(total_cost / current_qty, 2) if current_qty > 0 else 0.0
+    tax_wacc = round(tax_total_cost / current_qty, 2) if current_qty > 0 else 0.0
 
-    wacc = round(total_cost / current_qty, 2) if current_qty > 0 else 0
-    tax_wacc = round(tax_total_cost / current_qty, 2) if current_qty > 0 else 0
-
-    # Upsert holding
     company = db.query(Company).filter(Company.symbol == symbol).first()
     company_id = company.id if company else None
 
@@ -115,7 +97,6 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
     )
 
     if current_qty <= 0:
-        # No holding — remove if exists
         if holding:
             db.delete(holding)
     else:
@@ -136,7 +117,6 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
                 total_investment=total_cost,
             )
             db.add(holding)
-
     db.commit()
 
 
@@ -190,6 +170,18 @@ def get_xirr_for_holding(db: Session, member_id: int, symbol: str, current_value
     if not txns:
         return 0.0
 
+    cashflows = _build_cashflows_from_txns(txns)
+
+    # Add final market value as today's cash flow
+    if current_value > 0:
+        cashflows.append((date_type.today(), current_value))
+
+    return calculate_xirr(cashflows)
+
+
+def _build_cashflows_from_txns(txns: list) -> list[tuple]:
+    """Extract cashflow tuples from a list of Transaction objects.
+    Shared helper used by both single and batch XIRR computation."""
     cashflows = []
     for t in txns:
         if not t.txn_date:
@@ -207,13 +199,15 @@ def get_xirr_for_holding(db: Session, member_id: int, symbol: str, current_value
             if cost > 0:
                 cashflows.append((t.txn_date, -cost))
 
-        # User Returns / Reductions: (SELL / ...) -> Positive cash flow
         elif t.txn_type in (
             TransactionType.SELL.value,
             TransactionType.TRANSFER_OUT.value,
         ):
-            # For SELL, total_cost was stored as net received in our recent fix
-            receivable = t.total_cost
+            receivable = t.total_cost if t.total_cost else ((t.rate or 0) * t.quantity)
+            # Fallback to cost basis if sell price is missing to prevent XIRR from crashing
+            if receivable <= 0 and t.wacc:
+                receivable = t.quantity * t.wacc
+                
             if receivable > 0:
                 cashflows.append((t.txn_date, receivable))
 
@@ -222,11 +216,70 @@ def get_xirr_for_holding(db: Session, member_id: int, symbol: str, current_value
             if t.amount:
                 cashflows.append((t.txn_date, t.amount))
 
-    # Add final market value as today's cash flow
-    if current_value > 0:
-        cashflows.append((date_type.today(), current_value))
+    return cashflows
 
-    return calculate_xirr(cashflows)
+
+def batch_xirr_for_holdings(
+    db: Session,
+    holdings: list,
+    prices_map: dict[str, float],
+) -> dict[tuple[int, str], float]:
+    """
+    HIGH-01/PERF-01 fix: Compute XIRR for ALL holdings in a single batch.
+    
+    Instead of N individual queries (one per holding), this:
+    1. Fetches ALL transactions for all relevant (member_id, symbol) pairs in ONE query
+    2. Groups them in-memory by (member_id, symbol)
+    3. Computes XIRR for each group
+    
+    Returns: dict mapping (member_id, symbol) -> xirr_value
+    """
+    from datetime import date as date_type
+    from collections import defaultdict
+
+    if not holdings:
+        return {}
+
+    # Collect all (member_id, symbol) pairs
+    all_member_ids = list(set(h.member_id for h in holdings))
+    all_symbols = list(set(h.symbol for h in holdings))
+
+    # SINGLE query: fetch all transactions for these members and symbols
+    all_txns = (
+        db.query(Transaction)
+        .filter(
+            Transaction.member_id.in_(all_member_ids),
+            Transaction.symbol.in_(all_symbols),
+        )
+        .all()
+    )
+
+    # Group transactions by (member_id, symbol) in memory
+    txn_groups: dict[tuple[int, str], list] = defaultdict(list)
+    for t in all_txns:
+        txn_groups[(t.member_id, t.symbol)].append(t)
+
+    # Compute XIRR for each holding
+    result = {}
+    today = date_type.today()
+    for h in holdings:
+        key = (h.member_id, h.symbol)
+        txns = txn_groups.get(key, [])
+        if not txns:
+            result[key] = 0.0
+            continue
+
+        cashflows = _build_cashflows_from_txns(txns)
+
+        # Add current market value as terminal cashflow
+        ltp = prices_map.get(h.symbol)
+        current_value = h.current_qty * ltp if ltp is not None else 0
+        if current_value > 0:
+            cashflows.append((today, current_value))
+
+        result[key] = calculate_xirr(cashflows)
+
+    return result
 
 
 def get_portfolio_summary(
@@ -259,13 +312,16 @@ def get_portfolio_summary(
         if sym not in prices_map or prices_map[sym] is None:
             prices_map[sym] = nav
 
-    # Fetch all companies into a dict
-    companies_map = {c.symbol: (c.name, c.sector) for c in db.query(
+    # Fetch all companies into a dict (MED-02 fix)
+    companies_map = {c.symbol: (c.name, c.sector, c.instrument) for c in db.query(
         Company).filter(Company.symbol.in_(all_symbols)).all()}
 
     # Fetch all members into a dict
     members_map = {m.id: m.name for m in db.query(
         Member).filter(Member.id.in_(all_member_ids)).all()}
+
+    # HIGH-01: Precompute XIRR for all holdings in a single batch query
+    xirr_map = batch_xirr_for_holdings(db, holdings, prices_map)
 
     holding_responses = []
     total_investment = 0.0
@@ -274,8 +330,8 @@ def get_portfolio_summary(
     for h in holdings:
         # Get from maps instead of individual queries
         ltp = prices_map.get(h.symbol)
-        comp_info = companies_map.get(h.symbol) or (h.symbol, "")
-        company_name, sector = comp_info
+        comp_info = companies_map.get(h.symbol) or (h.symbol, "", "")
+        company_name, sector, instrument = comp_info
         member_name = members_map.get(h.member_id) or ""
 
         # Calculate P&L
@@ -304,6 +360,7 @@ def get_portfolio_summary(
                 symbol=h.symbol,
                 company_name=company_name,
                 sector=sector,
+                instrument=instrument,
                 current_qty=h.current_qty,
                 wacc=h.wacc,
                 tax_wacc=h.tax_wacc,
@@ -315,9 +372,33 @@ def get_portfolio_summary(
                     unrealized_pnl, 2) if unrealized_pnl else None,
                 pnl_pct=round(pnl_pct, 2) if pnl_pct else None,
                 tax_profit=round(tax_profit, 2),
-                xirr=get_xirr_for_holding(db, h.member_id, h.symbol, current_value or 0)
+                xirr=xirr_map.get((h.member_id, h.symbol), 0.0)
             )
         )
+
+    # Calculate realized profit and dividend income from transactions
+    txns_query = db.query(Transaction)
+    if member_ids:
+        txns_query = txns_query.filter(Transaction.member_id.in_(member_ids))
+    elif member_id:
+        txns_query = txns_query.filter(Transaction.member_id == member_id)
+    
+    all_txns = txns_query.all()
+    realized_profit = 0.0
+    dividend_income = 0.0
+    
+    for t in all_txns:
+        if t.txn_type == TransactionType.DIVIDEND.value:
+            dividend_income += (t.amount or 0)
+        elif t.txn_type in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):
+            net_received = t.total_cost if t.total_cost else ((t.rate or 0) * t.quantity)
+            # If sell price is completely missing/zero, skip to avoid treating the whole cost basis as a massive loss
+            if net_received <= 0:
+                continue
+            
+            # Profit = Net Received - (Quantity * WACC at time of sell)
+            cost_basis = t.quantity * (t.wacc or 0)
+            realized_profit += (net_received - cost_basis)
 
     # Sort by unrealized P&L descending
     holding_responses.sort(key=lambda x: x.unrealized_pnl or 0, reverse=True)
@@ -341,6 +422,8 @@ def get_portfolio_summary(
         current_value=round(total_current_value, 2),
         unrealized_pnl=round(overall_pnl, 2),
         pnl_pct=round(overall_pnl_pct, 2),
+        realized_profit=round(realized_profit, 2),
+        dividend_income=round(dividend_income, 2),
         holdings_count=len(holding_responses),
         holdings=holding_responses,
     )

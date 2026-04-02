@@ -58,8 +58,9 @@ DEFAULT_FEES = {
 # The `import functools` is added as requested.
 
 # We will use a more robust way: fetch all configs at once or use a global-ish cache that we clear on update.
+# We limit cache size to prevent unbounded memory growth (MED-03)
 _FEE_CACHE = {}
-
+_MAX_FEE_CACHE_SIZE = 1000
 
 def get_fee_value(db: Session, key: str, txn_date: date | None = None) -> str:
     """
@@ -102,6 +103,9 @@ def get_fee_value(db: Session, key: str, txn_date: date | None = None) -> str:
     else:
         val = DEFAULT_FEES.get(key, "0")
 
+    if len(_FEE_CACHE) >= _MAX_FEE_CACHE_SIZE:
+        _FEE_CACHE.clear()
+        
     _FEE_CACHE[cache_key] = val
     return val
 

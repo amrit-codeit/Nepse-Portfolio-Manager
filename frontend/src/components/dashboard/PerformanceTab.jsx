@@ -1,21 +1,23 @@
-import { useMemo } from 'react';
-import { Row, Col, Empty, Spin } from 'antd';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
+import { Row, Col, Empty, Spin, Button, message, Tooltip, Space, Radio } from 'antd';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     LineChartOutlined,
     BarChartOutlined,
     PercentageOutlined,
     DollarOutlined,
     ClockCircleOutlined,
+    CloudDownloadOutlined,
 } from '@ant-design/icons';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
     ResponsiveContainer, Legend, LineChart, Line,
 } from 'recharts';
 import xirr from 'xirr';
-import { getPortfolioHistory, getTransactions } from '../../services/api';
+import { getComputedHistory, getTransactions } from '../../services/api';
 
 const COLORS = ['#6c5ce7', '#00b894', '#fdcb6e', '#e17055', '#0984e3'];
+const NEPSE_COLOR = '#ff7675';
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
@@ -32,10 +34,21 @@ function computeXIRR(transactions, currentValue) {
             const cost = (t.total_cost && t.total_cost > 0) ? t.total_cost : ((t.rate || 0) * (t.quantity || 0));
             if (cost <= 0) return;
 
-            if (['BUY', 'IPO', 'FPO', 'RIGHT', 'AUCTION'].includes(t.txn_type)) {
-                cashFlows.push({ amount: -cost, when: date });
-            } else if (t.txn_type === 'SELL') {
-                cashFlows.push({ amount: cost, when: date });
+            if (['BUY', 'IPO', 'FPO', 'RIGHT', 'AUCTION', 'TRANSFER_IN'].includes(t.txn_type)) {
+                if (cost > 0) {
+                    cashFlows.push({ amount: -cost, when: date });
+                }
+            } else if (['SELL', 'TRANSFER_OUT'].includes(t.txn_type)) {
+                let receivable = cost;
+                // Fallback to cost basis if sell price is missing to prevent XIRR from crashing
+                if (receivable <= 0 && t.wacc > 0) {
+                    receivable = (t.quantity || 0) * t.wacc;
+                }
+                if (receivable > 0) {
+                    cashFlows.push({ amount: receivable, when: date });
+                }
+            } else if (t.txn_type === 'DIVIDEND' && t.amount > 0) {
+                cashFlows.push({ amount: t.amount, when: date });
             }
         });
 
@@ -51,13 +64,16 @@ function computeXIRR(transactions, currentValue) {
 }
 
 export default function PerformanceTab({ summary, context, members, isSipMode, pricesData }) {
+    const queryClient = useQueryClient();
+    const [historyDays, setHistoryDays] = useState(180);
+
     // Build query params for history
     const historyParams = useMemo(() => {
-        const p = { days: 90 };
+        const p = { days: historyDays };
         if (context?.type === 'member') p.member_id = context.id;
         if (context?.type === 'group') p.member_ids = context.memberIds.join(',');
         return p;
-    }, [context]);
+    }, [context, historyDays]);
 
     const summaryParams = useMemo(() => {
         if (context?.type === 'member') return { member_id: context.id };
@@ -65,9 +81,9 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
         return {};
     }, [context]);
 
-    const { data: historyData } = useQuery({
-        queryKey: ['portfolio-history', historyParams],
-        queryFn: () => getPortfolioHistory(historyParams).then(r => r.data),
+    const { data: historyData, isLoading: isHistoryLoading } = useQuery({
+        queryKey: ['computed-portfolio-history', historyParams],
+        queryFn: () => getComputedHistory(historyParams).then(r => r.data),
     });
 
     const { data: txnData } = useQuery({
@@ -121,57 +137,38 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
 
     // Realized profit
     const realizedProfit = useMemo(() => {
-        const totalBought = filteredTxnData
-            .filter(t => ['BUY', 'IPO', 'FPO', 'RIGHT', 'AUCTION'].includes(t.txn_type))
-            .reduce((sum, t) => sum + ((t.total_cost && t.total_cost > 0) ? t.total_cost : ((t.rate || 0) * (t.quantity || 0))), 0);
-        const totalSold = filteredTxnData
-            .filter(t => t.txn_type === 'SELL')
-            .reduce((sum, t) => sum + ((t.total_cost && t.total_cost > 0) ? t.total_cost : ((t.rate || 0) * (t.quantity || 0))), 0);
-        const currentHoldingValue = summary?.current_value || 0;
-        return (currentHoldingValue + totalSold) - totalBought;
-    }, [filteredTxnData, summary]);
+        return filteredTxnData
+            .filter(t => ['SELL', 'TRANSFER_OUT'].includes(t.txn_type))
+            .reduce((sum, t) => {
+                const netReceived = (t.total_cost && t.total_cost > 0) ? t.total_cost : ((t.rate || 0) * (t.quantity || 0));
+                
+                // If sell price is completely missing/zero (e.g., auto-synced history), 
+                // skip to avoid treating the whole cost basis as a massive loss
+                if (netReceived <= 0) return sum;
 
-    // Format history for line chart — group by date, one line per member
-    const lineChartData = useMemo(() => {
-        if (!historyData || historyData.length === 0) return null;
+                const costBasis = (t.quantity || 0) * (t.wacc || 0);
+                return sum + (netReceived - costBasis);
+            }, 0);
+    }, [filteredTxnData]);
 
-        const dateMap = {};
-        const memberNames = new Set();
-
-        // Build member name lookup
-        const memberLookup = {};
-        (members || []).forEach(m => { memberLookup[m.id] = m.display_name || m.name; });
-
-        historyData.forEach(s => {
-            if (!dateMap[s.date]) dateMap[s.date] = { date: s.date };
-            const name = memberLookup[s.member_id] || `Member ${s.member_id}`;
-            memberNames.add(name);
-            dateMap[s.date][name] = s.current_value;
-        });
-
-        // Add group total if group mode
-        if (context?.type === 'group' || context?.type === 'all') {
-            Object.values(dateMap).forEach(row => {
-                let total = 0;
-                memberNames.forEach(n => { total += row[n] || 0; });
-                row['Total'] = total;
-            });
-        }
-
-        return {
-            data: Object.values(dateMap).sort((a, b) => a.date.localeCompare(b.date)),
-            lines: [...memberNames],
-        };
-    }, [historyData, members, context]);
+    // Format history for line chart
+    const chartData = useMemo(() => {
+        if (!historyData || historyData.length === 0) return [];
+        return historyData.map(d => ({
+            ...d,
+            displayDate: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        }));
+    }, [historyData]);
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload?.length) {
+            const dateStr = payload[0].payload.date;
             return (
                 <div style={{ background: 'var(--bg-secondary)', padding: '10px 15px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                    <p style={{ margin: '0 0 5px 0', fontWeight: 'bold', fontSize: 12 }}>{label}</p>
+                    <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: 12 }}>{dateStr}</p>
                     {payload.map((p, i) => (
-                        <p key={i} style={{ margin: 0, color: p.color, fontSize: 12 }}>
-                            {p.name}: {formatNPR(p.value)}
+                        <p key={i} style={{ margin: '2px 0', color: p.color, fontSize: 12 }}>
+                            {p.name}: {p.name === 'NEPSE Index' ? p.value.toFixed(2) : formatNPR(p.value)}
                         </p>
                     ))}
                 </div>
@@ -202,7 +199,7 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
                             {formatNPR(realizedProfit)}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                            Portfolio value + sell proceeds − total cost
+                            Net profit from shares already sold
                         </div>
                     </div>
                 </Col>
@@ -235,33 +232,91 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
             {/* Portfolio Value Over Time */}
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={24}>
-                    <div className="chart-card" style={{ height: 380 }}>
-                        <div className="chart-title">
-                            <LineChartOutlined /> Portfolio Value Over Time
+                    <div className="chart-card" style={{ height: 450 }}>
+                        <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <div className="chart-title" style={{ margin: 0 }}>
+                                <LineChartOutlined /> Portfolio Performance
+                            </div>
+                            <Space>
+                                <Radio.Group value={historyDays} onChange={e => setHistoryDays(e.target.value)} size="small">
+                                    <Radio.Button value={30}>1M</Radio.Button>
+                                    <Radio.Button value={90}>3M</Radio.Button>
+                                    <Radio.Button value={180}>6M</Radio.Button>
+                                    <Radio.Button value={365}>1Y</Radio.Button>
+                                    <Radio.Button value={1095}>ALL</Radio.Button>
+                                </Radio.Group>
+                            </Space>
                         </div>
-                        {lineChartData && lineChartData.data.length >= 2 ? (
+
+                        {isHistoryLoading ? (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Spin tip="Computing history..." />
+                            </div>
+                        ) : chartData.length >= 2 ? (
                             <div style={{ flex: 1, minHeight: 0 }}>
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={lineChartData.data} margin={{ top: 10, right: 20, left: 20, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                                        <XAxis dataKey="date" stroke="var(--text-secondary)" tick={{ fontSize: 11 }} />
-                                        <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 11 }} tickFormatter={v => `${(v / 1000).toFixed(0)}K`} />
+                                    <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                        <XAxis 
+                                            dataKey="displayDate" 
+                                            stroke="var(--text-secondary)" 
+                                            tick={{ fontSize: 10 }} 
+                                            minTickGap={30}
+                                        />
+                                        <YAxis 
+                                            yAxisId="left"
+                                            stroke="var(--text-secondary)" 
+                                            tick={{ fontSize: 11 }} 
+                                            tickFormatter={v => `${(v / 1000).toFixed(0)}K`} 
+                                        />
+                                        <YAxis 
+                                            yAxisId="right"
+                                            orientation="right"
+                                            stroke={NEPSE_COLOR} 
+                                            tick={{ fontSize: 11 }}
+                                            domain={['auto', 'auto']}
+                                        />
                                         <RechartsTooltip content={<CustomTooltip />} />
-                                        <Legend />
-                                        {(context?.type === 'group' || context?.type === 'all') && (
-                                            <Line type="monotone" dataKey="Total" stroke="#a29bfe" strokeWidth={3} dot={false} />
-                                        )}
-                                        {lineChartData.lines.map((name, i) => (
-                                            <Line key={name} type="monotone" dataKey={name} stroke={COLORS[i % COLORS.length]} strokeWidth={1.5} dot={false} strokeDasharray={context?.type === 'group' ? '5 5' : undefined} />
-                                        ))}
+                                        <Legend verticalAlign="top" height={36}/>
+                                        <Line 
+                                            yAxisId="left"
+                                            type="monotone" 
+                                            dataKey="portfolio_value" 
+                                            name="Current Value"
+                                            stroke="#6c5ce7" 
+                                            strokeWidth={3} 
+                                            dot={false} 
+                                            activeDot={{ r: 6 }}
+                                        />
+                                        <Line 
+                                            yAxisId="left"
+                                            type="monotone" 
+                                            dataKey="investment_cost" 
+                                            name="Investment"
+                                            stroke="#00b894" 
+                                            strokeWidth={2} 
+                                            strokeDasharray="5 5"
+                                            dot={false} 
+                                        />
+                                        <Line 
+                                            yAxisId="right"
+                                            type="monotone" 
+                                            dataKey="nepse_index" 
+                                            name="NEPSE Index"
+                                            stroke={NEPSE_COLOR} 
+                                            strokeWidth={1.5} 
+                                            dot={false} 
+                                        />
                                     </LineChart>
                                 </ResponsiveContainer>
                             </div>
                         ) : (
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8, color: 'var(--text-secondary)' }}>
-                                <ClockCircleOutlined style={{ fontSize: 32, opacity: 0.3 }} />
-                                <span>Collecting data... Snapshots are recorded daily at 15:30 NPT.</span>
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Chart will appear after 2+ data points.</span>
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16, color: 'var(--text-secondary)', padding: 40 }}>
+                                <LineChartOutlined style={{ fontSize: 48, opacity: 0.1 }} />
+                                <div style={{ textAlign: 'center' }}>
+                                    <p style={{ fontSize: 16, fontWeight: 'bold', margin: '0 0 8px 0' }}>No Historical Data</p>
+                                    <p style={{ fontSize: 13, marginBottom: 20 }}>Historical prices must be downloaded to compute past portfolio values. Go to <b>Prices &rarr; Historical Prices</b> and click <b>Sync Historical Data</b>.</p>
+                                </div>
                             </div>
                         )}
                     </div>

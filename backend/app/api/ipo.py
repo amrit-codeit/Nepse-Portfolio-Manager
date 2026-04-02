@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 import uuid
 import threading
+import time
 from typing import List, Dict
 
 from app.database import get_db
@@ -14,9 +15,35 @@ from app.utils.encryption import decrypt_value
 
 router = APIRouter(prefix="/api/ipo", tags=["IPO"])
 
-# In-memory store for active IPO jobs
-# Key: job_id, Value: {"status": "running|done|error", "message": "", "results": []}
+# In-memory store for active IPO jobs (HIGH-03: bounded with TTL)
+# Key: job_id, Value: {"status": "running|done|error", "message": "", "results": [], "created_at": float}
 IPO_JOBS: Dict[str, dict] = {}
+_IPO_JOBS_MAX_SIZE = 100
+_IPO_JOBS_TTL_SECONDS = 3600  # 1 hour
+
+
+def _cleanup_old_jobs():
+    """Remove completed jobs older than TTL and enforce max size."""
+    now = time.time()
+    # Remove expired completed jobs
+    expired = [
+        jid for jid, job in IPO_JOBS.items()
+        if job.get("status") in ("done", "error")
+        and (now - job.get("created_at", 0)) > _IPO_JOBS_TTL_SECONDS
+    ]
+    for jid in expired:
+        del IPO_JOBS[jid]
+
+    # If still over max size, remove oldest completed jobs
+    if len(IPO_JOBS) > _IPO_JOBS_MAX_SIZE:
+        completed = sorted(
+            [(jid, job.get("created_at", 0)) for jid, job in IPO_JOBS.items()
+             if job.get("status") in ("done", "error")],
+            key=lambda x: x[1]
+        )
+        while len(IPO_JOBS) > _IPO_JOBS_MAX_SIZE and completed:
+            jid, _ = completed.pop(0)
+            del IPO_JOBS[jid]
 
 
 class IpoApplyRequest(BaseModel):
@@ -129,11 +156,15 @@ def apply_ipos(request: IpoApplyRequest):
         raise HTTPException(
             status_code=400, detail="Missing member_ids or ipo_indices")
 
+    # HIGH-03: Clean up old jobs before creating new ones
+    _cleanup_old_jobs()
+
     job_id = str(uuid.uuid4())
     IPO_JOBS[job_id] = {
         "status": "pending",
         "message": "Job queued",
         "results": [],
+        "created_at": time.time(),
     }
 
     # Start detached thread

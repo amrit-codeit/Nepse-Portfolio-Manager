@@ -1,6 +1,6 @@
 """Company management API routes."""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.company import Company
@@ -52,5 +52,5 @@ def get_company(symbol: str, db: Session = Depends(get_db)):
     """Get company by symbol."""
     company = db.query(Company).filter(Company.symbol == symbol.upper()).first()
     if not company:
-        return {"detail": "Company not found"}
+        raise HTTPException(status_code=404, detail="Company not found")
     return CompanyResponse.model_validate(company)

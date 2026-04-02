@@ -62,16 +62,19 @@ def list_holdings(
     for sym, nav in navs_map.items():
         if sym not in prices_map or prices_map[sym] is None:
             prices_map[sym] = nav
-    companies_map = {c.symbol: (c.name, c.sector) for c in db.query(
+    companies_map = {c.symbol: (c.name, c.sector, c.instrument) for c in db.query(
         Company).filter(Company.symbol.in_(all_symbols)).all()}
     members_map = {m.id: m.name for m in db.query(
         Member).filter(Member.id.in_(all_member_ids)).all()}
 
+    from app.services.portfolio_engine import batch_xirr_for_holdings
+    xirrs_map = batch_xirr_for_holdings(db, holdings, prices_map)
+
     result = []
     for h in holdings:
         ltp = prices_map.get(h.symbol)
-        comp_info = companies_map.get(h.symbol) or (h.symbol, "")
-        company_name, sector = comp_info
+        comp_info = companies_map.get(h.symbol) or (h.symbol, "", "")
+        company_name, sector, instrument = comp_info
         member_name = members_map.get(h.member_id) or ""
 
         current_value = h.current_qty * ltp if ltp is not None else None
@@ -84,8 +87,7 @@ def list_holdings(
         if current_value is not None:
             tax_profit = current_value - (h.current_qty * h.tax_wacc)
 
-        from app.services.portfolio_engine import get_xirr_for_holding
-        xirr_val = get_xirr_for_holding(db, h.member_id, h.symbol, current_value or 0)
+        xirr_val = xirrs_map.get((h.member_id, h.symbol), 0.0)
 
         result.append(HoldingResponse(
             id=h.id,
@@ -94,6 +96,7 @@ def list_holdings(
             symbol=h.symbol,
             company_name=company_name,
             sector=sector,
+            instrument=instrument,
             current_qty=h.current_qty,
             wacc=h.wacc,
             tax_wacc=h.tax_wacc,
@@ -182,3 +185,179 @@ def take_snapshot_now(db: Session = Depends(get_db)):
 
     db.commit()
     return {"status": "ok", "snapshots_created": count, "date": today.isoformat()}
+
+
+@router.get("/closed-positions")
+def closed_positions(
+    member_id: Optional[int] = Query(None),
+    member_ids: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """
+    Get fully liquidated (closed) positions — symbols where the user once held
+    shares but has since sold everything (current_qty = 0).
+    Computes realized P&L, holding period, and XIRR for each.
+    """
+    from datetime import date as date_type
+    from sqlalchemy import func, distinct
+    from app.models.transaction import Transaction, TransactionType
+    from app.models.company import Company
+    from app.models.member import Member
+    from app.services.portfolio_engine import calculate_xirr
+
+    # Determine member filter
+    ids_list = None
+    if member_ids:
+        ids_list = [int(x.strip()) for x in member_ids.split(',') if x.strip()]
+
+    # Step 1: Find all (member_id, symbol) pairs that have transactions
+    txn_query = db.query(Transaction)
+    if ids_list:
+        txn_query = txn_query.filter(Transaction.member_id.in_(ids_list))
+    elif member_id:
+        txn_query = txn_query.filter(Transaction.member_id == member_id)
+
+    all_txns = txn_query.order_by(Transaction.txn_date.asc()).all()
+
+    # Step 2: Group transactions by (member_id, symbol)
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for t in all_txns:
+        groups[(t.member_id, t.symbol)].append(t)
+
+    # Step 3: Find which (member, symbol) pairs have zero current holdings
+    held_symbols = set()
+    holdings_query = db.query(Holding)
+    if ids_list:
+        holdings_query = holdings_query.filter(Holding.member_id.in_(ids_list))
+    elif member_id:
+        holdings_query = holdings_query.filter(Holding.member_id == member_id)
+
+    for h in holdings_query.all():
+        if h.current_qty > 0:
+            held_symbols.add((h.member_id, h.symbol))
+
+    # Fetch company and member info
+    all_symbols = list(set(sym for _, sym in groups.keys()))
+    all_member_ids = list(set(mid for mid, _ in groups.keys()))
+    companies_map = {c.symbol: (c.name, c.sector) for c in db.query(
+        Company).filter(Company.symbol.in_(all_symbols)).all()} if all_symbols else {}
+    members_map = {m.id: m.name for m in db.query(
+        Member).filter(Member.id.in_(all_member_ids)).all()} if all_member_ids else {}
+
+    BUY_TYPES = {
+        TransactionType.BUY.value, TransactionType.IPO.value,
+        TransactionType.FPO.value, TransactionType.RIGHT.value,
+        TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value,
+    }
+    SELL_TYPES = {TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value}
+
+    results = []
+    for (mid, sym), txns in groups.items():
+        # Skip if currently held
+        if (mid, sym) in held_symbols:
+            continue
+
+        # Must have at least one sell to be a "closed position"
+        has_sell = any(t.txn_type in SELL_TYPES for t in txns)
+        if not has_sell:
+            continue
+
+        total_buy_cost = 0.0
+        total_buy_qty = 0.0
+        total_sell_proceeds = 0.0
+        total_sell_qty = 0.0
+        dividend_income = 0.0
+        first_buy_date = None
+        last_sell_date = None
+        cashflows = []
+
+        for t in txns:
+            cost = t.total_cost if t.total_cost else ((t.rate or 0) * t.quantity)
+
+            if t.txn_type in BUY_TYPES:
+                total_buy_cost += cost
+                total_buy_qty += t.quantity
+                if not first_buy_date and t.txn_date:
+                    first_buy_date = t.txn_date
+                if cost > 0 and t.txn_date:
+                    cashflows.append((t.txn_date, -cost))
+
+            elif t.txn_type in SELL_TYPES:
+                if cost > 0:
+                    total_sell_proceeds += cost
+                    total_sell_qty += t.quantity
+                    if t.txn_date:
+                        last_sell_date = t.txn_date
+                        cashflows.append((t.txn_date, cost))
+
+            elif t.txn_type == TransactionType.BONUS.value:
+                total_buy_qty += t.quantity
+                # Bonus has no cash outflow
+
+            elif t.txn_type == TransactionType.DIVIDEND.value:
+                dividend_income += (t.amount or 0)
+                if t.amount and t.txn_date:
+                    cashflows.append((t.txn_date, t.amount))
+
+        net_pnl = total_sell_proceeds - total_buy_cost + dividend_income
+        pnl_pct = (net_pnl / total_buy_cost * 100) if total_buy_cost > 0 else 0.0
+
+        holding_days = 0
+        if first_buy_date and last_sell_date:
+            holding_days = (last_sell_date - first_buy_date).days
+
+        xirr_val = calculate_xirr(cashflows) if len(cashflows) >= 2 else 0.0
+
+        comp_info = companies_map.get(sym, (sym, ""))
+        results.append({
+            "member_id": mid,
+            "member_name": members_map.get(mid, ""),
+            "symbol": sym,
+            "company_name": comp_info[0],
+            "sector": comp_info[1],
+            "total_buy_qty": round(total_buy_qty, 4),
+            "total_buy_cost": round(total_buy_cost, 2),
+            "total_sell_qty": round(total_sell_qty, 4),
+            "total_sell_proceeds": round(total_sell_proceeds, 2),
+            "dividend_income": round(dividend_income, 2),
+            "net_pnl": round(net_pnl, 2),
+            "pnl_pct": round(pnl_pct, 2),
+            "first_buy_date": first_buy_date.isoformat() if first_buy_date else None,
+            "last_sell_date": last_sell_date.isoformat() if last_sell_date else None,
+            "holding_days": holding_days,
+            "xirr": xirr_val,
+        })
+
+    # Sort by net P&L descending (best trades first)
+    results.sort(key=lambda x: x["net_pnl"], reverse=True)
+    return results
+
+
+
+@router.get("/computed-history")
+def computed_history(
+    member_id: Optional[int] = Query(None),
+    member_ids: Optional[str] = Query(None),
+    days: int = Query(365),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns a daily series of portfolio value vs investment cost vs NEPSE index.
+    Crucial for performance charts.
+    """
+    from app.services.portfolio_history import PortfolioHistoryService
+    
+    # Parse member IDs
+    ids_list = None
+    if member_ids:
+        ids_list = [int(x.strip()) for x in member_ids.split(',') if x.strip()]
+        
+    service = PortfolioHistoryService(db)
+    history = service.get_computed_history(
+        member_id=member_id,
+        member_ids=ids_list,
+        days=days
+    )
+    
+    return history

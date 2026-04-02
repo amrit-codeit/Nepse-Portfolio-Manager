@@ -12,8 +12,6 @@ import MemberSelector from '../components/MemberSelector';
 import OverviewTab from '../components/dashboard/OverviewTab';
 import PerformanceTab from '../components/dashboard/PerformanceTab';
 import RiskTab from '../components/dashboard/RiskTab';
-import DashboardHoldings from '../components/dashboard/DashboardHoldings';
-
 function Dashboard() {
     const [selectedContext, setSelectedContext] = useState({ type: 'all', id: null, memberIds: [] });
     const [activeTab, setActiveTab] = useState('overview');
@@ -54,15 +52,7 @@ function Dashboard() {
         let sipInv = 0, sipVal = 0, sipPnl = 0, sipTax = 0;
 
         const isSip = (h) => {
-            const priceInfo = pricesData?.find(p => p.symbol === h.symbol);
-            if (priceInfo) {
-                if (priceInfo.instrument === 'Open-End Mutual Fund') return true;
-                if (priceInfo.instrument === 'Equity' || priceInfo.instrument === 'Mutual Fund') return false;
-            }
-            if (h.sector && h.sector.toLowerCase().includes('mutual fund')) {
-                return h.symbol.length > 5;
-            }
-            return false;
+            return h.instrument === 'Open-End Mutual Fund';
         };
 
         (summary.holdings || []).forEach(h => {
@@ -137,43 +127,33 @@ function Dashboard() {
                 key: 'overview',
                 label: <span><AppstoreOutlined /> Overview</span>,
                 children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
-                    <OverviewTab summary={displaySummary} context={selectedContext} members={members} onTabChange={handleTabChange} isSipMode={topLevelTab === 'sips'} />
+                    <OverviewTab summary={displaySummary} context={selectedContext} members={members} onTabChange={handleTabChange} isSipMode={topLevelTab === 'sips'} pricesData={pricesData} />
                 ),
             }
         ];
 
-        if (topLevelTab === 'equity') {
-            items.push(
-                {
-                    key: 'performance',
-                    label: <span><LineChartOutlined /> Performance</span>,
-                    children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
-                        <PerformanceTab 
-                            summary={displaySummary} 
-                            context={selectedContext} 
-                            members={members} 
-                            isSipMode={topLevelTab === 'sips'}
-                            pricesData={pricesData}
-                        />
-                    ),
-                },
-                {
-                    key: 'risk',
-                    label: <span><AlertOutlined /> Risk & Insights</span>,
-                    children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
-                        <RiskTab summary={displaySummary} context={selectedContext} members={members} />
-                    ),
-                }
-            );
-        }
-
-        items.push({
-            key: 'holdings',
-            label: <span><FundOutlined /> Holdings</span>,
-            children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
-                <DashboardHoldings summary={displaySummary} context={selectedContext} isSipMode={topLevelTab === 'sips'} />
-            ),
-        });
+        items.push(
+            {
+                key: 'performance',
+                label: <span><LineChartOutlined /> Performance</span>,
+                children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
+                    <PerformanceTab 
+                        summary={displaySummary} 
+                        context={selectedContext} 
+                        members={members} 
+                        isSipMode={topLevelTab === 'sips'}
+                        pricesData={pricesData}
+                    />
+                ),
+            },
+            {
+                key: 'risk',
+                label: <span><AlertOutlined /> Risk & Insights</span>,
+                children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
+                    <RiskTab summary={displaySummary} context={selectedContext} members={members} />
+                ),
+            }
+        );
 
         return items;
     }, [displaySummary, isLoading, selectedContext, members, handleTabChange, topLevelTab]);

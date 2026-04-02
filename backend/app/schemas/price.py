@@ -53,7 +53,21 @@ class MergedPriceResponse(BaseModel):
     change_pct: Optional[float] = None
     high: Optional[float] = None
     low: Optional[float] = None
+    open_price: Optional[float] = None
+    prev_close: Optional[float] = None
     volume: Optional[int] = None
     updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class PriceHistoryResponse(BaseModel):
+    symbol: str
+    date: datetime
+    open: Optional[float] = None
+    high: Optional[float] = None
+    low: Optional[float] = None
+    close: float
+    volume: Optional[float] = None
 
     model_config = {"from_attributes": True}
