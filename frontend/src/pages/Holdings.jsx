@@ -11,7 +11,7 @@ import {
     TrophyOutlined,
     ClockCircleOutlined,
 } from '@ant-design/icons';
-import { getHoldings, getMembers, getTransactions, getMergedPrices, getClosedPositions } from '../services/api';
+import { getHoldings, getMembers, getTransactions, getMergedPrices, getClosedPositions, syncDividends, getDividends } from '../services/api';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
@@ -76,6 +76,40 @@ function TransactionHistory({ memberId, symbol }) {
             size="small"
             style={{ margin: '8px 0', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}
         />
+    );
+}
+
+function DividendHistory({ memberId, symbol }) {
+    const { data: dividends, isLoading } = useQuery({
+        queryKey: ['dividends', memberId, symbol],
+        queryFn: () => getDividends({ member_id: memberId, symbol, eligible_only: true }).then(r => r.data),
+        enabled: !!symbol && !!memberId,
+    });
+
+    if (!dividends || dividends.length === 0) return null;
+
+    const columns = [
+        { title: 'Fiscal Year', dataIndex: 'fiscal_year', key: 'fy' },
+        { title: 'Book Close', dataIndex: 'book_close_date', key: 'bcd', render: v => v || '—' },
+        { title: 'Cash Div %', dataIndex: 'cash_dividend_percent', key: 'pct', render: v => `${v}%`, align: 'right' },
+        { title: 'Bonus Div %', dataIndex: 'bonus_dividend_percent', key: 'bonus_pct', render: v => `${v}%`, align: 'right' },
+        { title: 'Eligible Qty', dataIndex: 'eligible_quantity', key: 'qty', align: 'right' },
+        { title: 'Net Amount (Rs)', dataIndex: 'total_cash_amount', key: 'amount', align: 'right', render: v => formatNPR(v) },
+    ];
+
+    return (
+        <div style={{ marginTop: 12 }}>
+            <h5 style={{ marginBottom: 8, color: 'var(--accent-green)' }}><TrophyOutlined /> Eligible Cash Dividends</h5>
+            <Table
+                columns={columns}
+                dataSource={dividends}
+                rowKey="id"
+                loading={isLoading}
+                pagination={false}
+                size="small"
+                style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}
+            />
+        </div>
     );
 }
 
@@ -281,6 +315,7 @@ function ClosedPositionsTab({ memberId }) {
                         <div style={{ padding: '0 48px' }}>
                             <h4 style={{ marginBottom: 12 }}><HistoryOutlined /> Transaction History for {record.symbol} ({record.member_name})</h4>
                             <TransactionHistory memberId={record.member_id} symbol={record.symbol} />
+                            <DividendHistory memberId={record.member_id} symbol={record.symbol} />
                         </div>
                     ),
                     rowExpandable: () => true,
@@ -294,12 +329,16 @@ function ClosedPositionsTab({ memberId }) {
 }
 
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { message } from 'antd';
+
 /* ─── Main Holdings Component ──────────────────────── */
 function Holdings() {
     const [memberId, setMemberId] = useState(null);
     const [selectedSector, setSelectedSector] = useState(null);
     const [search, setSearch] = useState('');
     const [activeTab, setActiveTab] = useState('equity');
+    const queryClient = useQueryClient();
 
     const { data: members } = useQuery({
         queryKey: ['members'],
@@ -512,6 +551,20 @@ function Holdings() {
 
     const isClosedTab = activeTab === 'closed';
 
+    const syncDivMutation = useMutation({
+        mutationFn: syncDividends,
+        onSuccess: (res) => {
+            message.success(res.data.message || 'Dividends synced successfully');
+            queryClient.invalidateQueries(['dividends']);
+            queryClient.invalidateQueries(['holdings']);
+            queryClient.invalidateQueries(['closed-positions']);
+        },
+        onError: (e) => {
+            message.error('Failed to sync dividends');
+            console.error(e);
+        }
+    });
+
     return (
         <div className="animate-in">
             <div className="page-header">
@@ -555,11 +608,20 @@ function Holdings() {
                 <div style={{ flexGrow: 1 }} />
 
                 {!isClosedTab && (
-                    <Dropdown menu={{ items: exportItems }} disabled={filtered.length === 0}>
-                        <Button type="primary" icon={<DownloadOutlined />}>
-                            Export
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <Button 
+                            icon={<HistoryOutlined />} 
+                            onClick={() => syncDivMutation.mutate()}
+                            loading={syncDivMutation.isPending}
+                        >
+                            Sync Dividends
                         </Button>
-                    </Dropdown>
+                        <Dropdown menu={{ items: exportItems }} disabled={filtered.length === 0}>
+                            <Button type="primary" icon={<DownloadOutlined />}>
+                                Export
+                            </Button>
+                        </Dropdown>
+                    </div>
                 )}
             </div>
 
@@ -591,6 +653,7 @@ function Holdings() {
                                 <div style={{ padding: '0 48px' }}>
                                     <h4 style={{ marginBottom: 12 }}><HistoryOutlined /> Transaction History for {record.symbol} ({record.member_name})</h4>
                                     <TransactionHistory memberId={record.member_id} symbol={record.symbol} />
+                                    <DividendHistory memberId={record.member_id} symbol={record.symbol} />
                                 </div>
                             ),
                             rowExpandable: () => true,

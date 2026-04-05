@@ -11,6 +11,7 @@ from app.scrapers.price_scraper import scrape_live_prices
 from app.scrapers.meroshare import sync_all_meroshare
 from app.scrapers.issue_autoscraper import fetch_and_update as sync_issue_prices
 from app.scrapers.history_scraper import scrape_historical_prices
+from app.scrapers.dividend_scraper import scrape_and_calculate_dividends
 import traceback
 
 router = APIRouter(prefix="/api/scraper", tags=["Scraping"])
@@ -108,6 +109,21 @@ def trigger_history_sync(db: Session = Depends(get_db)):
         return {
             "status": "success", 
             "message": f"Historical data sync completed. Processed {result} records."
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": str(e)}
+
+
+@router.post("/dividends")
+def trigger_dividend_sync(db: Session = Depends(get_db)):
+    """Scrape cash dividend data and calculate eligibility for all portfolio symbols."""
+    try:
+        result = scrape_and_calculate_dividends(db)
+        return {
+            "status": "success",
+            "message": f"Dividend sync completed. {result['records_saved']} records saved, {result['eligible_records']} with eligibility.",
+            "data": result,
         }
     except Exception as e:
         traceback.print_exc()

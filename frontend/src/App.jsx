@@ -11,9 +11,11 @@ import {
   ThunderboltOutlined,
   ExperimentOutlined,
   InfoCircleOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import Holdings from './pages/Holdings';
+import Dividends from './pages/Dividends';
 import Transactions from './pages/Transactions';
 import Upload from './pages/Upload';
 import Settings from './pages/Settings';
@@ -26,6 +28,7 @@ const { Sider, Content } = Layout;
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
   { key: '/holdings', icon: <FundOutlined />, label: 'Holdings' },
+  { key: '/dividends', icon: <TrophyOutlined />, label: 'Dividends & Yield' },
   { key: '/transactions', icon: <SwapOutlined />, label: 'Transactions' },
   { key: '/prices', icon: <BankOutlined />, label: 'Prices' },
   { key: '/insights', icon: <ExperimentOutlined />, label: 'Insights' },
@@ -84,6 +87,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/holdings" element={<Holdings />} />
+            <Route path="/dividends" element={<Dividends />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/prices" element={<Prices />} />
             <Route path="/insights" element={<Insights />} />

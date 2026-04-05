@@ -8,11 +8,13 @@ unrealized P&L, and aggregating holdings across members.
 from datetime import date
 from scipy.optimize import newton
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.models.holding import Holding
 from app.models.transaction import Transaction, TransactionType
 from app.models.price import LivePrice, NavValue
 from app.models.company import Company
 from app.models.member import Member
+from app.models.dividend import DividendIncome
 from app.schemas.holding import HoldingResponse, PortfolioSummary
 
 
@@ -388,9 +390,7 @@ def get_portfolio_summary(
     dividend_income = 0.0
     
     for t in all_txns:
-        if t.txn_type == TransactionType.DIVIDEND.value:
-            dividend_income += (t.amount or 0)
-        elif t.txn_type in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):
+        if t.txn_type in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):
             net_received = t.total_cost if t.total_cost else ((t.rate or 0) * t.quantity)
             # If sell price is completely missing/zero, skip to avoid treating the whole cost basis as a massive loss
             if net_received <= 0:
@@ -399,6 +399,15 @@ def get_portfolio_summary(
             # Profit = Net Received - (Quantity * WACC at time of sell)
             cost_basis = t.quantity * (t.wacc or 0)
             realized_profit += (net_received - cost_basis)
+
+    # Calculate dividend income accurately from DividendIncome table
+    div_query = db.query(func.coalesce(func.sum(DividendIncome.total_cash_amount), 0))
+    if member_ids:
+        div_query = div_query.filter(DividendIncome.member_id.in_(member_ids))
+    elif member_id:
+        div_query = div_query.filter(DividendIncome.member_id == member_id)
+        
+    dividend_income = div_query.scalar() or 0.0
 
     # Sort by unrealized P&L descending
     holding_responses.sort(key=lambda x: x.unrealized_pnl or 0, reverse=True)

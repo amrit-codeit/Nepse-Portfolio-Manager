@@ -22,6 +22,7 @@ from app.api.config_api import router as config_router
 from app.api.prices import router as prices_router
 from app.api.ipo import router as ipo_router
 from app.api.insights import router as insights_router
+from app.api.dividends import router as dividends_router
 
 
 @asynccontextmanager
@@ -75,6 +76,7 @@ app.include_router(config_router)
 app.include_router(prices_router)
 app.include_router(ipo_router)
 app.include_router(insights_router)
+app.include_router(dividends_router)
 
 
 @app.get("/")

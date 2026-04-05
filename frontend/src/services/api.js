@@ -90,6 +90,11 @@ export const scrapeNav = () => api.post('/scraper/nav');
 export const scrapePrices = () => api.post('/scraper/prices');
 export const syncMeroshare = (memberIds) => api.post('/scraper/meroshare/sync', memberIds ? { member_ids: memberIds } : null);
 export const syncHistory = () => api.post('/scraper/history');
+export const syncDividends = () => api.post('/scraper/dividends');
+
+// --- Dividends ---
+export const getDividends = (params) => api.get('/dividends', { params });
+export const getDividendSummary = (params) => api.get('/dividends/summary', { params });
 
 // --- Health ---
 export const healthCheck = () => api.get('/health');
