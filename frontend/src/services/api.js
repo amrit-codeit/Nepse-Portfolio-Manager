@@ -91,6 +91,7 @@ export const scrapePrices = () => api.post('/scraper/prices');
 export const syncMeroshare = (memberIds) => api.post('/scraper/meroshare/sync', memberIds ? { member_ids: memberIds } : null);
 export const syncHistory = () => api.post('/scraper/history');
 export const syncDividends = () => api.post('/scraper/dividends');
+export const scrapeFundamentals = (symbol) => api.post(`/scraper/fundamentals/${symbol}`);
 
 // --- Dividends ---
 export const getDividends = (params) => api.get('/dividends', { params });
@@ -98,6 +99,9 @@ export const getDividendSummary = (params) => api.get('/dividends/summary', { pa
 
 // --- Health ---
 export const healthCheck = () => api.get('/health');
+
+// --- AI Review ---
+export const getAIReview = (params) => api.post('/ai-review/portfolio', null, { params });
 
 // --- IPO API ---
 export const getOpenIPOs = (member_id) => api.get('/ipo/open', { params: { member_id } });

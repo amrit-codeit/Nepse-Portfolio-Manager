@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.price import PriceHistory
+from app.models.fundamental import StockOverview, FundamentalReport
 import pandas as pd
 import pandas_ta as ta
 
@@ -76,15 +77,36 @@ def get_insights(symbol: str, db: Session = Depends(get_db)):
         "rsi_14": float(rsi_14) if rsi_14 else None
     }
     
-    # Fundamentals are a placeholder for now
-    fundamentals = {
-        "pe_ratio": None,
-        "pbv": None,
-        "eps": None,
-        "npl": None,
-        "dividend_history": []
-    }
-    
+    # 2. Fetch fundamental data from scraped tables
+    overview = db.query(StockOverview).filter_by(symbol=symbol).first()
+    quarterly = (db.query(FundamentalReport)
+                 .filter_by(symbol=symbol)
+                 .order_by(FundamentalReport.quarter.desc())
+                 .all())
+
+    fundamentals = None
+    if overview or quarterly:
+        fundamentals = {
+            "overview": {
+                "pe_ratio": overview.pe_ratio if overview else None,
+                "pb_ratio": overview.pb_ratio if overview else None,
+                "roe_ttm": overview.roe_ttm if overview else None,
+                "eps_ttm": overview.eps_ttm if overview else None,
+                "book_value": overview.book_value if overview else None,
+                "net_profit_ttm": overview.net_profit_ttm if overview else None,
+                "updated_at": overview.updated_at.isoformat() if overview and overview.updated_at else None,
+            },
+            "quarterly": [
+                {
+                    "quarter": r.quarter,
+                    "paid_up_capital": r.paid_up_capital,
+                    "net_profit": r.net_profit,
+                    "sector_metrics": r.sector_metrics or {},
+                }
+                for r in quarterly
+            ],
+        }
+
     return {
         "symbol": symbol,
         "technicals": technicals,

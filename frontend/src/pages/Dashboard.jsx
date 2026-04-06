@@ -6,7 +6,10 @@ import {
     LineChartOutlined,
     AlertOutlined,
     FundOutlined,
+    RiseOutlined,
+    FallOutlined,
 } from '@ant-design/icons';
+import { Tag } from 'antd';
 import { getPortfolioSummary, getMembers, getMergedPrices } from '../services/api';
 import MemberSelector from '../components/MemberSelector';
 import OverviewTab from '../components/dashboard/OverviewTab';
@@ -177,6 +180,36 @@ function Dashboard() {
                         Rs. {(splitSummary.totalValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                 </div>
+
+                {/* Benchmark Comparison */}
+                {summary && (
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 24, padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 12 }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Portfolio XIRR</div>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: summary.portfolio_xirr >= 0 ? '#00b894' : '#d63031' }}>
+                                {summary.portfolio_xirr?.toFixed(2)}%
+                            </div>
+                        </div>
+                        <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>NEPSE XIRR</div>
+                            <div style={{ fontSize: 18, fontWeight: 600 }}>
+                                {summary.nepse_xirr?.toFixed(2)}%
+                            </div>
+                        </div>
+                        <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Market Alpha</div>
+                            <Tag 
+                                color={summary.market_alpha >= 0 ? 'success' : 'error'} 
+                                icon={summary.market_alpha >= 0 ? <RiseOutlined /> : <FallOutlined />}
+                                style={{ fontSize: 14, padding: '2px 10px', borderRadius: 6, fontWeight: 600 }}
+                            >
+                                {summary.market_alpha > 0 ? '+' : ''}{summary.market_alpha?.toFixed(2)}%
+                            </Tag>
+                        </div>
+                    </div>
+                )}
                 
                 {/* Visual Bar */}
                 <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', marginBottom: 16 }}>

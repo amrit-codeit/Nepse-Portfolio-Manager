@@ -27,6 +27,18 @@ class HoldingResponse(BaseModel):
     # Taxable Profit (Current Value - (Qty * Tax WACC))
     tax_profit: Optional[float] = None
     realized_profit: Optional[float] = None
+    # Advanced Technicals
+    sma_50: Optional[float] = None
+    sma_200: Optional[float] = None
+    rsi_14: Optional[float] = None
+    is_technical_downtrend: bool = False
+    
+    # Advanced Fundamentals
+    is_fundamental_risk: bool = False
+    graham_number: Optional[float] = None
+    price_to_graham_ratio: Optional[float] = None
+    
+    # Performance
     xirr: Optional[float] = None
 
     model_config = {"from_attributes": True}
@@ -42,4 +54,7 @@ class PortfolioSummary(BaseModel):
     realized_profit: float = 0
     dividend_income: float = 0
     holdings_count: int = 0
+    portfolio_xirr: float = 0
+    nepse_xirr: float = 0
+    market_alpha: float = 0
     holdings: list[HoldingResponse] = []

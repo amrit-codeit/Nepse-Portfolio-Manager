@@ -12,6 +12,8 @@ from app.scrapers.meroshare import sync_all_meroshare
 from app.scrapers.issue_autoscraper import fetch_and_update as sync_issue_prices
 from app.scrapers.history_scraper import scrape_historical_prices
 from app.scrapers.dividend_scraper import scrape_and_calculate_dividends
+from app.scrapers.fundamental_scraper import scrape_fundamentals
+from app.models.holding import Holding
 import traceback
 
 router = APIRouter(prefix="/api/scraper", tags=["Scraping"])
@@ -124,6 +126,48 @@ def trigger_dividend_sync(db: Session = Depends(get_db)):
             "status": "success",
             "message": f"Dividend sync completed. {result['records_saved']} records saved, {result['eligible_records']} with eligibility.",
             "data": result,
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": str(e)}
+
+
+@router.post("/fundamentals/{symbol}")
+async def trigger_fundamental_sync(symbol: str, db: Session = Depends(get_db)):
+    """Scrape fundamental data for a specific symbol."""
+    try:
+        await scrape_fundamentals(symbol, db)
+        return {
+            "status": "success",
+            "message": f"Fundamental sync completed for {symbol.upper()}.",
+        }
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": str(e)}
+
+
+@router.post("/fundamentals")
+async def trigger_total_fundamental_sync(db: Session = Depends(get_db)):
+    """Scrape fundamental data for ALL symbols in the portfolio holdings."""
+    try:
+        portfolio_symbols = db.query(Holding.symbol).filter(Holding.current_qty > 0).distinct().all()
+        symbols = [s[0] for s in portfolio_symbols if s[0]]
+        
+        if not symbols:
+            return {"status": "success", "message": "No active holdings found to scrape."}
+
+        # We trigger this as a background task if we had one, 
+        # but for simplicity in this dev environment we'll just loop.
+        # Use await since they are async
+        for symbol in symbols:
+            try:
+                await scrape_fundamentals(symbol, db)
+            except Exception as e:
+                print(f"Error scraping {symbol}: {e}")
+        
+        return {
+            "status": "success",
+            "message": f"Bulk fundamental sync completed for {len(symbols)} symbols.",
         }
     except Exception as e:
         traceback.print_exc()

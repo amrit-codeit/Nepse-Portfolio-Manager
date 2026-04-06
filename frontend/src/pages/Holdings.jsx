@@ -10,8 +10,14 @@ import {
     ArrowDownOutlined,
     TrophyOutlined,
     ClockCircleOutlined,
+    CalculatorOutlined,
+    WarningOutlined,
+    AlertOutlined,
+    RocketOutlined,
 } from '@ant-design/icons';
 import { getHoldings, getMembers, getTransactions, getMergedPrices, getClosedPositions, syncDividends, getDividends } from '../services/api';
+import { Modal, Form, InputNumber, Divider, Space, Typography, Alert } from 'antd';
+const { Text, Title, Paragraph } = Typography;
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
@@ -332,11 +338,117 @@ function ClosedPositionsTab({ memberId }) {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 
+/* ─── Averaging Down Calculator Modal ──────────────── */
+function AveragingCalculatorModal({ visible, onCancel, holding }) {
+    const [form] = Form.useForm();
+    const [results, setResults] = useState(null);
+
+    const onValuesChange = (_, allValues) => {
+        if (!holding) return;
+        const newQty = allValues.qty || 0;
+        const newRate = allValues.rate || 0;
+        
+        const totalQty = holding.current_qty + newQty;
+        const totalInvestment = holding.total_investment + (newQty * newRate);
+        const newWacc = totalInvestment / totalQty;
+        
+        // Calculate New YoC (assuming dividend amount per share remains constant)
+        const dps = holding.yoc ? (holding.yoc * holding.wacc / 100) : 0;
+        const newYoC = newWacc > 0 ? (dps / newWacc * 100) : 0;
+        
+        setResults({
+            newWacc,
+            totalQty,
+            totalValue: totalQty * (holding.ltp || newRate),
+            newYoC,
+            waccReduction: holding.wacc - newWacc
+        });
+    };
+
+    if (!holding) return null;
+
+    const isOvervalued = holding.graham_number && (results?.newRate || holding.ltp) > holding.graham_number;
+
+    return (
+        <Modal
+            title={<><CalculatorOutlined /> Averaging Down Calculator: {holding.symbol}</>}
+            open={visible}
+            onCancel={onCancel}
+            footer={null}
+            width={450}
+        >
+            <Alert 
+                type={holding.is_fundamental_risk ? "error" : "info"}
+                showIcon
+                message={holding.is_fundamental_risk ? "High Fundamental Risk!" : "Graham Analysis"}
+                description={
+                    holding.is_fundamental_risk 
+                    ? `Sector-specific risks detected (NPL/Reserves). Adding more might be risky.`
+                    : `Fair Value (Graham): Rs. ${holding.graham_number?.toFixed(2) || 'N/A'}`
+                }
+                style={{ marginBottom: 20 }}
+            />
+
+            {isOvervalued && (
+                <Alert 
+                    type="warning"
+                    showIcon
+                    icon={<WarningOutlined />}
+                    message="Overvaluation Warning"
+                    description="Current price is above Graham's Number. You are averaging up in a premium zone."
+                    style={{ marginBottom: 20 }}
+                />
+            )}
+
+            <Form form={form} layout="vertical" onValuesChange={onValuesChange}>
+                <Row gutter={16}>
+                    <Col span={12}>
+                        <Form.Item label="Quantity to Buy" name="qty">
+                            <InputNumber style={{ width: '100%' }} min={1} placeholder="Units" />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item label="At Rate" name="rate">
+                            <InputNumber style={{ width: '100%' }} min={1} placeholder="Price" defaultValue={holding.ltp} />
+                        </Form.Item>
+                    </Col>
+                </Row>
+            </Form>
+
+            {results && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 20, borderRadius: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <Text type="secondary">New WACC</Text>
+                        <Text strong style={{ fontSize: 18, color: 'var(--accent-secondary)' }}>
+                            Rs. {results.newWacc.toFixed(2)}
+                            {results.waccReduction > 0 && (
+                                <Text style={{ fontSize: 12, color: 'var(--accent-green)', marginLeft: 8 }}>
+                                    (-{results.waccReduction.toFixed(2)})
+                                </Text>
+                            )}
+                        </Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <Text type="secondary">New Projected YoC</Text>
+                        <Text strong style={{ color: 'var(--accent-primary)' }}>{results.newYoC.toFixed(2)}%</Text>
+                    </div>
+                    <Divider style={{ margin: '12px 0' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text type="secondary">Total Quantity</Text>
+                        <Text strong>{results.totalQty}</Text>
+                    </div>
+                </div>
+            )}
+        </Modal>
+    );
+}
+
 /* ─── Main Holdings Component ──────────────────────── */
 function Holdings() {
     const [memberId, setMemberId] = useState(null);
     const [selectedSector, setSelectedSector] = useState(null);
     const [search, setSearch] = useState('');
+    const [holdingForCalc, setHoldingForCalc] = useState(null);
     const [activeTab, setActiveTab] = useState('equity');
     const queryClient = useQueryClient();
 
@@ -464,6 +576,16 @@ function Holdings() {
                 </span>
             ) : '—',
             sorter: (a, b) => (a.xirr || 0) - (b.xirr || 0),
+        },
+        {
+            title: '', key: 'calc', width: 50,
+            render: (_, r) => (
+                <Button 
+                    type="text" 
+                    icon={<CalculatorOutlined style={{ color: 'var(--text-muted)' }} />} 
+                    onClick={() => setHoldingForCalc(r)}
+                />
+            )
         }
     ];
 
@@ -480,6 +602,29 @@ function Holdings() {
         {
             title: 'LTP', dataIndex: 'ltp', key: 'ltp', align: 'right',
             render: (v) => v?.toFixed(2) || '—', sorter: (a, b) => a.ltp - b.ltp,
+        },
+        {
+            title: 'Graham Val.', dataIndex: 'graham_number', key: 'graham', align: 'right',
+            render: (v, r) => v ? (
+                <Tooltip title={`Graham: ${v.toFixed(2)} (Gap: ${((r.ltp - v) / v * 100).toFixed(1)}%)`}>
+                    <Tag color={r.ltp > v ? 'error' : 'success'} style={{ fontWeight: 600 }}>
+                        {v.toFixed(0)}
+                    </Tag>
+                </Tooltip>
+            ) : '—'
+        },
+        {
+            title: 'Risk Check', key: 'risk', align: 'center', width: 90,
+            render: (_, r) => (
+                <Space size={4}>
+                    <Tooltip title={r.is_fundamental_risk ? "Fundamental Risk (NPL/Reserves)" : "Fundamentals OK"}>
+                        <Tag color={r.is_fundamental_risk ? "error" : "success"} style={{ borderRadius: '50%', width: 8, height: 8, padding: 0 }} />
+                    </Tooltip>
+                    <Tooltip title={r.is_technical_downtrend ? "Technical Downtrend (LTP < SMA 200)" : "Technical Trend OK"}>
+                        <Tag color={r.is_technical_downtrend ? "warning" : "success"} style={{ borderRadius: '50%', width: 8, height: 8, padding: 0 }} />
+                    </Tooltip>
+                </Space>
+            )
         }
     ];
 
@@ -661,6 +806,12 @@ function Holdings() {
                     />
                 </div>
             )}
+
+            <AveragingCalculatorModal 
+                visible={!!holdingForCalc}
+                holding={holdingForCalc}
+                onCancel={() => setHoldingForCalc(null)}
+            />
         </div>
     );
 }

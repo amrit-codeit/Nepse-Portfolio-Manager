@@ -11,6 +11,23 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
     ResponsiveContainer, Cell, ReferenceLine,
 } from 'recharts';
+import { Table, Tag, Tooltip, Space, Button, Card, Typography, Spin, Collapse, Divider } from 'antd';
+import { 
+    CheckCircleOutlined,
+    CloseCircleOutlined,
+    InfoCircleOutlined,
+    RobotOutlined,
+    ThunderboltOutlined,
+    LoadingOutlined,
+    SyncOutlined,
+    RocketOutlined,
+    ArrowDownOutlined,
+} from '@ant-design/icons';
+import { getAIReview } from '../../services/api';
+import { useState } from 'react';
+
+const { Paragraph, Text, Title } = Typography;
+const { Panel } = Collapse;
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
@@ -144,8 +161,94 @@ export default function RiskTab({ summary, context, members }) {
 
     const COLORS = ['#6c5ce7', '#00b894', '#fdcb6e', '#e17055', '#0984e3', '#d63031', '#e84393', '#00cec9'];
 
+    const matrixColumns = [
+        {
+            title: 'Symbol',
+            key: 'symbol',
+            render: (_, h) => (
+                <div>
+                    <div style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>{h.symbol}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{h.sector}</div>
+                </div>
+            )
+        },
+        {
+            title: 'Security Status',
+            key: 'status',
+            render: (_, h) => {
+                let status = { label: 'Hold', color: 'blue', emoji: '✅' };
+                if (h.is_fundamental_risk && h.is_technical_downtrend) {
+                    status = { label: 'Strong Sell', color: '#d63031', emoji: '🚨' };
+                } else if (h.is_fundamental_risk && !h.is_technical_downtrend) {
+                    status = { label: 'Value Trap', color: '#fdcb6e', emoji: '⚠️' };
+                } else if (!h.is_fundamental_risk && h.is_technical_downtrend) {
+                    status = { label: 'Tech. Correction', color: '#0984e3', emoji: '📉' };
+                } else {
+                    status = { label: 'Clear', color: '#00b894', emoji: '✅' };
+                }
+                return (
+                    <Space>
+                        <span style={{ fontSize: 16 }}>{status.emoji}</span>
+                        <span style={{ fontWeight: 600, color: status.color, fontSize: 12 }}>{status.label}</span>
+                    </Space>
+                );
+            }
+        },
+        {
+            title: 'Risk Check',
+            key: 'risk',
+            render: (_, h) => (
+                <Space direction="vertical" size={2}>
+                    {h.is_fundamental_risk ? (
+                        <Tag color="error" style={{ margin: 0, border: 'none', background: 'rgba(214, 48, 49, 0.15)', color: '#ff7675' }}>⚠️ Fund. Risk</Tag>
+                    ) : (
+                        <Tag color="success" style={{ margin: 0, border: 'none', background: 'rgba(0, 184, 148, 0.1)', color: '#55efc4' }}>✓ Fund. OK</Tag>
+                    )}
+                    {h.is_technical_downtrend ? (
+                        <Tag color="warning" style={{ margin: 0, border: 'none', background: 'rgba(253, 203, 110, 0.15)', color: '#ffeaa7' }}>📉 Tech. Down</Tag>
+                    ) : (
+                        <Tag color="success" style={{ margin: 0, border: 'none', background: 'rgba(0, 184, 148, 0.1)', color: '#55efc4' }}>✓ Tech. OK</Tag>
+                    )}
+                </Space>
+            )
+        },
+        {
+            title: 'LTP',
+            key: 'ltp',
+            align: 'right',
+            render: (_, h) => <span style={{ fontWeight: 600 }}>{formatNPR(h.ltp)}</span>
+        },
+        {
+            title: 'Graham P.',
+            key: 'graham',
+            align: 'right',
+            render: (_, h) => <span style={{ color: 'var(--text-secondary)' }}>{h.graham_number ? h.graham_number.toFixed(0) : '—'}</span>
+        },
+        {
+            title: 'Value Gap',
+            key: 'gap',
+            align: 'right',
+            render: (_, h) => {
+                const grahamGap = h.graham_number ? ((h.ltp - h.graham_number) / h.graham_number * 100) : null;
+                if (grahamGap === null) return '—';
+                return (
+                    <span style={{ color: grahamGap > 0 ? 'var(--accent-red)' : 'var(--accent-green)', fontWeight: 600 }}>
+                        {grahamGap > 0 ? '+' : ''}{grahamGap.toFixed(1)}%
+                    </span>
+                );
+            }
+        },
+        {
+            title: 'Proj. YoC',
+            key: 'yoc',
+            align: 'right',
+            render: (_, h) => <span style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>{(h.yoc || 0).toFixed(2)}%</span>
+        }
+    ];
+
     return (
         <div className="animate-in">
+
             {/* Insights Panel */}
             <div style={{ marginBottom: 24 }}>
                 <div className="section-title"><BulbOutlined /> Auto-Generated Insights</div>
@@ -198,6 +301,26 @@ export default function RiskTab({ summary, context, members }) {
                     </div>
                 </Col>
             </Row>
+
+            {/* Value-Risk Matrix Table */}
+            <div className="stat-card" style={{ padding: 0, marginBottom: 24, overflow: 'hidden' }}>
+                <div style={{ padding: '16px 24px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: 16, fontWeight: 600 }}>
+                        <ExperimentOutlined /> Value-Risk Matrix
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        <InfoCircleOutlined /> Graham's Number based valuation vs Technical Trends
+                    </div>
+                </div>
+                <Table 
+                    columns={matrixColumns} 
+                    dataSource={summary.holdings} 
+                    rowKey="id" 
+                    pagination={{ pageSize: 15 }} 
+                    size="middle" 
+                    className="portfolio-table"
+                />
+            </div>
 
             {/* Sector Concentration Bar */}
             <div className="chart-card" style={{ height: Math.max(300, sectorData.length * 45 + 80) }}>

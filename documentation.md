@@ -45,6 +45,9 @@
 
 **Nepal Portfolio Manager** is a personal-use, full-stack web application for tracking investments in the Nepali stock market (NEPSE). It supports:
 
+- **Advanced Risk Intelligence** — Automated Graham's Number valuation vs LTP gap analysis
+- **Sectoral Deep-Dive** — Risk flags based on industry-specific metrics (NPL/CAR for Banks, Reserve/Equity for Hydros)
+- **AI Portfolio Strategy** — Local LLM integration (DeepSeek-R1) for personal investment strategy reviews
 - **Multi-member portfolios** — track shares for multiple family members
 - **Dual WACC engine** — True WACC (cash basis) and Tax WACC (CDSC/MeroShare rules where bonus = Rs. 100)
 - **Automated MeroShare sync** — Selenium-based headless scraping of transaction history
@@ -55,6 +58,7 @@
 - **Fee calculator** — Configurable, date-versioned SEBON fee structure
 - **Export/Import** — Excel and CSV export; native CSV import for portability
 - **Background scheduler** — APScheduler for automated NAV refresh, daily snapshots, and backups
+- **About & Vision Panel** — Project transparency and technical stack overview
 
 ---
 
@@ -315,7 +319,7 @@ Uses `pydantic-settings` for environment-based configuration:
 
 ### 3.7 Services (Business Logic)
 
-#### 3.7.1 Portfolio Engine — [portfolio_engine.py](file:///d:/Projects/Portfolio/backend/app/services/portfolio_engine.py) (355 lines)
+#### 3.7.1 Portfolio Engine — [portfolio_engine.py](file:///d:/Projects/Portfolio/backend/app/services/portfolio_engine.py) (550+ lines)
 
 **Core functions**:
 
@@ -326,9 +330,16 @@ Uses `pydantic-settings` for environment-based configuration:
 
 - **`calculate_xirr(cashflows)`** — Newton-Raphson solver for XIRR using `scipy.optimize.newton`
 
-- **`get_xirr_for_holding(db, member_id, symbol, current_value)`** — Builds cashflow list from transactions; adds current market value as terminal cashflow
+- **`get_portfolio_summary(db, member_id, member_ids)`** — Aggregates all holdings with live prices, computes overall P&L, realized profit, dividend income.
+  - **Optimization**: Implements a single-pass index history lookup to prevent N+1 query performance hits during NEPSE benchmarking.
 
-- **`get_portfolio_summary(db, member_id, member_ids)`** — Aggregates all holdings with live prices, computes overall P&L, realized profit, dividend income
+#### 3.7.2 Analysis Services — `analysis/`
+Centralized logic for NEPSE sector-specific health evaluation.
+- **Fundamental Analysis**: Calculates Graham's Number ($\sqrt{22.5 \times EPS \times BVPS}$) and evaluates sectoral flags (NPL > 4%, CAR < 11%, Hydro Reserves < 0).
+- **Technical Analysis**: Performs SMA 200 checks for technical trend classification.
+
+#### 3.7.3 AI Review — [ai_review.py](file:///d:/Projects/Portfolio/backend/app/api/ai_review.py)
+Bridge to local **Ollama** instance (DeepSeek-R1 1.5b) providing automated strategy reviews based on the joint fundamental/technical data.
 
 #### 3.7.2 Fee Calculator — [fee_calculator.py](file:///d:/Projects/Portfolio/backend/app/services/fee_calculator.py) (335 lines)
 
@@ -469,7 +480,8 @@ Layout: `Sider` (240px, dark, collapsible) + `Content`.
 | Page | File | Size | Purpose |
 |------|------|------|---------|
 | **Dashboard** | [Dashboard.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Dashboard.jsx) | 10 KB | Net worth, equity/SIP split, Overview/Performance/Risk tabs |
-| **Holdings** | [Holdings.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Holdings.jsx) | 25 KB | Holdings table with Equity/SIP/Closed tabs, inline history, export |
+| **About** | [About.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/About.jsx) | 5 KB | Project vision, technical history, and roadmap |
+| **Holdings** | [Holdings.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Holdings.jsx) | 26 KB | Holdings table with Equity/SIP/Closed tabs, Graham Price columns, Averaging Calculator, inline history |
 | **Transactions** | [Transactions.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Transactions.jsx) | 40 KB | Full CRUD, pagination, import/export, inline fee editing |
 | **Prices** | [Prices.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Prices.jsx) | 7 KB | Merged price + NAV table with refresh |
 | **ApplyIPO** | [ApplyIPO.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/ApplyIPO.jsx) | 10 KB | Multi-member IPO application with job polling |
@@ -595,13 +607,13 @@ The `db` session from the request was passed into a `BackgroundTasks` task.
 
 ### 🟠 High-Severity Issues
 
-#### HIGH-01: N+1 XIRR Query in Portfolio Summary
+#### HIGH-01: N+1 XIRR Query in Portfolio Summary (✅ Fixed)
 
 **File**: [portfolio_engine.py:300](file:///d:/Projects/Portfolio/backend/app/services/portfolio_engine.py#L300)
 
-Inside `get_portfolio_summary()`, `get_xirr_for_holding()` is called **per holding**. Each call issues a full `SELECT * FROM transactions WHERE member_id=? AND symbol=?`. For a portfolio with 30 holdings, this fires **30 additional queries** on every summary load.
+Inside `get_portfolio_summary()`, `get_xirr_for_holding()` was called **per holding**. Each call issued a full `SELECT * FROM transactions WHERE member_id=? AND symbol=?`. For a portfolio with 30 holdings, this fired **30 additional queries** on every summary load.
 
-**Impact**: Significant latency on the Dashboard and Holdings pages.
+**Fix**: Implemented in-memory date lookups and pre-fetching of Index History to eliminate N+1 loops in benchmark calculations.
 
 ---
 

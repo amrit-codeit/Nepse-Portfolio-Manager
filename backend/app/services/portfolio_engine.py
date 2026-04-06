@@ -16,6 +16,10 @@ from app.models.company import Company
 from app.models.member import Member
 from app.models.dividend import DividendIncome
 from app.schemas.holding import HoldingResponse, PortfolioSummary
+from app.services.analysis.fundamental import calculate_graham_number, is_overvalued, analyze_sector_risk
+from app.services.analysis.technical import is_technical_downtrend
+import pandas as pd
+import pandas_ta as ta
 
 
 def recalculate_holdings(db: Session, member_id: int, symbol: str):
@@ -322,6 +326,46 @@ def get_portfolio_summary(
     members_map = {m.id: m.name for m in db.query(
         Member).filter(Member.id.in_(all_member_ids)).all()}
 
+    # Batch fetch technical indicators (SMA/RSI) from PriceHistory
+    from app.models.price import PriceHistory
+    # We need ~250 trading days for 200 EMA
+    import datetime
+    
+    # Pre-fetch technicals for all symbols
+    tech_map = {}
+    for sym in all_symbols:
+        # Fetching 250 rows for each might be slow in a loop, but better than query per holding
+        # A truly optimized version would use a subquery/window function for all symbols at once.
+        # But since holdings_count is usually ~20-30, we'll do this.
+        prices = db.query(PriceHistory).filter(PriceHistory.symbol==sym).order_by(PriceHistory.date.desc()).limit(250).all()
+        if len(prices) >= 50:
+            pdf = pd.DataFrame([{"close": p.close} for p in prices[::-1]])
+            pdf.ta.ema(length=50, append=True)
+            pdf.ta.ema(length=200, append=True)
+            pdf.ta.rsi(length=14, append=True)
+            row = pdf.iloc[-1]
+            tech_map[sym] = {
+                "sma_50": float(row.get('EMA_50')) if not pd.isna(row.get('EMA_50')) else None,
+                "sma_200": float(row.get('EMA_200')) if not pd.isna(row.get('EMA_200')) else None,
+                "rsi_14": float(row.get('RSI_14')) if not pd.isna(row.get('RSI_14')) else None
+            }
+
+    # Batch fetch fundamental reports
+    from app.models.fundamental import StockOverview, FundamentalReport
+    overview_map = {o.symbol: o for o in db.query(StockOverview).filter(StockOverview.symbol.in_(all_symbols)).all()}
+    
+    # Group quarterly reports by symbol
+    q_reports_all = db.query(FundamentalReport).filter(FundamentalReport.symbol.in_(all_symbols)).order_by(FundamentalReport.quarter.desc()).all()
+    q_map = {}
+    for r in q_reports_all:
+        if r.symbol not in q_map: q_map[r.symbol] = []
+        q_map[r.symbol].append({
+            "quarter": r.quarter,
+            "paid_up_capital": r.paid_up_capital,
+            "net_profit": r.net_profit,
+            "sector_metrics": r.sector_metrics or {}
+        })
+
     # HIGH-01: Precompute XIRR for all holdings in a single batch query
     xirr_map = batch_xirr_for_holdings(db, holdings, prices_map)
 
@@ -374,7 +418,31 @@ def get_portfolio_summary(
                     unrealized_pnl, 2) if unrealized_pnl else None,
                 pnl_pct=round(pnl_pct, 2) if pnl_pct else None,
                 tax_profit=round(tax_profit, 2),
-                xirr=xirr_map.get((h.member_id, h.symbol), 0.0)
+                xirr=xirr_map.get((h.member_id, h.symbol), 0.0),
+                
+                # New Analysis Metrics
+                sma_50=tech_map.get(h.symbol, {}).get("sma_50"),
+                sma_200=tech_map.get(h.symbol, {}).get("sma_200"),
+                rsi_14=tech_map.get(h.symbol, {}).get("rsi_14"),
+                is_technical_downtrend=is_technical_downtrend(ltp, tech_map.get(h.symbol, {}).get("sma_200")),
+                
+                graham_number=calculate_graham_number(
+                    overview_map.get(h.symbol).eps_ttm if overview_map.get(h.symbol) else None,
+                    overview_map.get(h.symbol).book_value if overview_map.get(h.symbol) else None
+                ),
+                price_to_graham_ratio=round(ltp / calculate_graham_number(
+                    overview_map.get(h.symbol).eps_ttm if overview_map.get(h.symbol) else None,
+                    overview_map.get(h.symbol).book_value if overview_map.get(h.symbol) else None
+                ), 2) if ltp and calculate_graham_number(
+                    overview_map.get(h.symbol).eps_ttm if overview_map.get(h.symbol) else None,
+                    overview_map.get(h.symbol).book_value if overview_map.get(h.symbol) else None
+                ) else None,
+                
+                is_fundamental_risk=analyze_sector_risk(
+                    sector,
+                    {}, # Reserved
+                    q_map.get(h.symbol, [])
+                )
             )
         )
 
@@ -417,16 +485,16 @@ def get_portfolio_summary(
     overall_pnl_pct = (overall_pnl / total_investment *
                        100) if total_investment > 0 else 0
 
-    member_name = "All Members"
+    summary_member_name = "All Members"
     if member_ids:
-        member_name = f"Group ({len(member_ids)} members)"
+        summary_member_name = f"Group ({len(member_ids)} members)"
     elif member_id:
         member = db.query(Member).filter(Member.id == member_id).first()
-        member_name = member.name if member else "Unknown"
+        summary_member_name = member.name if member else "Unknown"
 
-    return PortfolioSummary(
+    summary = PortfolioSummary(
         member_id=member_id,
-        member_name=member_name,
+        member_name=summary_member_name,
         total_investment=round(total_investment, 2),
         current_value=round(total_current_value, 2),
         unrealized_pnl=round(overall_pnl, 2),
@@ -434,5 +502,60 @@ def get_portfolio_summary(
         realized_profit=round(realized_profit, 2),
         dividend_income=round(dividend_income, 2),
         holdings_count=len(holding_responses),
+        portfolio_xirr=0, # Computed below
+        nepse_xirr=0,     # Computed below
+        market_alpha=0,   # Computed below
         holdings=holding_responses,
     )
+
+    # Compute Benchmark Comparison
+    from app.services.portfolio_history import PortfolioHistoryService
+    history_svc = PortfolioHistoryService(db)
+    hist = history_svc.get_computed_history(member_id, member_ids, days=365)
+    
+    if len(hist) >= 2:
+        p_cashflows = []
+        for t in all_txns:
+            if not t.txn_date: continue
+            cost = t.total_cost if t.total_cost else (t.amount or 0)
+            if t.txn_type in (TransactionType.BUY.value, TransactionType.IPO.value, TransactionType.FPO.value, TransactionType.RIGHT.value, TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value):
+                p_cashflows.append((t.txn_date, -cost))
+            elif t.txn_type in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):
+                p_cashflows.append((t.txn_date, cost))
+            elif t.txn_type == TransactionType.DIVIDEND.value and t.amount:
+                p_cashflows.append((t.txn_date, t.amount))
+                
+        if total_current_value > 0:
+            p_cashflows.append((date.today(), total_current_value))
+            
+        summary.portfolio_xirr = calculate_xirr(p_cashflows)
+        
+        # Benchmark cashflows
+        bn_cashflows = []
+        from app.models.price import IndexHistory
+        
+        # Load all index history into memory for O(1) lookup
+        all_indices = db.query(IndexHistory.date, IndexHistory.close).order_by(IndexHistory.date.desc()).all()
+        idx_today_val = all_indices[0].close if all_indices else 2000
+        
+        # Helper for closest date index
+        def get_index_close(target_date):
+            for d, c in all_indices:
+                if d <= target_date:
+                    return c
+            return 2000
+        
+        units = 0
+        for t_date, amt in p_cashflows:
+            if amt < 0: # Investment
+                inv_amt = abs(amt)
+                idx_at_val = get_index_close(t_date)
+                units += inv_amt / idx_at_val
+                bn_cashflows.append((t_date, -inv_amt))
+        
+        
+        bn_cashflows.append((date.today(), units * idx_today_val))
+        summary.nepse_xirr = calculate_xirr(bn_cashflows)
+        summary.market_alpha = round(summary.portfolio_xirr - summary.nepse_xirr, 2)
+        
+    return summary

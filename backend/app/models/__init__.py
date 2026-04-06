@@ -5,6 +5,7 @@ from app.models.holding import Holding
 from app.models.price import LivePrice, NavValue, FeeConfig, IssuePrice, PriceHistory, IndexHistory
 from app.models.portfolio_snapshot import PortfolioSnapshot
 from app.models.dividend import DividendIncome
+from app.models.fundamental import StockOverview, FundamentalReport
 
 __all__ = [
     "Member",
@@ -20,4 +21,6 @@ __all__ = [
     "IndexHistory",
     "PortfolioSnapshot",
     "DividendIncome",
+    "StockOverview",
+    "FundamentalReport",
 ]

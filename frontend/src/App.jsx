@@ -22,6 +22,7 @@ import Settings from './pages/Settings';
 import Prices from './pages/Prices';
 import ApplyIPO from './pages/ApplyIPO';
 import Insights from './pages/Insights';
+import About from './pages/About';
 
 const { Sider, Content } = Layout;
 
@@ -35,6 +36,7 @@ const menuItems = [
   { key: '/apply-ipo', icon: <ThunderboltOutlined />, label: 'Apply IPO' },
   { key: '/upload', icon: <UploadOutlined />, label: 'Sync & Credentials' },
   { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
+  { key: '/about', icon: <InfoCircleOutlined />, label: 'About' },
 ];
 
 function App() {
@@ -94,6 +96,7 @@ function App() {
             <Route path="/apply-ipo" element={<ApplyIPO />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/about" element={<About />} />
           </Routes>
         </Content>
       </Layout>

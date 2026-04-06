@@ -2,13 +2,14 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
     Card, Row, Col, Select, Empty, Spin, Tag, Progress, Descriptions, Tooltip, Divider, Space,
+    Button, message, Tabs,
 } from 'antd';
 import {
     SearchOutlined, FundOutlined, LineChartOutlined, BarChartOutlined,
     RiseOutlined, FallOutlined, ExperimentOutlined, InfoCircleOutlined,
-    DashboardOutlined, ThunderboltOutlined, StockOutlined,
+    DashboardOutlined, ThunderboltOutlined, StockOutlined, SyncOutlined,
 } from '@ant-design/icons';
-import { getCompanies, getInsights } from '../services/api';
+import { getCompanies, getInsights, scrapeFundamentals } from '../services/api';
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
@@ -33,113 +34,46 @@ function getRSILabel(rsi) {
 
 export default function Insights() {
     const [selectedSymbol, setSelectedSymbol] = useState(null);
+    const [activeTab, setActiveTab] = useState('technical');
 
     const { data: companies, isLoading: loadingCompanies } = useQuery({
         queryKey: ['companies', 'all'],
         queryFn: () => getCompanies({ limit: 1000 }).then(r => r.data.companies),
     });
 
-    const { data: insightsData, isLoading: loadingInsights, isFetching: fetchingInsights } = useQuery({
+    const { data: insightsData, isLoading: loadingInsights, isFetching: fetchingInsights, refetch: refetchInsights } = useQuery({
         queryKey: ['insights', selectedSymbol],
         queryFn: () => getInsights(selectedSymbol).then(r => r.data),
         enabled: !!selectedSymbol,
     });
 
+    const [isScraping, setIsScraping] = useState(false);
+
+    const handleScrape = async () => {
+        if (!selectedSymbol) return;
+        setIsScraping(true);
+        const hide = message.loading(`Scraping fundamental data for ${selectedSymbol}...`, 0);
+        try {
+            await scrapeFundamentals(selectedSymbol);
+            message.success(`Data updated for ${selectedSymbol}`);
+            refetchInsights();
+        } catch (error) {
+            message.error(`Failed to scrape ${selectedSymbol}: ${error.message || 'Unknown error'}`);
+        } finally {
+            hide();
+            setIsScraping(false);
+        }
+    };
+
     const tech = insightsData?.technicals;
     const fund = insightsData?.fundamentals;
 
-    return (
-        <div className="animate-in">
-            {/* Page Header */}
-            <div className="page-header">
-                <h1>Market Insights</h1>
-                <p className="subtitle">Technical analysis and market intelligence for NEPSE securities</p>
-            </div>
-
-            {/* Symbol Search */}
-            <Card size="small" className="filter-card" style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
-                    <div style={{ width: 400 }}>
-                        <span style={{ display: 'block', marginBottom: 4, fontSize: '0.8rem', opacity: 0.6 }}>
-                            Search Symbol
-                        </span>
-                        <Select
-                            showSearch
-                            style={{ width: '100%' }}
-                            placeholder="Type to search symbol..."
-                            optionFilterProp="children"
-                            loading={loadingCompanies}
-                            onChange={(v) => setSelectedSymbol(v)}
-                            value={selectedSymbol}
-                            size="large"
-                            suffixIcon={<SearchOutlined />}
-                        >
-                            {companies?.map(c => (
-                                <Select.Option key={c.symbol} value={c.symbol}>
-                                    {c.symbol} — {c.name}
-                                </Select.Option>
-                            ))}
-                        </Select>
-                    </div>
-                    {selectedSymbol && (
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', paddingBottom: 6 }}>
-                            <InfoCircleOutlined style={{ marginRight: 6 }} />
-                            Technical indicators are computed from locally stored historical price data.
-                        </div>
-                    )}
-                </div>
-            </Card>
-
-            {/* Content Area */}
-            {!selectedSymbol ? (
-                <div style={{ textAlign: 'center', padding: '80px 0' }}>
-                    <FundOutlined style={{ fontSize: 64, opacity: 0.08, marginBottom: 20, display: 'block' }} />
-                    <Empty
-                        description={
-                            <span style={{ color: 'var(--text-secondary)' }}>
-                                Select a symbol above to view technical analysis and market insights
-                            </span>
-                        }
-                    />
-                </div>
-            ) : (loadingInsights || fetchingInsights) ? (
-                <div style={{ textAlign: 'center', padding: '80px 0' }}>
-                    <Spin size="large" tip="Crunching numbers..." />
-                </div>
-            ) : insightsData?.error ? (
-                <Card className="stat-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-                    <ExperimentOutlined style={{ fontSize: 48, opacity: 0.15, marginBottom: 16, display: 'block' }} />
-                    <p style={{ fontSize: 16, fontWeight: 600 }}>{insightsData.error}</p>
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                        Go to Prices → Historical Prices tab and click "Sync Historical Data" to download OHLCV data first.
-                    </p>
-                </Card>
-            ) : (
-                <div>
-                    {/* Symbol Header */}
-                    <div className="stat-card" style={{ marginBottom: 24, padding: '20px 24px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                            <div>
-                                <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-secondary)' }}>
-                                    {selectedSymbol}
-                                </div>
-                                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                                    {companies?.find(c => c.symbol === selectedSymbol)?.name}
-                                </div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: 28, fontWeight: 700 }}>
-                                    {tech ? formatNPR(tech.ltp) : '—'}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Technical Analysis Section */}
-                    <div className="section-title" style={{ marginBottom: 16 }}>
-                        <LineChartOutlined /> Technical Analysis
-                    </div>
-
+    const tabItems = [
+        {
+            key: 'technical',
+            label: <span><LineChartOutlined /> Technical</span>,
+            children: (
+                <div className="animate-in">
                     <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                         {/* 52-Week Range */}
                         <Col xs={24} lg={12}>
@@ -147,7 +81,6 @@ export default function Insights() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                                     <div className="stat-label"><BarChartOutlined /> 52-Week Range</div>
                                 </div>
-
                                 <div style={{ marginBottom: 8 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>
                                         <span>Low: {tech ? formatNPR(tech.low_52w) : '—'}</span>
@@ -180,7 +113,6 @@ export default function Insights() {
                                 <div className="stat-label" style={{ marginBottom: 16 }}>
                                     <DashboardOutlined /> RSI (14)
                                 </div>
-
                                 {tech?.rsi_14 ? (
                                     <div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -223,7 +155,7 @@ export default function Insights() {
                     </Row>
 
                     {/* Moving Averages */}
-                    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                    <Row gutter={[16, 16]}>
                         <Col xs={24} sm={12}>
                             <div className="stat-card" style={{ padding: '20px 24px' }}>
                                 <div className="stat-label" style={{ marginBottom: 12 }}>
@@ -275,37 +207,226 @@ export default function Insights() {
                             </div>
                         </Col>
                     </Row>
-
-                    {/* Fundamental Analysis Placeholder Section */}
-                    <Divider style={{ borderColor: 'var(--border-color)' }} />
-                    <div className="section-title" style={{ marginBottom: 16 }}>
-                        <StockOutlined /> Fundamental Analysis
+                </div>
+            )
+        },
+        {
+            key: 'fundamental',
+            label: <span><StockOutlined /> Fundamental</span>,
+            children: (
+                <div className="animate-in">
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                        <Button 
+                            type="primary" 
+                            ghost 
+                            size="small" 
+                            icon={<SyncOutlined spin={isScraping} />}
+                            onClick={handleScrape}
+                            loading={isScraping}
+                        >
+                            Scrape Latest Data
+                        </Button>
                     </div>
 
-                    <Card className="stat-card" style={{ textAlign: 'center', padding: '40px 20px', marginBottom: 24 }}>
-                        <ExperimentOutlined style={{ fontSize: 48, opacity: 0.12, marginBottom: 16, display: 'block' }} />
-                        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Coming Soon</div>
-                        <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 500, margin: '0 auto' }}>
-                            Fundamental indicators like P/E Ratio, P/BV, EPS, NPL, and Dividend History
-                            will be available in a future update. These require quarterly data scraping from ShareSansar.
-                        </p>
+                    {!fund ? (
+                        <Card className="stat-card" style={{ textAlign: 'center', padding: '40px 20px', marginBottom: 24 }}>
+                            <ExperimentOutlined style={{ fontSize: 48, opacity: 0.12, marginBottom: 16, display: 'block' }} />
+                            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>No Fundamental Data</div>
+                            <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 500, margin: '0 auto' }}>
+                                Run the fundamental scraper from Settings to fetch P/E, EPS, Book Value, and quarterly financials for this symbol.
+                            </p>
+                        </Card>
+                    ) : (
+                        <>
+                            {/* Overview Metrics */}
+                            {fund.overview && (
+                                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                                    {[
+                                        { label: 'P/E Ratio', value: fund.overview.pe_ratio, fmt: v => v?.toFixed(2), color: fund.overview.pe_ratio < 20 ? '#00b894' : fund.overview.pe_ratio < 35 ? '#fdcb6e' : '#d63031' },
+                                        { label: 'P/B Ratio', value: fund.overview.pb_ratio, fmt: v => v?.toFixed(2), color: fund.overview.pb_ratio < 2 ? '#00b894' : fund.overview.pb_ratio < 4 ? '#fdcb6e' : '#d63031' },
+                                        { label: 'ROE (TTM)', value: fund.overview.roe_ttm, fmt: v => `${(v * 100).toFixed(2)}%`, color: fund.overview.roe_ttm > 0.12 ? '#00b894' : '#fdcb6e' },
+                                        { label: 'EPS (TTM)', value: fund.overview.eps_ttm, fmt: v => `Rs. ${v?.toFixed(2)}`, color: '#6c5ce7' },
+                                        { label: 'Book Value', value: fund.overview.book_value, fmt: v => `Rs. ${v?.toFixed(2)}`, color: '#0984e3' },
+                                        { label: 'Net Profit (TTM)', value: fund.overview.net_profit_ttm, fmt: v => v >= 1e9 ? `Rs. ${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `Rs. ${(v / 1e6).toFixed(2)}M` : `Rs. ${v?.toFixed(0)}`, color: fund.overview.net_profit_ttm > 0 ? '#00b894' : '#d63031' },
+                                    ].map(m => (
+                                        <Col xs={12} sm={8} key={m.label}>
+                                            <div className="stat-card" style={{ padding: '16px 20px', textAlign: 'center' }}>
+                                                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>{m.label}</div>
+                                                <div style={{ fontSize: 22, fontWeight: 700, color: m.value != null ? m.color : 'var(--text-muted)' }}>
+                                                    {m.value != null ? m.fmt(m.value) : '—'}
+                                                </div>
+                                            </div>
+                                        </Col>
+                                    ))}
+                                </Row>
+                            )}
 
-                        <Row gutter={[16, 16]} style={{ marginTop: 24, maxWidth: 600, margin: '24px auto 0' }}>
-                            {['P/E Ratio', 'P/BV', 'EPS', 'NPL', 'Dividend Yield'].map(metric => (
-                                <Col xs={12} sm={8} key={metric}>
-                                    <div style={{
-                                        padding: '12px 8px',
-                                        background: 'rgba(108, 92, 231, 0.04)',
-                                        borderRadius: 8,
-                                        border: '1px dashed rgba(108, 92, 231, 0.15)',
-                                    }}>
-                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{metric}</div>
-                                        <div style={{ fontSize: 18, fontWeight: 700, color: 'rgba(255,255,255,0.15)', marginTop: 4 }}>—</div>
+                            {/* Quarterly Financials */}
+                            {fund.quarterly && fund.quarterly.length > 0 && (
+                                <div style={{ marginBottom: 24 }}>
+                                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>
+                                        <BarChartOutlined style={{ marginRight: 6 }} /> Quarterly Financials
+                                        <span style={{ fontSize: 11, fontWeight: 400, marginLeft: 8, opacity: 0.6 }}>
+                                            (Values in Rs. '000)
+                                        </span>
                                     </div>
-                                </Col>
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                                            <thead>
+                                                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                                    <th style={{ textAlign: 'left', padding: '10px 12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Metric</th>
+                                                    {fund.quarterly.map(q => (
+                                                        <th key={q.quarter} style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--accent-secondary)', fontWeight: 600 }}>
+                                                            {q.quarter}
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                                    <td style={{ padding: '8px 12px', fontWeight: 600 }}>Paid Up Capital</td>
+                                                    {fund.quarterly.map(q => (
+                                                        <td key={q.quarter} style={{ textAlign: 'right', padding: '8px 12px' }}>
+                                                            {q.paid_up_capital != null ? Number(q.paid_up_capital).toLocaleString('en-IN') : '—'}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(0,184,148,0.04)' }}>
+                                                    <td style={{ padding: '8px 12px', fontWeight: 600, color: '#00b894' }}>Net Profit</td>
+                                                    {fund.quarterly.map(q => (
+                                                        <td key={q.quarter} style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 600, color: q.net_profit > 0 ? '#00b894' : '#d63031' }}>
+                                                            {q.net_profit != null ? Number(q.net_profit).toLocaleString('en-IN') : '—'}
+                                                        </td>
+                                                    ))}
+                                                </tr>
+                                                {(() => {
+                                                    const allKeys = [...new Set(fund.quarterly.flatMap(q => Object.keys(q.sector_metrics || {})))];
+                                                    return allKeys.slice(0, 15).map((key, idx) => (
+                                                        <tr key={key} style={{ borderBottom: '1px solid var(--border-color)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                                                            <td style={{ padding: '8px 12px', color: 'var(--text-secondary)' }}>{key}</td>
+                                                            {fund.quarterly.map(q => {
+                                                                const val = (q.sector_metrics || {})[key];
+                                                                return (
+                                                                    <td key={q.quarter} style={{ textAlign: 'right', padding: '8px 12px' }}>
+                                                                        {val != null ? (typeof val === 'number' ? Number(val).toLocaleString('en-IN') : val) : '—'}
+                                                                    </td>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    ));
+                                                })()}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {fund.overview?.updated_at && (
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, textAlign: 'right' }}>
+                                            Last updated: {new Date(fund.overview.updated_at).toLocaleDateString()}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            )
+        }
+    ];
+
+    return (
+        <div className="animate-in">
+            {/* Page Header */}
+            <div className="page-header">
+                <h1>Market Insights</h1>
+                <p className="subtitle">Technical analysis and market intelligence for NEPSE securities</p>
+            </div>
+
+            {/* Symbol Search */}
+            <Card size="small" className="filter-card" style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+                    <div style={{ width: 400 }}>
+                        <span style={{ display: 'block', marginBottom: 4, fontSize: '0.8rem', opacity: 0.6 }}>
+                            Search Symbol
+                        </span>
+                        <Select
+                            showSearch
+                            style={{ width: '100%' }}
+                            placeholder="Type to search symbol..."
+                            optionFilterProp="children"
+                            loading={loadingCompanies}
+                            onChange={(v) => setSelectedSymbol(v)}
+                            value={selectedSymbol}
+                            size="large"
+                            suffixIcon={<SearchOutlined />}
+                        >
+                            {companies?.map(c => (
+                                <Select.Option key={c.symbol} value={c.symbol}>
+                                    {c.symbol} — {c.name}
+                                </Select.Option>
                             ))}
-                        </Row>
-                    </Card>
+                        </Select>
+                    </div>
+                    {selectedSymbol && (
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', paddingBottom: 6 }}>
+                            <InfoCircleOutlined style={{ marginRight: 6 }} />
+                            Technical indicators are computed from locally stored historical data.
+                        </div>
+                    )}
+                </div>
+            </Card>
+
+            {/* Content Area */}
+            {!selectedSymbol ? (
+                <div style={{ textAlign: 'center', padding: '80px 0' }}>
+                    <FundOutlined style={{ fontSize: 64, opacity: 0.08, marginBottom: 20, display: 'block' }} />
+                    <Empty
+                        description={
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                                Select a symbol above to view technical analysis and market insights
+                            </span>
+                        }
+                    />
+                </div>
+            ) : (loadingInsights || fetchingInsights) ? (
+                <div style={{ textAlign: 'center', padding: '80px 0' }}>
+                    <Spin size="large" tip="Crunching numbers..." />
+                </div>
+            ) : insightsData?.error ? (
+                <Card className="stat-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
+                    <ExperimentOutlined style={{ fontSize: 48, opacity: 0.15, marginBottom: 16, display: 'block' }} />
+                    <p style={{ fontSize: 16, fontWeight: 600 }}>{insightsData.error}</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                        Go to Prices → Historical Prices tab and click "Sync Historical Data" to download OHLCV data first.
+                    </p>
+                </Card>
+            ) : (
+                <div>
+                    {/* Symbol Header */}
+                    <div className="stat-card" style={{ marginBottom: 24, padding: '20px 24px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                            <div>
+                                <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-secondary)' }}>
+                                    {selectedSymbol}
+                                </div>
+                                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                                    {companies?.find(c => c.symbol === selectedSymbol)?.name}
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: 28, fontWeight: 700 }}>
+                                    {tech ? formatNPR(tech.ltp) : '—'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Navigation Tabs */}
+                    <Tabs 
+                        activeKey={activeTab} 
+                        onChange={setActiveTab} 
+                        items={tabItems} 
+                        className="custom-tabs"
+                        style={{ background: 'var(--bg-secondary)', padding: '0 24px 24px', borderRadius: 12, border: '1px solid var(--border-color)' }}
+                    />
                 </div>
             )}
         </div>
