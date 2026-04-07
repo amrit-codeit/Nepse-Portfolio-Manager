@@ -1,9 +1,16 @@
 """Member and MeroShare credential models."""
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Table
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
+
+member_group_association = Table(
+    'member_group_association',
+    Base.metadata,
+    Column('group_id', Integer, ForeignKey('member_groups.id', ondelete="CASCADE"), primary_key=True),
+    Column('member_id', Integer, ForeignKey('members.id', ondelete="CASCADE"), primary_key=True)
+)
 
 
 class Member(Base):
@@ -26,6 +33,8 @@ class Member(Base):
         "Holding", back_populates="member", cascade="all, delete-orphan")
     transactions = relationship(
         "Transaction", back_populates="member", cascade="all, delete-orphan")
+    groups = relationship(
+        "MemberGroup", secondary=member_group_association, back_populates="members")
 
     def __repr__(self):
         return f"<Member(id={self.id}, name='{self.name}')>"
@@ -54,3 +63,18 @@ class MeroshareCredential(Base):
 
     def __repr__(self):
         return f"<MeroshareCredential(member_id={self.member_id}, dp='{self.dp}')>"
+
+class MemberGroup(Base):
+    """Custom grouping of members for portfolio aggregation."""
+    __tablename__ = "member_groups"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    members = relationship(
+        "Member", secondary=member_group_association, back_populates="groups")
+
+    def __repr__(self):
+        return f"<MemberGroup(id={self.id}, name='{self.name}')>"

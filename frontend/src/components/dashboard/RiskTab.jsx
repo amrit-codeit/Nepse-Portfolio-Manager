@@ -34,7 +34,7 @@ function formatNPR(value) {
     return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function RiskTab({ summary, context, members }) {
+export default function RiskTab({ summary, context, members, isSipMode }) {
 
     const totalPortfolioValue = useMemo(() => {
         return summary?.holdings?.reduce((sum, h) => sum + (h.current_value || h.total_investment || 0), 0) || 0;
@@ -303,24 +303,26 @@ export default function RiskTab({ summary, context, members }) {
             </Row>
 
             {/* Value-Risk Matrix Table */}
-            <div className="stat-card" style={{ padding: 0, marginBottom: 24, overflow: 'hidden' }}>
-                <div style={{ padding: '16px 24px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: 16, fontWeight: 600 }}>
-                        <ExperimentOutlined /> Value-Risk Matrix
+            {!isSipMode && (
+                <div className="stat-card" style={{ padding: 0, marginBottom: 24, overflow: 'hidden' }}>
+                    <div style={{ padding: '16px 24px', background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontSize: 16, fontWeight: 600 }}>
+                            <ExperimentOutlined /> Value-Risk Matrix
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                            <InfoCircleOutlined /> Graham's Number based valuation vs Technical Trends
+                        </div>
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        <InfoCircleOutlined /> Graham's Number based valuation vs Technical Trends
-                    </div>
+                    <Table 
+                        columns={matrixColumns} 
+                        dataSource={summary.holdings} 
+                        rowKey="id" 
+                        pagination={{ pageSize: 15 }} 
+                        size="middle" 
+                        className="portfolio-table"
+                    />
                 </div>
-                <Table 
-                    columns={matrixColumns} 
-                    dataSource={summary.holdings} 
-                    rowKey="id" 
-                    pagination={{ pageSize: 15 }} 
-                    size="middle" 
-                    className="portfolio-table"
-                />
-            </div>
+            )}
 
             {/* Sector Concentration Bar */}
             <div className="chart-card" style={{ height: Math.max(300, sectorData.length * 45 + 80) }}>

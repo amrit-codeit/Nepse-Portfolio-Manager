@@ -153,7 +153,7 @@ function Dashboard() {
                 key: 'risk',
                 label: <span><AlertOutlined /> Risk & Insights</span>,
                 children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
-                    <RiskTab summary={displaySummary} context={selectedContext} members={members} />
+                    <RiskTab summary={displaySummary} context={selectedContext} members={members} isSipMode={topLevelTab === 'sips'} />
                 ),
             }
         );

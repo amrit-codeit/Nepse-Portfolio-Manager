@@ -20,6 +20,8 @@ const COLORS = [
     '#d63031', '#e84393', '#00cec9', '#ffeaa7', '#fab1a0',
 ];
 
+import { useNavigate } from 'react-router-dom';
+
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
     return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -42,6 +44,8 @@ const CustomTooltip = ({ active, payload }) => {
 };
 
 export default function OverviewTab({ summary, context, members, onTabChange, isSipMode, pricesData }) {
+    const navigate = useNavigate();
+
     // Today's Gain/Loss: (LTP - Prev Close) * Qty
     const todayChange = useMemo(() => {
         if (!summary?.holdings || !pricesData) return { value: 0, pct: 0 };
@@ -285,7 +289,7 @@ export default function OverviewTab({ summary, context, members, onTabChange, is
                     </div>
                     <div
                         style={{ fontSize: 13, color: 'var(--accent-secondary)', cursor: 'pointer', fontWeight: 500 }}
-                        onClick={() => onTabChange?.('holdings')}
+                        onClick={() => navigate('/holdings')}
                     >
                         View All <RightOutlined style={{ fontSize: 10 }} />
                     </div>

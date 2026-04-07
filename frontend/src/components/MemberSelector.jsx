@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Modal, Input, Checkbox, Button, message, Tooltip } from 'antd';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Modal, Input, Checkbox, Button, message, Tooltip, Spin } from 'antd';
 import {
     TeamOutlined,
     UserOutlined,
@@ -9,21 +10,7 @@ import {
     DeleteOutlined,
     CloseOutlined,
 } from '@ant-design/icons';
-
-const STORAGE_KEY = 'portfolio_groups';
-
-function loadGroups() {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : [];
-    } catch {
-        return [];
-    }
-}
-
-function saveGroups(groups) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
-}
+import { getGroups, createGroup, updateGroup, deleteGroup } from '../services/api';
 
 /**
  * GroupModal — create/edit a member group.
@@ -35,7 +22,7 @@ function GroupModal({ open, onClose, onSave, members, editGroup }) {
     useEffect(() => {
         if (editGroup) {
             setName(editGroup.name);
-            setSelectedIds(editGroup.memberIds);
+            setSelectedIds(editGroup.member_ids);
         } else {
             setName('');
             setSelectedIds([]);
@@ -88,9 +75,17 @@ function GroupModal({ open, onClose, onSave, members, editGroup }) {
 export default function MemberSelector({ members = [], onChange }) {
     const [mode, setMode] = useState('all'); // 'all' | 'individual' | 'groups'
     const [selectedId, setSelectedId] = useState(null);
-    const [groups, setGroups] = useState(loadGroups);
     const [modalOpen, setModalOpen] = useState(false);
     const [editGroup, setEditGroup] = useState(null);
+    
+    const queryClient = useQueryClient();
+
+    const { data: groupsData, isLoading } = useQuery({
+        queryKey: ['groups'],
+        queryFn: () => getGroups().then(r => r.data),
+    });
+    
+    const groups = groupsData || [];
 
     // Emit context change
     const emit = (type, id, memberIds = []) => {
@@ -112,38 +107,51 @@ export default function MemberSelector({ members = [], onChange }) {
 
     const handleGroupClick = (group) => {
         setSelectedId(group.id);
-        emit('group', group.id, group.memberIds);
+        emit('group', group.id, group.member_ids);
     };
 
-    const handleGroupSave = (data) => {
-        let updated;
-        if (editGroup) {
-            updated = groups.map(g =>
-                g.id === editGroup.id ? { ...g, name: data.name, memberIds: data.memberIds } : g
-            );
-        } else {
-            const newGroup = {
-                id: `grp_${Date.now()}`,
-                name: data.name,
-                memberIds: data.memberIds,
-                createdAt: new Date().toISOString(),
-            };
-            updated = [...groups, newGroup];
+    const createMutation = useMutation({
+        mutationFn: createGroup,
+        onSuccess: () => {
+            queryClient.invalidateQueries(['groups']);
+            message.success('Group created');
+            setEditGroup(null);
         }
-        setGroups(updated);
-        saveGroups(updated);
-        setEditGroup(null);
+    });
+
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data }) => updateGroup(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries(['groups']);
+            message.success('Group updated');
+            setEditGroup(null);
+        }
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: deleteGroup,
+        onSuccess: (_, deletedId) => {
+            queryClient.invalidateQueries(['groups']);
+            message.success('Group deleted');
+            if (selectedId === deletedId) {
+                setSelectedId(null);
+                emit('all', null, []);
+                setMode('all');
+            }
+        }
+    });
+
+    const handleGroupSave = (data) => {
+        const apiData = { name: data.name, member_ids: data.memberIds };
+        if (editGroup) {
+            updateMutation.mutate({ id: editGroup.id, data: apiData });
+        } else {
+            createMutation.mutate(apiData);
+        }
     };
 
     const handleGroupDelete = (groupId) => {
-        const updated = groups.filter(g => g.id !== groupId);
-        setGroups(updated);
-        saveGroups(updated);
-        if (selectedId === groupId) {
-            setSelectedId(null);
-            emit('all', null, []);
-            setMode('all');
-        }
+        deleteMutation.mutate(groupId);
     };
 
     return (

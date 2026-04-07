@@ -77,6 +77,22 @@ class BulkImportRequest(BaseModel):
     credentials: list[MemberCredentialBulk]
 
 
-class VerifyPasswordRequest(BaseModel) :
+class VerifyPasswordRequest(BaseModel):
     password: str
 
+# --- Group Schemas ---
+
+class MemberGroupCreate(BaseModel):
+    name: str
+    member_ids: list[int]
+
+class MemberGroupUpdate(BaseModel):
+    name: Optional[str] = None
+    member_ids: Optional[list[int]] = None
+
+class MemberGroupResponse(BaseModel):
+    id: int
+    name: str
+    member_ids: list[int]
+
+    model_config = {"from_attributes": True}

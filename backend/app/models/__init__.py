@@ -1,4 +1,4 @@
-from app.models.member import Member, MeroshareCredential
+from app.models.member import Member, MeroshareCredential, MemberGroup
 from app.models.company import Company
 from app.models.transaction import Transaction
 from app.models.holding import Holding
@@ -23,4 +23,5 @@ __all__ = [
     "DividendIncome",
     "StockOverview",
     "FundamentalReport",
+    "MemberGroup",
 ]
