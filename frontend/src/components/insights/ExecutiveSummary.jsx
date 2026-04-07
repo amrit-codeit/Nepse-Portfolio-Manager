@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Row, Col, Tag, Progress, Spin, Card, Button, Divider, Space, Tooltip } from 'antd';
+import { useQuery } from '@tanstack/react-query';
+import { Row, Col, Tag, Progress, Spin, Card, Button, Divider, Space, Tooltip, Alert } from 'antd';
 import {
     RobotOutlined, CheckCircleOutlined, CloseCircleOutlined,
     RiseOutlined, FallOutlined, ThunderboltOutlined,
     ExperimentOutlined, DashboardOutlined, InfoCircleOutlined,
     FireOutlined, SafetyOutlined, DollarOutlined,
+    WarningOutlined,
 } from '@ant-design/icons';
 import { getExecutiveSummary, getAIVerdict } from '../../services/api';
 
@@ -43,20 +44,33 @@ export default function ExecutiveSummary({ symbol }) {
         enabled: !!symbol,
     });
 
-    const [aiData, setAiData] = useState(null);
-    const aiMutation = useMutation({
-        mutationFn: () => getAIVerdict(symbol).then(r => r.data),
-        onSuccess: (result) => setAiData(result),
+    const {
+        data: aiData,
+        isFetching: aiLoading,
+        refetch: generateAI
+    } = useQuery({
+        queryKey: ['ai-verdict', symbol],
+        queryFn: () => getAIVerdict(symbol).then(r => r.data),
+        enabled: false, // Don't fetch automatically
+        staleTime: Infinity, // Keep it forever for this session
     });
 
     if (isLoading) {
         return (
             <div style={{ textAlign: 'center', padding: '80px 0' }}>
-                <Spin size="large" />
-                <div style={{ marginTop: 16, color: 'var(--text-secondary)', fontSize: 13 }}>
-                    Synthesizing fundamentals, technicals, and valuations...
-                </div>
+                <Spin size="large" tip="Synthesizing trajectories..." />
             </div>
+        );
+    }
+
+    if (!symbol) {
+        return (
+            <Card style={{ margin: '20px 0' }}>
+                <div style={{ textAlign: 'center', padding: '40px 0', opacity: 0.5 }}>
+                    <ExperimentOutlined style={{ fontSize: 40, marginBottom: 12 }} />
+                    <p>Select a stock to view its Executive Summary and AI Analysis.</p>
+                </div>
+            </Card>
         );
     }
 
@@ -72,7 +86,7 @@ export default function ExecutiveSummary({ symbol }) {
         );
     }
 
-    const actionCfg = getActionConfig(data.action);
+    const actionCfg = getActionConfig(data?.action);
     const scoreColor = getScoreColor(data.health_score);
 
     return (
@@ -175,24 +189,40 @@ export default function ExecutiveSummary({ symbol }) {
                         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
                             Based on latest cash distribution
                         </div>
-                        <Divider style={{ margin: '12px 0', borderColor: 'var(--border-color)' }} />
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                <span>Cash Div %</span><span style={{ fontWeight: 600 }}>{data.cash_dividend_pct}%</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                <span>Bonus Div %</span><span style={{ fontWeight: 600 }}>{data.bonus_dividend_pct}%</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Face Value</span><span style={{ fontWeight: 600 }}>Rs. {data.face_value}</span>
-                            </div>
+                        <Divider style={{ margin: '14px 0 10px', borderColor: 'var(--border-color)' }} />
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase' }}>
+                            5-Year Dividend Trend
                         </div>
+                        <div style={{ maxHeight: 110, overflowY: 'auto' }}>
+                            <table style={{ width: '100%', fontSize: 12 }}>
+                                <thead>
+                                    <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
+                                        <th style={{ textAlign: 'left', fontWeight: 400, paddingBottom: 4 }}>FY</th>
+                                        <th style={{ textAlign: 'right', fontWeight: 400, paddingBottom: 4 }}>Cash</th>
+                                        <th style={{ textAlign: 'right', fontWeight: 400, paddingBottom: 4 }}>Bonus</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.dividend_history?.map((h, i) => (
+                                        <tr key={i} style={{ borderBottom: i < data.dividend_history.length - 1 ? '1px solid rgba(255,255,255,0.02)' : 'none' }}>
+                                            <td style={{ padding: '6px 0' }}>{h.fy}</td>
+                                            <td style={{ textAlign: 'right', color: '#00b894' }}>{h.cash}%</td>
+                                            <td style={{ textAlign: 'right', color: '#6c5ce7' }}>{h.bonus}%</td>
+                                        </tr>
+                                    ))}
+                                    {(!data.dividend_history || data.dividend_history.length === 0) && (
+                                        <tr><td colSpan={3} style={{ textAlign: 'center', padding: '10px 0', opacity: 0.5 }}>No records</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
                         {data.bonus_dividend_pct > 0 && data.cash_dividend_pct > 0 && (
-                            <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)', background: 'rgba(253,203,110,0.08)', padding: '8px 10px', borderRadius: 8 }}>
-                                <InfoCircleOutlined /> Cash dividend of Rs. {(data.cash_dividend_pct / 100 * data.face_value).toFixed(2)}/share
-                                {data.cash_dividend_pct / 100 * data.face_value > data.bonus_dividend_pct * 0.05 * data.face_value
-                                    ? ' covers the 5% bonus tax.'
-                                    : ' may not fully cover the 5% bonus tax.'}
+                            <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)', background: 'rgba(253,203,110,0.08)', padding: '8px 10px', borderRadius: 8, lineHeight: 1.4 }}>
+                                <InfoCircleOutlined /> Latest cash of Rs. {(data.cash_dividend_pct / 100 * data.face_value).toFixed(2)}/share
+                                {data.cash_dividend_pct / 100 * data.face_value >= data.bonus_dividend_pct * 0.05 * data.face_value
+                                    ? ' covers 5% bonus tax.'
+                                    : ' partially covers 5% bonus tax.'}
                             </div>
                         )}
                     </div>
@@ -257,66 +287,84 @@ export default function ExecutiveSummary({ symbol }) {
                         ghost
                         size="small"
                         icon={<RobotOutlined />}
-                        onClick={() => aiMutation.mutate()}
-                        loading={aiMutation.isPending}
+                        onClick={() => generateAI()}
+                        loading={aiLoading}
                     >
                         Generate Analysis
                     </Button>
                 </div>
 
-                {aiMutation.isPending ? (
+                {aiLoading ? (
                     <div style={{ textAlign: 'center', padding: '40px 0' }}>
                         <Spin size="large" />
                         <div style={{ marginTop: 16, color: 'var(--accent-primary)', fontSize: 13 }}>
-                            DeepSeek is analyzing 2 years of financial trajectories...
+                            Qwen is analyzing 2 years of financial trajectories...
                         </div>
                     </div>
                 ) : aiData ? (
                     <div>
-                        <div style={{ marginBottom: 20 }}>
-                            <Tag
-                                style={{
-                                    fontSize: 16, padding: '6px 20px', borderRadius: 8,
-                                    fontWeight: 700, letterSpacing: '1px',
-                                }}
-                                color={
-                                    aiData.verdict === 'BUY' ? 'green'
-                                        : aiData.verdict === 'SELL' ? 'red'
-                                            : aiData.verdict === 'ACCUMULATE' ? 'blue'
-                                                : 'gold'
+                        {aiData.status === 'error' ? (
+                            <Alert
+                                message="AI Analysis Interrupted"
+                                description={aiData.logic}
+                                type="warning"
+                                showIcon
+                                icon={<WarningOutlined />}
+                                style={{ marginBottom: 20 }}
+                                action={
+                                    <Button size="small" danger ghost onClick={() => generateAI()}>
+                                        Retry
+                                    </Button>
                                 }
-                            >
-                                {aiData.verdict}
-                            </Tag>
-                        </div>
+                            />
+                        ) : (
+                            <>
+                                <div style={{ marginBottom: 20 }}>
+                                    <Tag
+                                        style={{
+                                            fontSize: 16, padding: '6px 20px', borderRadius: 8,
+                                            fontWeight: 700, letterSpacing: '1px',
+                                        }}
+                                        color={
+                                            aiData.verdict === 'BUY' ? 'green'
+                                                : aiData.verdict === 'SELL' ? 'red'
+                                                    : aiData.verdict === 'ACCUMULATE' ? 'blue'
+                                                        : 'gold'
+                                        }
+                                    >
+                                        {aiData.verdict}
+                                    </Tag>
+                                </div>
 
-                        <div style={{
-                            fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)',
-                            padding: '16px', background: 'rgba(108, 92, 231, 0.04)',
-                            borderRadius: 10, border: '1px solid rgba(108, 92, 231, 0.1)',
-                            marginBottom: 20,
-                        }}>
-                            {aiData.logic}
-                        </div>
+                                <div style={{
+                                    fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)',
+                                    padding: '16px', background: 'rgba(108, 92, 231, 0.04)',
+                                    borderRadius: 10, border: '1px solid rgba(108, 92, 231, 0.1)',
+                                    marginBottom: 20,
+                                }}>
+                                    {aiData.logic}
+                                </div>
 
-                        <Row gutter={[16, 16]}>
-                            <Col xs={24} sm={12}>
-                                <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--accent-green)', marginBottom: 6, letterSpacing: '0.5px' }}>
-                                    Foundation Analysis
-                                </div>
-                                <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                                    {aiData.foundation}
-                                </div>
-                            </Col>
-                            <Col xs={24} sm={12}>
-                                <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#0984e3', marginBottom: 6, letterSpacing: '0.5px' }}>
-                                    Timing & Entry
-                                </div>
-                                <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                                    {aiData.timing}
-                                </div>
-                            </Col>
-                        </Row>
+                                <Row gutter={[16, 16]}>
+                                    <Col xs={24} sm={12}>
+                                        <div style={{ fontSize: 11, textTransform: 'uppercase', color: 'var(--accent-green)', marginBottom: 6, letterSpacing: '0.5px' }}>
+                                            Foundation Analysis
+                                        </div>
+                                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                                            {aiData.foundation}
+                                        </div>
+                                    </Col>
+                                    <Col xs={24} sm={12}>
+                                        <div style={{ fontSize: 11, textTransform: 'uppercase', color: '#0984e3', marginBottom: 6, letterSpacing: '0.5px' }}>
+                                            Timing & Entry
+                                        </div>
+                                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                                            {aiData.timing}
+                                        </div>
+                                    </Col>
+                                </Row>
+                            </>
+                        )}
                     </div>
                 ) : (
                     <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--text-muted)' }}>
@@ -325,7 +373,7 @@ export default function ExecutiveSummary({ symbol }) {
                             Click "Generate Analysis" to get an AI-powered synthesis of all data points.
                         </div>
                         <div style={{ fontSize: 11, marginTop: 6, opacity: 0.6 }}>
-                            Requires local Ollama instance with deepseek-r1:1.5b model.
+                            Requires local Ollama instance with qwen3:4b model.
                         </div>
                     </div>
                 )}

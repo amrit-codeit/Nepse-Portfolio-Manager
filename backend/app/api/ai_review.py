@@ -12,7 +12,7 @@ from app.services.portfolio_engine import get_portfolio_summary
 router = APIRouter(prefix="/api/ai-review", tags=["AI Review"])
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "deepseek-r1:1.5b" # Assuming this is installed
+MODEL_NAME = "qwen3.5:4b" # Changed from deepseek to qwen3.5:4b based on local setup
 
 @router.post("/portfolio")
 async def review_portfolio(
