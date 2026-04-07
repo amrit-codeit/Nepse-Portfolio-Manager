@@ -10,6 +10,7 @@ import {
     DashboardOutlined, ThunderboltOutlined, StockOutlined, SyncOutlined,
 } from '@ant-design/icons';
 import { getCompanies, getInsights, scrapeFundamentals } from '../services/api';
+import ExecutiveSummary from '../components/insights/ExecutiveSummary';
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
@@ -34,7 +35,7 @@ function getRSILabel(rsi) {
 
 export default function Insights() {
     const [selectedSymbol, setSelectedSymbol] = useState(null);
-    const [activeTab, setActiveTab] = useState('technical');
+    const [activeTab, setActiveTab] = useState('summary');
 
     const { data: companies, isLoading: loadingCompanies } = useQuery({
         queryKey: ['companies', 'all'],
@@ -69,6 +70,13 @@ export default function Insights() {
     const fund = insightsData?.fundamentals;
 
     const tabItems = [
+        {
+            key: 'summary',
+            label: <span><ExperimentOutlined /> Executive Summary</span>,
+            children: (
+                <ExecutiveSummary symbol={selectedSymbol} />
+            ),
+        },
         {
             key: 'technical',
             label: <span><LineChartOutlined /> Technical</span>,

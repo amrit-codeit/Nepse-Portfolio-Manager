@@ -337,6 +337,20 @@ Uses `pydantic-settings` for environment-based configuration:
 Centralized logic for NEPSE sector-specific health evaluation.
 - **Fundamental Analysis**: Calculates Graham's Number ($\sqrt{22.5 \times EPS \times BVPS}$) and evaluates sectoral flags (NPL > 4%, CAR < 11%, Hydro Reserves < 0).
 - **Technical Analysis**: Performs SMA 200 checks for technical trend classification.
+- **Executive Summary Engine** ([executive_summary.py](file:///d:/Projects/Portfolio/backend/app/services/analysis/executive_summary.py)): Synthesizes all data into a single 'Complete Picture':
+  - Graham's Number with Discount/Premium % vs LTP
+  - Dividend Yield calculation from latest cash distribution
+  - Techno-Fundamental Health Score (0-100) based on 5 weighted criteria: ROE, sector quality (NPL/profit growth), Graham undervaluation, 200-SMA trend, and RSI value zone
+  - 8-quarter profit and capital trajectory analysis (Increasing/Stable/Volatile/Declining)
+  - Action Badge derivation (Strong Buy / Accumulate / Hold / Avoid)
+  - AI Verdict integration via local DeepSeek-R1:1.5b (Ollama) with think-tag cleaning
+
+#### `/api/analysis` — [analysis.py](file:///d:/Projects/Portfolio/backend/app/api/analysis.py)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/summary/{symbol}` | Full executive summary: valuation, score, trends, action |
+| POST | `/summary/{symbol}/ai-verdict` | Async AI verdict via local Ollama (DeepSeek-R1) |
 
 #### 3.7.3 AI Review — [ai_review.py](file:///d:/Projects/Portfolio/backend/app/api/ai_review.py)
 Bridge to local **Ollama** instance (DeepSeek-R1 1.5b) providing automated strategy reviews based on the joint fundamental/technical data.

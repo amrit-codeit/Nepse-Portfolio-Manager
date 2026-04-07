@@ -100,8 +100,18 @@ export const getDividendSummary = (params) => api.get('/dividends/summary', { pa
 // --- Health ---
 export const healthCheck = () => api.get('/health');
 
+// --- Member Groups ---
+export const getGroups = () => api.get('/groups');
+export const createGroup = (data) => api.post('/groups', data);
+export const updateGroup = (id, data) => api.put(`/groups/${id}`, data);
+export const deleteGroup = (id) => api.delete(`/groups/${id}`);
+
 // --- AI Review ---
 export const getAIReview = (params) => api.post('/ai-review/portfolio', null, { params });
+
+// --- Executive Summary ---
+export const getExecutiveSummary = (symbol) => api.get(`/analysis/summary/${symbol}`);
+export const getAIVerdict = (symbol) => api.post(`/analysis/summary/${symbol}/ai-verdict`);
 
 // --- IPO API ---
 export const getOpenIPOs = (member_id) => api.get('/ipo/open', { params: { member_id } });
