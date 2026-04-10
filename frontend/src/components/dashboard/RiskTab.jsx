@@ -31,7 +31,7 @@ const { Panel } = Collapse;
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
-    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
 }
 
 export default function RiskTab({ summary, context, members, isSipMode }) {
@@ -50,7 +50,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
                 symbol: h.symbol,
                 member: h.member_name,
                 value: h.current_value || h.total_investment || 0,
-                pct: totalPortfolioValue > 0 ? (((h.current_value || h.total_investment || 0) / totalPortfolioValue) * 100).toFixed(1) : 0,
+                pct: totalPortfolioValue > 0 ? (((h.current_value || h.total_investment || 0) / totalPortfolioValue) * 100).toFixed(3) : 0,
             }));
     }, [summary, totalPortfolioValue]);
 
@@ -99,7 +99,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
             items.push({
                 type: 'warning',
                 icon: <AlertOutlined />,
-                text: `${s.name} sector is ${s.pct.toFixed(1)}% of portfolio — exceeds 40% threshold.`,
+                text: `${s.name} sector is ${s.pct.toFixed(3)}% of portfolio — exceeds 40% threshold.`,
             });
         });
 
@@ -233,7 +233,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
                 if (grahamGap === null) return '—';
                 return (
                     <span style={{ color: grahamGap > 0 ? 'var(--accent-red)' : 'var(--accent-green)', fontWeight: 600 }}>
-                        {grahamGap > 0 ? '+' : ''}{grahamGap.toFixed(1)}%
+                        {grahamGap > 0 ? '+' : ''}{grahamGap.toFixed(3)}%
                     </span>
                 );
             }
@@ -242,7 +242,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
             title: 'Proj. YoC',
             key: 'yoc',
             align: 'right',
-            render: (_, h) => <span style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>{(h.yoc || 0).toFixed(2)}%</span>
+            render: (_, h) => <span style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>{(h.yoc || 0).toFixed(3)}%</span>
         }
     ];
 
@@ -293,7 +293,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
                     <div className="stat-card">
                         <div className="stat-label"><ExperimentOutlined /> Top 3 Concentration</div>
                         <div className="stat-value" style={{ fontSize: 22 }}>
-                            {topHoldings.reduce((sum, h) => sum + Number(h.pct), 0).toFixed(1)}%
+                            {topHoldings.reduce((sum, h) => sum + Number(h.pct), 0).toFixed(3)}%
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                             {topHoldings.map(h => h.symbol).join(', ')}
@@ -317,7 +317,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
                         columns={matrixColumns} 
                         dataSource={summary.holdings} 
                         rowKey="id" 
-                        pagination={{ pageSize: 15 }} 
+                        pagination={{ defaultPageSize: 15, showSizeChanger: true, pageSizeOptions: ['15', '50', '100'] }} 
                         size="middle" 
                         className="portfolio-table"
                     />
@@ -343,7 +343,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
                                             <div style={{ background: 'var(--bg-secondary)', padding: '10px 15px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
                                                 <p style={{ margin: '0 0 5px 0', fontWeight: 'bold' }}>{d.name}</p>
                                                 <p style={{ margin: 0, color: 'var(--accent-secondary)' }}>
-                                                    {formatNPR(d.value)} ({d.pct.toFixed(1)}%)
+                                                    {formatNPR(d.value)} ({d.pct.toFixed(3)}%)
                                                 </p>
                                             </div>
                                         );

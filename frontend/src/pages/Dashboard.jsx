@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Tabs, Spin, Card } from 'antd';
+import { Tabs, Spin, Card, Row, Col } from 'antd';
 import {
     AppstoreOutlined,
     LineChartOutlined,
@@ -8,13 +8,16 @@ import {
     FundOutlined,
     RiseOutlined,
     FallOutlined,
+    DollarOutlined,
 } from '@ant-design/icons';
 import { Tag } from 'antd';
-import { getPortfolioSummary, getMembers, getMergedPrices } from '../services/api';
+import { getPortfolioSummary, getMembers, getMergedPrices, getLatestNepseIndex } from '../services/api';
 import MemberSelector from '../components/MemberSelector';
 import OverviewTab from '../components/dashboard/OverviewTab';
 import PerformanceTab from '../components/dashboard/PerformanceTab';
 import RiskTab from '../components/dashboard/RiskTab';
+import DividendTab from '../components/dashboard/DividendTab';
+
 function Dashboard() {
     const [selectedContext, setSelectedContext] = useState({ type: 'all', id: null, memberIds: [] });
     const [activeTab, setActiveTab] = useState('overview');
@@ -33,9 +36,14 @@ function Dashboard() {
         return {};
     }, [selectedContext]);
 
-    const { data: summary, isLoading: isSummaryLoading } = useQuery({
+    const { data: summary, isLoading: isLoadingSummary } = useQuery({
         queryKey: ['portfolio-summary', summaryParams],
         queryFn: () => getPortfolioSummary(summaryParams).then(r => r.data),
+    });
+
+    const { data: latestIndex } = useQuery({
+        queryKey: ['latestNepseIndex'],
+        queryFn: () => getLatestNepseIndex().then(r => r.data),
     });
 
     const { data: pricesData, isLoading: isPricesLoading } = useQuery({
@@ -43,10 +51,11 @@ function Dashboard() {
         queryFn: () => getMergedPrices().then(r => r.data),
     });
 
-    const isLoading = isSummaryLoading || isPricesLoading;
+    const isLoading = isLoadingSummary || isPricesLoading;
 
     const [topLevelTab, setTopLevelTab] = useState('equity');
 
+    // Split summary by equity vs SIP using backend-provided segmented data
     const splitSummary = useMemo(() => {
         if (!summary) return { equity: null, sip: null, totalValue: 0, equityValue: 0, sipValue: 0 };
         const sips = [];
@@ -82,7 +91,10 @@ function Dashboard() {
             current_value: eqVal,
             unrealized_pnl: eqPnl,
             tax_profit: eqTax,
-            pnl_pct: eqInv > 0 ? (eqPnl / eqInv) * 100 : 0
+            dividend_income: summary.equity_dividend_income || 0,
+            dividend_yield: eqInv > 0 ? ((summary.equity_dividend_income || 0) / eqInv) * 100 : 0,
+            pnl_pct: eqInv > 0 ? (eqPnl / eqInv) * 100 : 0,
+            portfolio_xirr: summary.equity_xirr || 0,
         };
 
         const sip = {
@@ -93,7 +105,10 @@ function Dashboard() {
             current_value: sipVal,
             unrealized_pnl: sipPnl,
             tax_profit: sipTax,
-            pnl_pct: sipInv > 0 ? (sipPnl / sipInv) * 100 : 0
+            dividend_income: summary.sip_dividend_income || 0,
+            dividend_yield: sipInv > 0 ? ((summary.sip_dividend_income || 0) / sipInv) * 100 : 0,
+            pnl_pct: sipInv > 0 ? (sipPnl / sipInv) * 100 : 0,
+            portfolio_xirr: summary.sip_xirr || 0,
         };
 
         return { 
@@ -155,14 +170,21 @@ function Dashboard() {
                 children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
                     <RiskTab summary={displaySummary} context={selectedContext} members={members} isSipMode={topLevelTab === 'sips'} />
                 ),
+            },
+            {
+                key: 'dividend',
+                label: <span><DollarOutlined /> Dividend Yield</span>,
+                children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
+                    <DividendTab summary={displaySummary} context={selectedContext} isSipMode={topLevelTab === 'sips'} pricesData={pricesData} />
+                ),
             }
         );
 
         return items;
     }, [displaySummary, isLoading, selectedContext, members, handleTabChange, topLevelTab]);
 
-    const eqPct = splitSummary.totalValue > 0 ? (splitSummary.equityValue / splitSummary.totalValue * 100).toFixed(1) : 0;
-    const sipPct = splitSummary.totalValue > 0 ? (splitSummary.sipValue / splitSummary.totalValue * 100).toFixed(1) : 0;
+    const eqPct = splitSummary.totalValue > 0 ? (splitSummary.equityValue / splitSummary.totalValue * 100).toFixed(3) : 0;
+    const sipPct = splitSummary.totalValue > 0 ? (splitSummary.sipValue / splitSummary.totalValue * 100).toFixed(3) : 0;
 
     return (
         <div className="animate-in">
@@ -172,40 +194,78 @@ function Dashboard() {
                 <p className="subtitle">{subtitle}</p>
             </div>
 
-            {/* Total Net Worth Block */}
-            <div className="stat-card" style={{ marginBottom: 24, padding: '24px' }}>
-                <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                    <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>Total Net Worth</div>
-                    <div style={{ fontSize: 36, fontWeight: 700, color: 'var(--accent-secondary)' }}>
-                        Rs. {(splitSummary.totalValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                <Col xs={24} md={12}>
+                    <div className="stat-card" style={{ padding: '24px', height: '100%', minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>Total Net Worth</div>
+                            <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--accent-secondary)' }}>
+                                Rs. {(splitSummary.totalValue || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </Col>
+                <Col xs={24} md={12}>
+                    <div className="stat-card" style={{ padding: '24px', height: '100%', minHeight: 140, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 8 }}>NEPSE Index</div>
+                            {latestIndex && !latestIndex.error ? (
+                                <>
+                                    <div style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>
+                                        {latestIndex.close?.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'center', gap: 12, alignItems: 'center' }}>
+                                        <div style={{ fontSize: 14, fontWeight: 600, color: latestIndex.change >= 0 ? '#00b894' : '#d63031' }}>
+                                            {latestIndex.change >= 0 ? '+' : ''}{latestIndex.change?.toFixed(3)} ({latestIndex.percent_change?.toFixed(3)}%)
+                                        </div>
+                                        <div style={{ width: 1, background: 'var(--border-color)', height: 14 }} />
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                                            Vol: Rs. {(latestIndex.turnover / 1e7).toFixed(3)} Cr
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div style={{ fontSize: 14, color: 'var(--text-muted)', opacity: 0.5 }}>Sync index data to see latest status</div>
+                            )}
+                        </div>
+                    </div>
+                </Col>
+            </Row>
+
+            <div className="stat-card" style={{ marginBottom: 24, padding: '24px' }}>
 
                 {/* Benchmark Comparison */}
-                {summary && (
+                {displaySummary && (
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 24, padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 12 }}>
                         <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Portfolio XIRR</div>
-                            <div style={{ fontSize: 18, fontWeight: 600, color: summary.portfolio_xirr >= 0 ? '#00b894' : '#d63031' }}>
-                                {summary.portfolio_xirr?.toFixed(2)}%
+                            <div style={{ fontSize: 18, fontWeight: 600, color: displaySummary.portfolio_xirr >= 0 ? '#00b894' : '#d63031' }}>
+                                {displaySummary.portfolio_xirr?.toFixed(3)}%
+                            </div>
+                        </div>
+                        <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Dividend Yield</div>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--accent-blue)' }}>
+                                {displaySummary.dividend_yield?.toFixed(3)}%
                             </div>
                         </div>
                         <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
                         <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>NEPSE XIRR</div>
                             <div style={{ fontSize: 18, fontWeight: 600 }}>
-                                {summary.nepse_xirr?.toFixed(2)}%
+                                {displaySummary.nepse_xirr?.toFixed(3)}%
                             </div>
                         </div>
                         <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
                         <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Market Alpha</div>
                             <Tag 
-                                color={summary.market_alpha >= 0 ? 'success' : 'error'} 
-                                icon={summary.market_alpha >= 0 ? <RiseOutlined /> : <FallOutlined />}
+                                color={displaySummary.market_alpha >= 0 ? 'success' : 'error'} 
+                                icon={displaySummary.market_alpha >= 0 ? <RiseOutlined /> : <FallOutlined />}
                                 style={{ fontSize: 14, padding: '2px 10px', borderRadius: 6, fontWeight: 600 }}
                             >
-                                {summary.market_alpha > 0 ? '+' : ''}{summary.market_alpha?.toFixed(2)}%
+                                {displaySummary.market_alpha > 0 ? '+' : ''}{displaySummary.market_alpha?.toFixed(3)}%
                             </Tag>
                         </div>
                     </div>
@@ -220,12 +280,12 @@ function Dashboard() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#6c5ce7' }} />
                         <span>Equity ({eqPct}%)</span>
-                        <strong style={{ color: 'var(--text-primary)' }}>Rs. {splitSummary.equityValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>Rs. {splitSummary.equityValue.toLocaleString('en-IN', { minimumFractionDigits: 3 })}</strong>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#00b894' }} />
                         <span>SIPs & Mutual Funds ({sipPct}%)</span>
-                        <strong style={{ color: 'var(--text-primary)' }}>Rs. {splitSummary.sipValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                        <strong style={{ color: 'var(--text-primary)' }}>Rs. {splitSummary.sipValue.toLocaleString('en-IN', { minimumFractionDigits: 3 })}</strong>
                     </div>
                 </div>
             </div>

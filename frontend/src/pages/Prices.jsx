@@ -24,14 +24,14 @@ import {
     HistoryOutlined,
     LineChartOutlined
 } from '@ant-design/icons';
-import { getMergedPrices, scrapePrices, scrapeNav, getHistoricalPrices, getCompanies, syncHistory } from '../services/api';
+import { getMergedPrices, scrapePrices, scrapeNav, getHistoricalPrices, getCompanies, syncHistory, getAllIssues, scrapeIssues, scrapeCompanies, getNepseIndex, scrapeIndex } from '../services/api';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
-    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
 }
 
 function LivePricesTab({ prices, isLoading, isFetching, search, setSearch, refreshMutation }) {
@@ -78,7 +78,7 @@ function LivePricesTab({ prices, isLoading, isFetching, search, setSearch, refre
             onFilter: (value, record) => (record.instrument || 'Equity') === value,
         },
         {
-            title: 'Price / NAV',
+            title: 'LTP / NAV',
             dataIndex: 'price',
             key: 'price',
             align: 'right',
@@ -97,7 +97,7 @@ function LivePricesTab({ prices, isLoading, isFetching, search, setSearch, refre
                 const color = v > 0 ? 'var(--accent-green)' : v < 0 ? 'var(--accent-red)' : 'inherit';
                 return (
                     <span style={{ color, fontWeight: 600 }}>
-                        {v > 0 ? '+' : ''}{v.toFixed(2)}
+                        {v > 0 ? '+' : ''}{v.toFixed(3)}
                         <span style={{ fontSize: '0.8rem', marginLeft: 4, opacity: 0.8 }}>
                             ({record.change_pct > 0 ? '+' : ''}{record.change_pct}%)
                         </span>
@@ -197,7 +197,7 @@ function LivePricesTab({ prices, isLoading, isFetching, search, setSearch, refre
                     dataSource={filtered}
                     rowKey="symbol"
                     loading={isLoading || isFetching}
-                    pagination={{ pageSize: 50, showSizeChanger: true }}
+                    pagination={{ defaultPageSize: 50, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
                     scroll={{ x: 1000 }}
                     size="middle"
                     locale={{
@@ -209,7 +209,7 @@ function LivePricesTab({ prices, isLoading, isFetching, search, setSearch, refre
     );
 }
 
-function HistoricalPricesTab() {
+function HistoricalPricesSubTab() {
     const [selectedSymbol, setSelectedSymbol] = useState(null);
     const [dateRange, setDateRange] = useState([dayjs().subtract(1, 'month'), dayjs()]);
     const queryClient = useQueryClient();
@@ -348,7 +348,7 @@ function HistoricalPricesTab() {
                         dataSource={history || []}
                         rowKey={(record) => `${record.symbol}-${record.date}`}
                         loading={loadingHistory || fetchingHistory}
-                        pagination={{ pageSize: 20 }}
+                        pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
                         scroll={{ x: 800 }}
                         size="middle"
                         locale={{ emptyText: 'No historical data found for this period. The scrip may have been merged or delisted.' }}
@@ -358,6 +358,256 @@ function HistoricalPricesTab() {
         </Space>
     );
 }
+
+function IssuesSubTab() {
+    const queryClient = useQueryClient();
+
+    const { data: issuesData, isLoading, isFetching } = useQuery({
+        queryKey: ['allIssues'],
+        queryFn: () => getAllIssues().then(r => r.data),
+    });
+
+    const fetchIssuesMut = useMutation({
+        mutationFn: async () => {
+            await scrapeCompanies();
+            await scrapeIssues();
+        },
+        onSuccess: () => {
+            message.success('Issues and companies updated successfully.');
+            queryClient.invalidateQueries(['allIssues']);
+            queryClient.invalidateQueries(['companies']);
+        },
+        onError: (err) => {
+            message.error(err.response?.data?.error || 'Failed to sync issues.');
+        }
+    });
+
+    const columns = [
+        {
+            title: 'Symbol',
+            dataIndex: 'symbol',
+            key: 'symbol',
+            render: (s) => <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>{s}</span>,
+            sorter: (a, b) => a.symbol.localeCompare(b.symbol),
+        },
+        {
+            title: 'Company Name',
+            dataIndex: 'name',
+            key: 'name',
+            sorter: (a, b) => a.name.localeCompare(b.name),
+        },
+        {
+            title: 'Issue Type',
+            dataIndex: 'type',
+            key: 'type',
+            render: (v) => <Tag color={v === 'IPO' ? 'green' : v === 'RIGHT' ? 'blue' : 'purple'}>{v}</Tag>,
+            filters: [
+                { text: 'IPO', value: 'IPO' },
+                { text: 'FPO', value: 'FPO' },
+                { text: 'RIGHT', value: 'RIGHT' },
+                { text: 'MUTUAL FUND', value: 'MUTUAL_FUND' }
+            ],
+            onFilter: (value, record) => record.type === value,
+        },
+        {
+            title: 'Issue Price',
+            dataIndex: 'price',
+            key: 'price',
+            align: 'right',
+            render: (v) => <span style={{ fontWeight: 600 }}>{formatNPR(v)}</span>
+        },
+        {
+            title: 'Last Updated',
+            dataIndex: 'updated_at',
+            key: 'updated_at',
+            render: (v) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '—'
+        }
+    ];
+
+    return (
+        <Space direction="vertical" style={{ width: '100%', marginTop: 24 }} size="large">
+            <Card size="small" className="filter-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ color: 'var(--text-secondary)' }}>
+                        Current active and historic IPO/FPO/Right share issues
+                    </div>
+                    <Button 
+                        type="primary" 
+                        icon={<SyncOutlined spin={fetchIssuesMut.isPending} />} 
+                        onClick={() => fetchIssuesMut.mutate()}
+                        loading={fetchIssuesMut.isPending}
+                    >
+                        Fetch Issues & Companies
+                    </Button>
+                </div>
+            </Card>
+
+            <div className="portfolio-table">
+                <Table
+                    columns={columns}
+                    dataSource={issuesData || []}
+                    rowKey="id"
+                    loading={isLoading || isFetching}
+                    pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
+                    scroll={{ x: 800 }}
+                    size="middle"
+                    locale={{ emptyText: 'No issues found. Click "Fetch Issues & Companies" to begin syncing.' }}
+                />
+            </div>
+        </Space>
+    );
+}
+
+function NepseIndexSubTab() {
+    const queryClient = useQueryClient();
+
+    const { data: indexData, isLoading, isFetching } = useQuery({
+        queryKey: ['nepseIndex'],
+        queryFn: () => getNepseIndex().then(r => r.data),
+    });
+
+    const fetchIndexMut = useMutation({
+        mutationFn: () => scrapeIndex(),
+        onSuccess: (res) => {
+            message.success(res.data?.message || 'NEPSE Index records synced successfully.');
+            queryClient.invalidateQueries(['nepseIndex']);
+        },
+        onError: (err) => {
+            message.error(err.response?.data?.error || 'Failed to sync NEPSE Index data.');
+        }
+    });
+
+    const formatIndex = (v) => v ? v.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '—';
+
+    const columns = [
+        {
+            title: 'Date',
+            dataIndex: 'date',
+            key: 'date',
+            render: (d) => dayjs(d).format('YYYY-MM-DD'),
+            sorter: (a, b) => dayjs(a.date).unix() - dayjs(b.date).unix(),
+            width: 120
+        },
+        {
+            title: 'Open',
+            dataIndex: 'open',
+            key: 'open',
+            align: 'right',
+            render: (v) => formatIndex(v)
+        },
+        {
+            title: 'High',
+            dataIndex: 'high',
+            key: 'high',
+            align: 'right',
+            render: (v) => formatIndex(v)
+        },
+        {
+            title: 'Low',
+            dataIndex: 'low',
+            key: 'low',
+            align: 'right',
+            render: (v) => formatIndex(v)
+        },
+        {
+            title: 'Close',
+            dataIndex: 'close',
+            key: 'close',
+            align: 'right',
+            render: (v) => <span style={{ fontWeight: 600 }}>{formatIndex(v)}</span>
+        },
+        {
+            title: 'Change',
+            dataIndex: 'change',
+            key: 'change',
+            align: 'right',
+            render: (v) => (
+                <span style={{ color: v > 0 ? 'var(--accent-green)' : v < 0 ? 'var(--accent-red)' : 'inherit' }}>
+                    {v > 0 ? '+' : ''}{v?.toFixed(3) || '0.000'}
+                </span>
+            )
+        },
+        {
+            title: '% Change',
+            dataIndex: 'percent_change',
+            key: 'percent_change',
+            align: 'right',
+            render: (v) => (
+                <span style={{ color: v > 0 ? 'var(--accent-green)' : v < 0 ? 'var(--accent-red)' : 'inherit' }}>
+                    {v > 0 ? '+' : ''}{v?.toFixed(3) || '0.000'}%
+                </span>
+            )
+        },
+        {
+            title: 'Turnover',
+            dataIndex: 'turnover',
+            key: 'turnover',
+            align: 'right',
+            render: (v) => v ? `Rs. ${(v/1e7).toFixed(3)} Cr` : '—'
+        }
+    ];
+
+    return (
+        <Space direction="vertical" style={{ width: '100%', marginTop: 24 }} size="large">
+            <Card size="small" className="filter-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ color: 'var(--text-secondary)' }}>
+                        Historical NEPSE Index Daily Close Data
+                    </div>
+                    <Button 
+                        type="primary" 
+                        icon={<SyncOutlined spin={fetchIndexMut.isPending} />} 
+                        onClick={() => fetchIndexMut.mutate()}
+                        loading={fetchIndexMut.isPending}
+                    >
+                        Sync Index Data
+                    </Button>
+                </div>
+            </Card>
+
+            <div className="portfolio-table">
+                <Table
+                    columns={columns}
+                    dataSource={indexData || []}
+                    rowKey="date"
+                    loading={isLoading || isFetching}
+                    pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
+                    scroll={{ x: 1000 }}
+                    size="middle"
+                    locale={{ emptyText: 'No index data found. Click "Sync Index Data".' }}
+                />
+            </div>
+        </Space>
+    );
+}
+
+function HistoricalDataTabs() {
+    return (
+        <Tabs
+            defaultActiveKey="price"
+            type="card"
+            style={{ marginTop: 16 }}
+            items={[
+                {
+                    key: 'price',
+                    label: 'Historical Price',
+                    children: <HistoricalPricesSubTab />
+                },
+                {
+                    key: 'issues',
+                    label: 'Issues',
+                    children: <IssuesSubTab />
+                },
+                {
+                    key: 'nepse',
+                    label: 'NEPSE Index',
+                    children: <NepseIndexSubTab />
+                }
+            ]}
+        />
+    );
+}
+
 
 function Prices() {
     const [search, setSearch] = useState('');
@@ -374,7 +624,7 @@ function Prices() {
             await scrapeNav();
         },
         onSuccess: () => {
-            message.success('Price refresh triggered successfully');
+            message.success('Market data refresh triggered successfully');
             queryClient.invalidateQueries(['mergedPrices']);
         },
         onError: (err) => {
@@ -410,10 +660,10 @@ function Prices() {
             label: (
                 <span>
                     <HistoryOutlined />
-                    Historical Prices
+                    Historical Data
                 </span>
             ),
-            children: <HistoricalPricesTab />,
+            children: <HistoricalDataTabs />,
         },
     ];
 

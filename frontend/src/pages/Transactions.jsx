@@ -25,7 +25,7 @@ const TXN_TYPES = [
 
 function formatNPR(value) {
     if (value === null || value === undefined || value === 0) return '—';
-    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
 }
 
 function Transactions() {
@@ -235,7 +235,7 @@ function Transactions() {
             key: 'rate',
             align: 'right',
             width: 80,
-            render: (v) => v?.toFixed(2) || '—',
+            render: (v) => v?.toFixed(3) || '—',
         },
         {
             title: (
@@ -247,7 +247,7 @@ function Transactions() {
             key: 'wacc',
             align: 'right',
             width: 90,
-            render: (v) => v > 0 ? v.toFixed(2) : '—',
+            render: (v) => v > 0 ? v.toFixed(3) : '—',
         }
     ];
 
@@ -262,28 +262,28 @@ function Transactions() {
             key: 'tax_wacc',
             align: 'right',
             width: 90,
-            render: (v) => v > 0 ? <strong>{v.toFixed(2)}</strong> : '—',
+            render: (v) => v > 0 ? <strong>{v.toFixed(3)}</strong> : '—',
         },
         {
             title: 'Broker Comm.',
             dataIndex: 'broker_commission',
             key: 'broker_commission',
             align: 'right',
-            render: (v) => v > 0 ? v.toFixed(2) : '—',
+            render: (v) => v > 0 ? v.toFixed(3) : '—',
         },
         {
             title: 'SEBON Fee',
             dataIndex: 'sebon_fee',
             key: 'sebon_fee',
             align: 'right',
-            render: (v) => v > 0 ? v.toFixed(2) : '—',
+            render: (v) => v > 0 ? v.toFixed(3) : '—',
         },
         {
             title: 'DP Fee',
             dataIndex: 'dp_charge',
             key: 'dp_charge',
             align: 'right',
-            render: (v) => v > 0 ? v.toFixed(2) : '—',
+            render: (v) => v > 0 ? v.toFixed(3) : '—',
         }
     ];
 
@@ -293,7 +293,7 @@ function Transactions() {
             dataIndex: 'dp_charge',
             key: 'dp_charge',
             align: 'right',
-            render: (v) => v > 0 ? v.toFixed(2) : '—',
+            render: (v) => v > 0 ? v.toFixed(3) : '—',
         }
     ];
 
@@ -303,7 +303,7 @@ function Transactions() {
             dataIndex: 'cgt',
             key: 'cgt',
             align: 'right',
-            render: (v) => v > 0 ? <span className="pnl-negative">{v.toFixed(2)}</span> : '—',
+            render: (v) => v > 0 ? <span className="pnl-negative">{v.toFixed(3)}</span> : '—',
         },
         {
             title: 'Total',

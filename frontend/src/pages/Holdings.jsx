@@ -23,7 +23,7 @@ import Papa from 'papaparse';
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
-    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
 }
 
 function TransactionHistory({ memberId, symbol }) {
@@ -53,7 +53,7 @@ function TransactionHistory({ memberId, symbol }) {
             dataIndex: 'rate',
             key: 'rate',
             align: 'right',
-            render: (v) => v ? v.toFixed(2) : '—'
+            render: (v) => v ? v.toFixed(3) : '—'
         },
         {
             title: 'Total Cost',
@@ -67,7 +67,7 @@ function TransactionHistory({ memberId, symbol }) {
             dataIndex: 'tax_wacc',
             key: 'tax_wacc',
             align: 'right',
-            render: (v) => v ? <strong>{v.toFixed(2)}</strong> : '—'
+            render: (v) => v ? <strong>{v.toFixed(3)}</strong> : '—'
         },
         { title: 'Source', dataIndex: 'source', key: 'source', render: (s) => <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{s}</span> },
     ];
@@ -211,7 +211,7 @@ function ClosedPositionsTab({ memberId }) {
             title: 'P&L %', dataIndex: 'pnl_pct', key: 'pnl_pct', align: 'right', width: 90,
             render: (v) => (
                 <span className={`glow-badge ${v >= 0 ? 'green' : 'red'}`}>
-                    {v >= 0 ? '+' : ''}{v?.toFixed(1)}%
+                    {v >= 0 ? '+' : ''}{v?.toFixed(3)}%
                 </span>
             ),
             sorter: (a, b) => a.pnl_pct - b.pnl_pct,
@@ -239,7 +239,7 @@ function ClosedPositionsTab({ memberId }) {
             dataIndex: 'holding_days', key: 'holding_days', align: 'right', width: 90,
             render: (v) => {
                 if (!v) return '—';
-                if (v > 365) return `${(v / 365).toFixed(1)}y`;
+                if (v > 365) return `${(v / 365).toFixed(3)}y`;
                 return `${v}d`;
             },
             sorter: (a, b) => a.holding_days - b.holding_days,
@@ -313,7 +313,7 @@ function ClosedPositionsTab({ memberId }) {
                 dataSource={filtered}
                 rowKey={(record) => `${record.member_id}-${record.symbol}`}
                 loading={isLoading}
-                pagination={{ pageSize: 50, showSizeChanger: true }}
+                pagination={{ defaultPageSize: 50, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
                 scroll={{ x: 1100 }}
                 size="middle"
                 expandable={{
@@ -384,7 +384,7 @@ function AveragingCalculatorModal({ visible, onCancel, holding }) {
                 description={
                     holding.is_fundamental_risk 
                     ? `Sector-specific risks detected (NPL/Reserves). Adding more might be risky.`
-                    : `Fair Value (Graham): Rs. ${holding.graham_number?.toFixed(2) || 'N/A'}`
+                    : `Fair Value (Graham): Rs. ${holding.graham_number?.toFixed(3) || 'N/A'}`
                 }
                 style={{ marginBottom: 20 }}
             />
@@ -420,17 +420,17 @@ function AveragingCalculatorModal({ visible, onCancel, holding }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                         <Text type="secondary">New WACC</Text>
                         <Text strong style={{ fontSize: 18, color: 'var(--accent-secondary)' }}>
-                            Rs. {results.newWacc.toFixed(2)}
+                            Rs. {results.newWacc.toFixed(3)}
                             {results.waccReduction > 0 && (
                                 <Text style={{ fontSize: 12, color: 'var(--accent-green)', marginLeft: 8 }}>
-                                    (-{results.waccReduction.toFixed(2)})
+                                    (-{results.waccReduction.toFixed(3)})
                                 </Text>
                             )}
                         </Text>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                         <Text type="secondary">New Projected YoC</Text>
-                        <Text strong style={{ color: 'var(--accent-primary)' }}>{results.newYoC.toFixed(2)}%</Text>
+                        <Text strong style={{ color: 'var(--accent-primary)' }}>{results.newYoC.toFixed(3)}%</Text>
                     </div>
                     <Divider style={{ margin: '12px 0' }} />
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -495,7 +495,7 @@ function Holdings() {
     const totalVal = filtered.reduce((s, r) => s + (r.current_value || 0), 0);
     const totalTaxProfit = filtered.reduce((s, r) => s + (r.tax_profit || 0), 0);
     const totalPnl = totalVal - totalInv;
-    const pnlPct = totalInv > 0 ? (totalPnl / totalInv * 100).toFixed(2) : 0;
+    const pnlPct = totalInv > 0 ? (totalPnl / totalInv * 100).toFixed(3) : 0;
 
     const commonColumns = [
         {
@@ -526,7 +526,7 @@ function Holdings() {
                 </Tooltip>
             ),
             dataIndex: 'wacc', key: 'wacc', align: 'right',
-            render: (v) => v?.toFixed(2),
+            render: (v) => v?.toFixed(3),
             sorter: (a, b) => a.wacc - b.wacc,
         }
     ];
@@ -597,16 +597,16 @@ function Holdings() {
                 </Tooltip>
             ),
             dataIndex: 'tax_wacc', key: 'tax_wacc', align: 'right',
-            render: (v) => v?.toFixed(2), sorter: (a, b) => a.tax_wacc - b.tax_wacc,
+            render: (v) => v?.toFixed(3), sorter: (a, b) => a.tax_wacc - b.tax_wacc,
         },
         {
             title: 'LTP', dataIndex: 'ltp', key: 'ltp', align: 'right',
-            render: (v) => v?.toFixed(2) || '—', sorter: (a, b) => a.ltp - b.ltp,
+            render: (v) => v?.toFixed(3) || '—', sorter: (a, b) => a.ltp - b.ltp,
         },
         {
             title: 'Graham Val.', dataIndex: 'graham_number', key: 'graham', align: 'right',
             render: (v, r) => v ? (
-                <Tooltip title={`Graham: ${v.toFixed(2)} (Gap: ${((r.ltp - v) / v * 100).toFixed(1)}%)`}>
+                <Tooltip title={`Graham: ${v.toFixed(3)} (Gap: ${((r.ltp - v) / v * 100).toFixed(3)}%)`}>
                     <Tag color={r.ltp > v ? 'error' : 'success'} style={{ fontWeight: 600 }}>
                         {v.toFixed(0)}
                     </Tag>
@@ -631,7 +631,7 @@ function Holdings() {
     const sipSpecificColumns = [
         {
             title: 'NAV', dataIndex: 'ltp', key: 'ltp', align: 'right',
-            render: (v) => v?.toFixed(2) || '—', sorter: (a, b) => a.ltp - b.ltp,
+            render: (v) => v?.toFixed(3) || '—', sorter: (a, b) => a.ltp - b.ltp,
         }
     ];
 
@@ -790,7 +790,7 @@ function Holdings() {
                         dataSource={filtered}
                         rowKey="id"
                         loading={isLoading}
-                        pagination={{ pageSize: 50, showSizeChanger: true }}
+                        pagination={{ defaultPageSize: 50, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
                         scroll={{ x: 1100 }}
                         size="middle"
                         expandable={{

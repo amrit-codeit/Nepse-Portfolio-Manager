@@ -63,18 +63,21 @@ export const uploadDpStatement = (memberId, symbol, format, file) => {
 export const deleteTransaction = (id) => api.delete(`/transactions/${id}`);
 
 // --- Portfolio ---
-export const getPortfolioSummary = (params = {}) =>
-  api.get('/portfolio/summary', { params });
+export const getPortfolioSummary = (params) => api.get('/portfolio/summary', { params });
 export const getHoldings = (params) => api.get('/portfolio/holdings', { params });
 export const getPortfolioHistory = (params) => api.get('/portfolio/history', { params });
 export const getComputedHistory = (params) => api.get('/portfolio/computed-history', { params });
 export const getClosedPositions = (params) => api.get('/portfolio/closed-positions', { params });
+export const getPortfolioDividends = (params) => api.get('/portfolio/dividends', { params });
 export const takeSnapshot = () => api.post('/portfolio/snapshot');
 
 // --- Prices ---
 export const getMergedPrices = (params) => api.get('/prices', { params });
 export const getHistoricalPrices = (params) => api.get('/prices/historical', { params });
+export const getNepseIndex = (params) => api.get('/prices/index', { params });
+export const getLatestNepseIndex = () => api.get('/prices/index/latest');
 export const getIssuePrice = (symbol, issueType) => api.get('/prices/issue-price', { params: { symbol, issue_type: issueType } });
+export const getAllIssues = () => api.get('/prices/all-issues');
 export const refreshPrices = () => api.post('/scraper/prices');
 export const refreshNav = () => api.post('/scraper/nav');
 
@@ -88,10 +91,13 @@ export const addFeeConfigVersion = (data) => api.post('/config/fees/version', da
 export const scrapeCompanies = () => api.post('/scraper/companies');
 export const scrapeNav = () => api.post('/scraper/nav');
 export const scrapePrices = () => api.post('/scraper/prices');
+export const scrapeIssues = () => api.post('/scraper/issues');
 export const syncMeroshare = (memberIds) => api.post('/scraper/meroshare/sync', memberIds ? { member_ids: memberIds } : null);
 export const syncHistory = () => api.post('/scraper/history');
+export const scrapeIndex = () => api.post('/scraper/index');
 export const syncDividends = () => api.post('/scraper/dividends');
 export const scrapeFundamentals = (symbol) => api.post(`/scraper/fundamentals/${symbol}`);
+export const scrapeInsights = (symbol) => api.post(`/scraper/insights/${symbol}`);
 
 // --- Dividends ---
 export const getDividends = (params) => api.get('/dividends', { params });
@@ -113,9 +119,17 @@ export const getAIReview = (params) => api.post('/ai-review/portfolio', null, { 
 export const getExecutiveSummary = (symbol) => api.get(`/analysis/summary/${symbol}`);
 export const getAIVerdict = (symbol) => api.post(`/analysis/summary/${symbol}/ai-verdict`);
 
+// --- Stock Detail ---
+export const getStockDetail = (symbol, params = {}) => api.get(`/stock-detail/${symbol}`, { params });
+export const getSymbolsList = (params = {}) => api.get('/stock-detail/symbols/list', { params });
+
 // --- IPO API ---
 export const getOpenIPOs = (member_id) => api.get('/ipo/open', { params: { member_id } });
 export const applyIPOs = (data) => api.post('/ipo/apply', data);
 export const getIPOJobStatus = (job_id) => api.get(`/ipo/status/${job_id}`);
+
+// --- Calculator ---
+export const simulateBuy = (data) => api.post('/calculator/buy', data);
+export const simulateSell = (data) => api.post('/calculator/sell', data);
 
 export default api;

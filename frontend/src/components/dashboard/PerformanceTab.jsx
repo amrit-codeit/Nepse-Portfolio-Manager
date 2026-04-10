@@ -21,7 +21,7 @@ const NEPSE_COLOR = '#ff7675';
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
-    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
 }
 
 function computeXIRR(transactions, currentValue) {
@@ -55,7 +55,7 @@ function computeXIRR(transactions, currentValue) {
         if (cashFlows.length > 0 && currentValue > 0) {
             cashFlows.push({ amount: currentValue, when: new Date() });
             const rate = xirr(cashFlows);
-            return (rate * 100).toFixed(2);
+            return (rate * 100).toFixed(3);
         }
     } catch (e) {
         console.warn('XIRR calculation failed:', e);
@@ -66,14 +66,15 @@ function computeXIRR(transactions, currentValue) {
 export default function PerformanceTab({ summary, context, members, isSipMode, pricesData }) {
     const queryClient = useQueryClient();
     const [historyDays, setHistoryDays] = useState(180);
+    const [viewMode, setViewMode] = useState('absolute'); // 'absolute' or 'percentage'
 
     // Build query params for history
     const historyParams = useMemo(() => {
-        const p = { days: historyDays };
+        const p = { days: historyDays, is_sip: isSipMode };
         if (context?.type === 'member') p.member_id = context.id;
         if (context?.type === 'group') p.member_ids = context.memberIds.join(',');
         return p;
-    }, [context, historyDays]);
+    }, [context, historyDays, isSipMode]);
 
     const summaryParams = useMemo(() => {
         if (context?.type === 'member') return { member_id: context.id };
@@ -122,18 +123,13 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
         });
     }, [txnData, isSipMode, pricesData]);
 
-    // XIRR calculation
-    const xirrValue = useMemo(() => {
-        if (!filteredTxnData.length || !summary?.current_value) return null;
-        return computeXIRR(filteredTxnData, summary.current_value);
-    }, [filteredTxnData, summary]);
+    // Use backend-provided XIRR instead of recomputing
+    const xirrValue = summary?.portfolio_xirr;
 
-    // Dividend income
+    // Dividend income from summary
     const dividendIncome = useMemo(() => {
-        return filteredTxnData
-            .filter(t => t.txn_type === 'DIVIDEND')
-            .reduce((sum, t) => sum + (t.total_cost || 0), 0);
-    }, [filteredTxnData]);
+        return summary?.dividend_income || 0;
+    }, [summary]);
 
     // Realized profit
     const realizedProfit = useMemo(() => {
@@ -151,26 +147,96 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
             }, 0);
     }, [filteredTxnData]);
 
+    // Total Returns = Unrealized + Realized + Dividends
+    const totalReturns = useMemo(() => {
+        return (summary?.unrealized_pnl || 0) + realizedProfit + dividendIncome;
+    }, [summary, realizedProfit, dividendIncome]);
+
     // Format history for line chart
     const chartData = useMemo(() => {
         if (!historyData || historyData.length === 0) return [];
-        return historyData.map(d => ({
+        
+        const raw = historyData.map(d => ({
             ...d,
             displayDate: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
         }));
-    }, [historyData]);
+
+        if (viewMode === 'percentage') {
+            const baseDay = raw[0];
+            
+            // Calculate a True Time-Weighted Return (NAV) for the period
+            // Start NAV at 100 on the first day
+            let currentNav = 100;
+            const navArray = [currentNav];
+            
+            for (let i = 1; i < raw.length; i++) {
+                const day = raw[i];
+                const prevDay = raw[i - 1];
+                
+                // Track net cash flows (deposits - withdrawals)
+                const cashFlow = day.investment_cost - prevDay.investment_cost;
+                
+                if (prevDay.portfolio_value <= 0) {
+                    navArray.push(currentNav);
+                    continue;
+                }
+                
+                // Calculate pure market growth ratio by factoring out cash injections
+                const growthRatio = (day.portfolio_value - cashFlow) / prevDay.portfolio_value;
+                
+                currentNav = currentNav * growthRatio;
+                navArray.push(currentNav);
+            }
+
+            return raw.map((day, idx) => {
+                const nepseBase = baseDay.nepse_index || day.nepse_index;
+                const nepse_pct = nepseBase ? ((day.nepse_index - nepseBase) / nepseBase) * 100 : 0;
+                
+                const nav = navArray[idx];
+                const portfolio_pct = nav - 100; // Because base is 100, (nav-100)/100*100 is just nav-100!
+
+                return {
+                    ...day,
+                    portfolio_pct: Number(portfolio_pct.toFixed(3)),
+                    nepse_pct: Number(nepse_pct.toFixed(3))
+                };
+            });
+        }
+
+        return raw;
+    }, [historyData, viewMode]);
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload?.length) {
             const dateStr = payload[0].payload.date;
             return (
-                <div style={{ background: 'var(--bg-secondary)', padding: '10px 15px', borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                    <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', fontSize: 12 }}>{dateStr}</p>
+                <div style={{ 
+                    background: 'var(--bg-secondary)', 
+                    padding: '12px 16px', 
+                    borderRadius: 12, 
+                    border: '1px solid var(--border-color)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                    backdropFilter: 'blur(8px)'
+                }}>
+                    <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', fontSize: 13, borderBottom: '1px solid var(--border-color)', paddingBottom: 6 }}>{dateStr}</p>
                     {payload.map((p, i) => (
-                        <p key={i} style={{ margin: '2px 0', color: p.color, fontSize: 12 }}>
-                            {p.name}: {p.name === 'NEPSE Index' ? p.value.toFixed(2) : formatNPR(p.value)}
-                        </p>
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 24, margin: '4px 0', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                                {p.name}:
+                            </span>
+                            <span style={{ fontWeight: 600, color: p.color, fontSize: 12 }}>
+                                {viewMode === 'percentage' || p.name === 'NEPSE Index' ? 
+                                    (p.name === 'Investment' ? formatNPR(p.value) : `${p.value > 0 ? '+' : ''}${p.value.toFixed(3)}${viewMode === 'percentage' ? '%' : ''}`) 
+                                    : formatNPR(p.value)
+                                }
+                            </span>
+                        </div>
                     ))}
+                    {viewMode === 'percentage' && payload[0]?.payload && (
+                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border-color)', fontSize: 11, color: 'var(--text-muted)' }}>
+                            Rel. to {new Date(chartData[0]?.date).toLocaleDateString()}
+                        </div>
+                    )}
                 </div>
             );
         }
@@ -184,8 +250,8 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
                 <Col xs={24} sm={12} lg={6}>
                     <div className="stat-card">
                         <div className="stat-label"><PercentageOutlined /> XIRR (Annualized Return)</div>
-                        <div className="stat-value" style={{ color: xirrValue && Number(xirrValue) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                            {xirrValue ? `${xirrValue}%` : 'Calculating...'}
+                        <div className="stat-value" style={{ color: xirrValue && xirrValue >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                            {xirrValue != null ? `${xirrValue.toFixed(3)}%` : 'N/A'}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                             Based on actual cash flows
@@ -204,11 +270,13 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
                     </div>
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
-                    <div className="stat-card">
-                        <div className="stat-label"><DollarOutlined /> Dividend Income</div>
-                        <div className="stat-value">{formatNPR(dividendIncome)}</div>
+                    <div className={`stat-card ${totalReturns >= 0 ? 'green' : 'red'}`}>
+                        <div className="stat-label"><DollarOutlined /> Total Returns</div>
+                        <div className="stat-value" style={{ color: totalReturns >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+                            {formatNPR(totalReturns)}
+                        </div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                            From DIVIDEND transactions
+                            Unrealized + Realized + Dividends
                         </div>
                     </div>
                 </Col>
@@ -237,7 +305,16 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
                             <div className="chart-title" style={{ margin: 0 }}>
                                 <LineChartOutlined /> Portfolio Performance
                             </div>
-                            <Space>
+                            <Space size="middle">
+                                <Radio.Group value={viewMode} onChange={e => setViewMode(e.target.value)} size="small" buttonStyle="solid">
+                                    <Tooltip title="Relative % Growth">
+                                        <Radio.Button value="percentage"><PercentageOutlined /></Radio.Button>
+                                    </Tooltip>
+                                    <Tooltip title="Absolute Market Value">
+                                        <Radio.Button value="absolute"><DollarOutlined /></Radio.Button>
+                                    </Tooltip>
+                                </Radio.Group>
+
                                 <Radio.Group value={historyDays} onChange={e => setHistoryDays(e.target.value)} size="small">
                                     <Radio.Button value={30}>1M</Radio.Button>
                                     <Radio.Button value={90}>3M</Radio.Button>
@@ -255,59 +332,58 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
                         ) : chartData.length >= 2 ? (
                             <div style={{ flex: 1, minHeight: 0 }}>
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                                        <XAxis 
-                                            dataKey="displayDate" 
-                                            stroke="var(--text-secondary)" 
-                                            tick={{ fontSize: 10 }} 
-                                            minTickGap={30}
-                                        />
-                                        <YAxis 
+                                <LineChart data={chartData} margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                                    <XAxis 
+                                        dataKey="displayDate" 
+                                        stroke="var(--text-secondary)" 
+                                        tick={{ fontSize: 10 }} 
+                                        minTickGap={30}
+                                    />
+                                    <YAxis 
+                                        yAxisId="left"
+                                        stroke="var(--text-secondary)" 
+                                        tick={{ fontSize: 11 }} 
+                                        tickFormatter={v => viewMode === 'percentage' ? `${v.toFixed(1)}%` : `${(v / 1000).toFixed(0)}K`} 
+                                    />
+
+                                    <RechartsTooltip content={<CustomTooltip />} />
+                                    <Legend verticalAlign="top" height={36}/>
+                                    
+                                    <Line 
+                                        yAxisId="left"
+                                        type="monotone" 
+                                        dataKey={viewMode === 'percentage' ? "portfolio_pct" : "portfolio_value"} 
+                                        name={viewMode === 'percentage' ? "Portfolio Performance" : "Current Value"}
+                                        stroke="#6c5ce7" 
+                                        strokeWidth={3} 
+                                        dot={false} 
+                                        activeDot={{ r: 6 }}
+                                    />
+
+                                    {viewMode === 'absolute' ? (
+                                            <Line 
+                                                yAxisId="left"
+                                                type="monotone" 
+                                                dataKey="investment_cost" 
+                                                name="Investment"
+                                                stroke="#00b894" 
+                                                strokeWidth={2} 
+                                                strokeDasharray="5 5"
+                                                dot={false} 
+                                            />
+                                    ) : (
+                                        <Line 
                                             yAxisId="left"
-                                            stroke="var(--text-secondary)" 
-                                            tick={{ fontSize: 11 }} 
-                                            tickFormatter={v => `${(v / 1000).toFixed(0)}K`} 
-                                        />
-                                        <YAxis 
-                                            yAxisId="right"
-                                            orientation="right"
+                                            type="monotone" 
+                                            dataKey="nepse_pct" 
+                                            name="NEPSE Performance"
                                             stroke={NEPSE_COLOR} 
-                                            tick={{ fontSize: 11 }}
-                                            domain={['auto', 'auto']}
-                                        />
-                                        <RechartsTooltip content={<CustomTooltip />} />
-                                        <Legend verticalAlign="top" height={36}/>
-                                        <Line 
-                                            yAxisId="left"
-                                            type="monotone" 
-                                            dataKey="portfolio_value" 
-                                            name="Current Value"
-                                            stroke="#6c5ce7" 
-                                            strokeWidth={3} 
-                                            dot={false} 
-                                            activeDot={{ r: 6 }}
-                                        />
-                                        <Line 
-                                            yAxisId="left"
-                                            type="monotone" 
-                                            dataKey="investment_cost" 
-                                            name="Investment"
-                                            stroke="#00b894" 
                                             strokeWidth={2} 
-                                            strokeDasharray="5 5"
                                             dot={false} 
                                         />
-                                        <Line 
-                                            yAxisId="right"
-                                            type="monotone" 
-                                            dataKey="nepse_index" 
-                                            name="NEPSE Index"
-                                            stroke={NEPSE_COLOR} 
-                                            strokeWidth={1.5} 
-                                            dot={false} 
-                                        />
-                                    </LineChart>
+                                    )}
+                                </LineChart>
                                 </ResponsiveContainer>
                             </div>
                         ) : (

@@ -12,7 +12,7 @@ import { getExecutiveSummary, getAIVerdict } from '../../services/api';
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
-    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
 }
 
 function getScoreColor(score) {
@@ -156,13 +156,13 @@ export default function ExecutiveSummary({ symbol }) {
                                 <Divider style={{ margin: '16px 0', borderColor: 'var(--border-color)' }} />
                                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                        <span>EPS (TTM)</span><span style={{ fontWeight: 600 }}>Rs. {data.eps_ttm?.toFixed(2) || '—'}</span>
+                                        <span>EPS (TTM)</span><span style={{ fontWeight: 600 }}>Rs. {data.eps_ttm?.toFixed(3) || '—'}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                        <span>Book Value</span><span style={{ fontWeight: 600 }}>Rs. {data.bvps?.toFixed(2) || '—'}</span>
+                                        <span>Book Value</span><span style={{ fontWeight: 600 }}>Rs. {data.bvps?.toFixed(3) || '—'}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <span>P/E Ratio</span><span style={{ fontWeight: 600 }}>{data.pe_ratio?.toFixed(2) || '—'}</span>
+                                        <span>P/E Ratio</span><span style={{ fontWeight: 600 }}>{data.pe_ratio?.toFixed(3) || '—'}</span>
                                     </div>
                                 </div>
                             </>
@@ -219,7 +219,7 @@ export default function ExecutiveSummary({ symbol }) {
 
                         {data.bonus_dividend_pct > 0 && data.cash_dividend_pct > 0 && (
                             <div style={{ marginTop: 12, fontSize: 11, color: 'var(--text-muted)', background: 'rgba(253,203,110,0.08)', padding: '8px 10px', borderRadius: 8, lineHeight: 1.4 }}>
-                                <InfoCircleOutlined /> Latest cash of Rs. {(data.cash_dividend_pct / 100 * data.face_value).toFixed(2)}/share
+                                <InfoCircleOutlined /> Latest cash of Rs. {(data.cash_dividend_pct / 100 * data.face_value).toFixed(3)}/share
                                 {data.cash_dividend_pct / 100 * data.face_value >= data.bonus_dividend_pct * 0.05 * data.face_value
                                     ? ' covers 5% bonus tax.'
                                     : ' partially covers 5% bonus tax.'}

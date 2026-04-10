@@ -5,23 +5,24 @@ import {
   FundOutlined,
   SwapOutlined,
   UploadOutlined,
-  TeamOutlined,
   SettingOutlined,
   BankOutlined,
   ThunderboltOutlined,
   ExperimentOutlined,
   InfoCircleOutlined,
-  TrophyOutlined,
+  StockOutlined,
+  CalculatorOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import Holdings from './pages/Holdings';
-import Dividends from './pages/Dividends';
 import Transactions from './pages/Transactions';
 import Upload from './pages/Upload';
 import Settings from './pages/Settings';
 import Prices from './pages/Prices';
 import ApplyIPO from './pages/ApplyIPO';
 import Insights from './pages/Insights';
+import ScripDetail from './pages/ScripDetail';
+import Calculator from './pages/Calculator';
 import About from './pages/About';
 
 const { Sider, Content } = Layout;
@@ -29,10 +30,11 @@ const { Sider, Content } = Layout;
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
   { key: '/holdings', icon: <FundOutlined />, label: 'Holdings' },
-  { key: '/dividends', icon: <TrophyOutlined />, label: 'Dividends & Yield' },
   { key: '/transactions', icon: <SwapOutlined />, label: 'Transactions' },
   { key: '/prices', icon: <BankOutlined />, label: 'Prices' },
   { key: '/insights', icon: <ExperimentOutlined />, label: 'Insights' },
+  { key: '/scrip-detail', icon: <StockOutlined />, label: 'Scrip Detail' },
+  { key: '/calculator', icon: <CalculatorOutlined />, label: 'Calculator' },
   { key: '/apply-ipo', icon: <ThunderboltOutlined />, label: 'Apply IPO' },
   { key: '/upload', icon: <UploadOutlined />, label: 'Sync & Credentials' },
   { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
@@ -89,10 +91,11 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/holdings" element={<Holdings />} />
-            <Route path="/dividends" element={<Dividends />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/prices" element={<Prices />} />
             <Route path="/insights" element={<Insights />} />
+            <Route path="/scrip-detail" element={<ScripDetail />} />
+            <Route path="/calculator" element={<Calculator />} />
             <Route path="/apply-ipo" element={<ApplyIPO />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/settings" element={<Settings />} />
@@ -105,3 +108,4 @@ function App() {
 }
 
 export default App;
+
