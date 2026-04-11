@@ -55,9 +55,8 @@
 - **IPO automation** — Apply for IPOs via MeroShare for multiple members
 - **DP statement reconciliation** — Import SIP data from NMBSBFE (PDF), NIBLSF (CSV), and NI31 (XLSX)
 - **Computed portfolio history** — Historical performance charts with NEPSE index benchmarking
-- **Fee calculator** — Configurable, date-versioned SEBON fee structure
-- **Export/Import** — Excel and CSV export; native CSV import for portability
-- **Background scheduler** — APScheduler for automated NAV refresh, daily snapshots, and backups
+- **Order Simulator** — Real-time Buy/Sell calculator with full SEBON fee breakdown and FIFO-based CGT estimation
+- **Scrip Intelligence Dashboard** — Individual stock sub-pages with historical price charts and transaction markers
 - **About & Vision Panel** — Project transparency and technical stack overview
 
 ---
@@ -315,6 +314,13 @@ Uses `pydantic-settings` for environment-based configuration:
 | POST | `/apply` | Start background IPO application job |
 | GET | `/status/{job_id}` | Poll job status |
 
+#### `/api/stock-detail` — [stock_detail.py](file:///d:/Projects/Portfolio/backend/app/api/stock_detail.py)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/symbols/list` | List all symbols the member has traded/holds |
+| GET | `/{symbol}` | Full 360° stock detail: transactions, qty breakdown, dividends, yield, XIRR, ROI, Graham |
+
 ---
 
 ### 3.7 Services (Business Logic)
@@ -501,6 +507,7 @@ Layout: `Sider` (240px, dark, collapsible) + `Content`.
 | **ApplyIPO** | [ApplyIPO.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/ApplyIPO.jsx) | 10 KB | Multi-member IPO application with job polling |
 | **Upload** | [Upload.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Upload.jsx) | 26 KB | MeroShare sync, CSV upload, DP statement import, credential mgmt |
 | **Settings** | [Settings.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Settings.jsx) | 11 KB | Fee config editor, backup controls, history backfill |
+| **ScripDetail** | [ScripDetail.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/ScripDetail.jsx) | 17 KB | 360° stock/SIP analysis: qty breakdown, XIRR, ROI, Graham, dividends, yield comparison, transaction history |
 
 ### 4.4 Components
 
@@ -852,10 +859,10 @@ This single file handles all of: transaction listing, creation modal, editing mo
 
 | ID | Location | Issue | Impact | Severity |
 |----|----------|-------|--------|----------|
-| **PERF-01** | `get_portfolio_summary()` | XIRR computed per-holding via individual DB queries (N+1) | ~30 extra queries per page load | 🔴 High |
-| **PERF-02** | `list_holdings()` in portfolio.py | `get_xirr_for_holding()` called in a loop for each holding — identical N+1 pattern | Dashboard and Holdings slowdown | 🔴 High |
+| **PERF-01** | `get_portfolio_summary()` | XIRR computed per-holding via individual DB queries (N+1) | (✅ Resolved: Batch computation implemented) | 🔴 High |
+| **PERF-02** | `list_holdings()` | Identical N+1 Pattern in loop | (✅ Resolved: Batch computation implemented) | 🔴 High |
 | **PERF-03** | `/portfolio/closed-positions` | Loads **ALL transactions** into memory, then groups in Python | For large transaction sets (5k+), this is problematic | 🟠 Medium |
-| **PERF-04** | `get_computed_history()` | Iterates every calendar day (incl. weekends) with per-symbol dict lookups | Linear in N_days × N_symbols | 🟠 Medium |
+| **PERF-04** | `get_computed_history()` | Iterates every calendar day (incl. weekends) | (✅ Resolved: Trading-day only iteration implemented) | 🟠 Medium |
 | **PERF-05** | `scrape_live_prices()` | One Selenium browser launch per price refresh (~5-10 sec per call) | Blocks API thread during refresh | 🟠 Medium |
 | **PERF-06** | `scrape_nav()` | Another Selenium browser launch for NAV refresh | Blocks API thread | 🟠 Medium |
 | **PERF-07** | `download_ticker_history()` | Individual `SELECT + INSERT/UPDATE` per price record (no bulk upsert) | N_records × 2 queries for backfill | 🟡 Low |
@@ -932,7 +939,7 @@ This single file handles all of: transaction listing, creation modal, editing mo
 
 ### Should Fix (High/Medium)
 
-4. **Batch XIRR computation** — pre-fetch all transactions in one query, compute XIRR in memory
+4. **Batch XIRR computation** (✅ Done)
 5. **Set `DEBUG=False`** in production .env — eliminates SQL echo overhead
 6. **Configure Alembic** for proper database migrations
 7. **Add TTL or max-size to IPO_JOBS** dict

@@ -125,6 +125,12 @@ class IndexHistory(Base):
     index_id = Column(Integer, nullable=True) # Official ID from NEPSE
     date = Column(Date, nullable=False, index=True)
     close = Column(Float, nullable=False)
+    open = Column(Float, nullable=True)
+    high = Column(Float, nullable=True)
+    low = Column(Float, nullable=True)
+    change = Column(Float, nullable=True)
+    percent_change = Column(Float, nullable=True)
+    turnover = Column(Float, nullable=True)
 
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

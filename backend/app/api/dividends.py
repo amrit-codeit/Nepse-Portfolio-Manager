@@ -46,7 +46,7 @@ def get_dividends(
             "book_close_date": r.book_close_date.isoformat() if r.book_close_date else None,
             "eligible_quantity": r.eligible_quantity,
             "total_cash_amount": r.total_cash_amount,
-            "total_bonus_shares": round(r.eligible_quantity * (r.bonus_dividend_percent / 100), 2),
+            "total_bonus_shares": round(r.eligible_quantity * (r.bonus_dividend_percent / 100), 3),
             "updated_at": r.updated_at.isoformat() if r.updated_at else None,
         }
         for r in records
@@ -131,18 +131,18 @@ def dividend_summary(member_id: Optional[int] = Query(None), db: Session = Depen
         
         summary_by_symbol.append({
             "symbol": s.symbol,
-            "total_cash": round(float(s.total), 2),
-            "total_bonus": round(float(s.bonus_shares_total), 2),
+            "total_cash": round(float(s.total), 3),
+            "total_bonus": round(float(s.bonus_shares_total), 3),
             "payout_count": s.count,
             "ltp": ltp,
-            "average_cost": round(float(wacc), 2) if wacc else None,
-            "dividend_yield": round(float(div_yield), 2),
-            "yield_on_cost": round(float(yield_on_cost), 2),
+            "average_cost": round(float(wacc), 3) if wacc else None,
+            "dividend_yield": round(float(div_yield), 3),
+            "yield_on_cost": round(float(yield_on_cost), 3),
         })
 
     return {
-        "total_dividend_income": round(float(total_amount), 2),
-        "total_bonus_shares": round(float(total_bonus_shares), 2),
+        "total_dividend_income": round(float(total_amount), 3),
+        "total_bonus_shares": round(float(total_bonus_shares), 3),
         "total_eligible_records": total_records,
         "unique_symbols": unique_symbols,
         "by_symbol": summary_by_symbol

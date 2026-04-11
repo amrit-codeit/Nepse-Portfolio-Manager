@@ -17,6 +17,7 @@ from sqlalchemy import func
 from sqlalchemy.dialects.sqlite import insert
 
 from app.models.company import Company
+from app.models.member import Member
 from app.models.transaction import Transaction, TransactionType
 from app.models.dividend import DividendIncome
 
@@ -196,10 +197,11 @@ def calculate_eligible_quantity(db: Session, member_id: int, symbol: str, book_c
 
 # --- Main Scraper Function ---
 
-def scrape_and_calculate_dividends(db: Session) -> dict:
+def scrape_and_calculate_dividends(db: Session, target_symbol: str = None) -> dict:
     """
     Main entry point: scrapes dividend data for all portfolio symbols
     and calculates eligibility based on transaction history.
+    If target_symbol is provided, bypasses global holdings extraction.
     """
     print("=" * 60)
     print("Starting Dividend Scraper & Eligibility Calculator...")
@@ -208,7 +210,10 @@ def scrape_and_calculate_dividends(db: Session) -> dict:
     # Step 1: Get all distinct member-symbol combinations from transactions
     unique_holdings = db.query(Transaction.symbol, Transaction.member_id).distinct().all()
 
-    symbols = list(set([r[0] for r in unique_holdings if r[0]]))
+    if target_symbol:
+        symbols = [target_symbol.upper()]
+    else:
+        symbols = list(set([r[0] for r in unique_holdings if r[0]]))
 
     symbol_to_members = {}
     for sym, mem_id in unique_holdings:
@@ -288,6 +293,13 @@ def scrape_and_calculate_dividends(db: Session) -> dict:
 
             # Step 5: For each member who trades this symbol, for each dividend row
             members_for_symbol = symbol_to_members.get(symbol, [])
+            
+            # If a target symbol was passed and no member holds it, assign it to all members 
+            # so the history correctly populates into the DB structure (eligible_qty will evaluate to 0).
+            if target_symbol and not members_for_symbol:
+                all_members = db.query(Member.id).all()
+                members_for_symbol = [m.id for m in all_members]
+                
             for mem_id in members_for_symbol:
                 for div in dividends:
                     eligible_qty = calculate_eligible_quantity(
@@ -310,7 +322,7 @@ def scrape_and_calculate_dividends(db: Session) -> dict:
                         bonus_dividend_percent=div["bonus_dividend_percent"],
                         book_close_date=div["book_close_date"],
                         eligible_quantity=eligible_qty,
-                        total_cash_amount=round(total_cash, 2),
+                        total_cash_amount=round(total_cash, 3),
                     )
 
                     upsert_stmt = stmt.on_conflict_do_update(

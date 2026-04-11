@@ -112,12 +112,11 @@ export const createGroup = (data) => api.post('/groups', data);
 export const updateGroup = (id, data) => api.put(`/groups/${id}`, data);
 export const deleteGroup = (id) => api.delete(`/groups/${id}`);
 
-// --- AI Review ---
-export const getAIReview = (params) => api.post('/ai-review/portfolio', null, { params });
 
 // --- Executive Summary ---
+export const getAIModels = () => api.get('/analysis/models');
 export const getExecutiveSummary = (symbol) => api.get(`/analysis/summary/${symbol}`);
-export const getAIVerdict = (symbol) => api.post(`/analysis/summary/${symbol}/ai-verdict`);
+export const getAIVerdict = (symbol, model) => api.post(`/analysis/summary/${symbol}/ai-verdict`, null, { params: { model } });
 
 // --- Stock Detail ---
 export const getStockDetail = (symbol, params = {}) => api.get(`/stock-detail/${symbol}`, { params });

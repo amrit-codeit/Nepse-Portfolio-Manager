@@ -20,7 +20,7 @@ export default function About() {
                     Nepse Portfolio Manager
                 </Title>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Tag color="blue" bordered={false} style={{ borderRadius: 4 }}>v1.0.0-Stable</Tag>
+                    <Tag color="blue" bordered={false} style={{ borderRadius: 4 }}>v1.2.0-Stable</Tag>
                     <Text type="secondary" style={{ fontSize: 13 }}>Enterprise-grade performance tracking for the Nepali Stock Market.</Text>
                 </div>
             </div>
@@ -70,8 +70,9 @@ export default function About() {
                         <List
                             size="small"
                             dataSource={[
+                                { date: 'Apr 10, 2026', version: 'v1.2.0', msg: 'Added Buy/Sell Simulator & Scrip Detail Dashboard.' },
+                                { date: 'Apr 09, 2026', version: 'v1.1.0', msg: 'Performance overhaul and Sharesansar migration.' },
                                 { date: 'Apr 06, 2026', version: 'v1.0.0', msg: 'Production Stable Release. Integrated Value-Risk Matrix.' },
-                                { date: 'Apr 06, 2026', version: 'v0.9.8', msg: 'Optimized Benchmarking engine; fixed XIRR N+1 bottleneck.' },
                                 { date: 'Apr 01, 2026', version: 'v0.9.5', msg: 'Complete data audit and credential security hardening.' },
                                 { date: 'Mar 25, 2026', version: 'v0.9.0', msg: 'Beta testing of MeroShare Selenium bridge.' },
                             ]}

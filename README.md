@@ -29,9 +29,10 @@ The project includes automated scripts for a frictionless start.
   - **True WACC**: Bonus/Right shares at actual cost (Rs. 0 for bonus). Reflects your true financial ROI.
   - **Tax WACC**: Matches MeroShare/CDSC rules (Rs. 100 for bonus). Critical for Capital Gains Tax (CGT) accuracy.
 
-- **🔄 Intelligent Scraping**:
-  - **MeroShare Sync**: Automated transaction history extraction.
-  - **Live Pricing**: Real-time LTP updates and Mutual Fund NAV scraping from ShareSansar/NEPSE data.
+- **📉 Analysis Tools**:
+  - **Order Simulator**: Real-time Buy/Sell calculator with SEBON fees and FIFO CGT estimation.
+  - **Scrip Intelligence**: Detailed dashboards for every stock with historical charts and transaction dots.
+  - **Advanced Metrics**: Herfindahl-Hirschman Index (HHI), Portfolio XIRR, and Yield on Cost tracking.
 
 - **🛡️ Secure & Private**:
   - **Local-First**: All data is stored in a local SQLite database (`portfolio.db`).

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.price import PriceHistory
-from app.models.fundamental import StockOverview, FundamentalReport
+from app.models.fundamental import StockOverview, FundamentalReport, QuarterlyGrowth
 import pandas as pd
 import pandas_ta as ta
 
@@ -84,6 +84,11 @@ def get_insights(symbol: str, db: Session = Depends(get_db)):
                  .order_by(FundamentalReport.quarter.desc())
                  .all())
 
+    growths = (db.query(QuarterlyGrowth)
+               .filter_by(symbol=symbol)
+               .order_by(QuarterlyGrowth.fiscal_year.desc(), QuarterlyGrowth.quarter.desc())
+               .all())
+
     fundamentals = None
     if overview or quarterly:
         fundamentals = {
@@ -105,6 +110,16 @@ def get_insights(symbol: str, db: Session = Depends(get_db)):
                 }
                 for r in quarterly
             ],
+            "growths": [
+                {
+                    "particulars": g.particulars,
+                    "fiscal_year": g.fiscal_year,
+                    "quarter": g.quarter,
+                    "value": g.value,
+                    "financial_date": g.financial_date
+                }
+                for g in growths
+            ]
         }
 
     return {

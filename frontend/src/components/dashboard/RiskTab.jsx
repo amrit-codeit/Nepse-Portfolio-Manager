@@ -23,7 +23,6 @@ import {
     RocketOutlined,
     ArrowDownOutlined,
 } from '@ant-design/icons';
-import { getAIReview } from '../../services/api';
 import { useState } from 'react';
 
 const { Paragraph, Text, Title } = Typography;

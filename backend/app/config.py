@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     NAV_URL: str = "https://www.sharesansar.com/mutual-fund-navs"
     MEROSHARE_URL: str = "https://meroshare.cdsc.com.np/#/login"
 
+    # AI / Ollama Settings
+    OLLAMA_URL: str = "http://localhost:11434/api/generate"
+    DEFAULT_OLLAMA_MODEL: str = "qwen2.5:3b-instruct-q4_0"
+    AVAILABLE_OLLAMA_MODELS: list[str] = ["qwen2.5:3b-instruct-q4_0", "gemma4:e2b", "llama3:8b", "deepseek-r1:1.5b"]
+    OLLAMA_TIMEOUT: float = 120.0
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

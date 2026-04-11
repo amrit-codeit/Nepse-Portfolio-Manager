@@ -103,11 +103,11 @@ def list_holdings(
             total_investment=h.total_investment,
             ltp=ltp,
             current_value=round(
-                current_value, 2) if current_value is not None else None,
+                current_value, 3) if current_value is not None else None,
             unrealized_pnl=round(
-                unrealized_pnl, 2) if unrealized_pnl is not None else None,
-            pnl_pct=round(pnl_pct, 2) if pnl_pct is not None else None,
-            tax_profit=round(tax_profit, 2),
+                unrealized_pnl, 3) if unrealized_pnl is not None else None,
+            pnl_pct=round(pnl_pct, 3) if pnl_pct is not None else None,
+            tax_profit=round(tax_profit, 3),
             xirr=xirr_val
         ))
 
@@ -317,12 +317,12 @@ def closed_positions(
             "company_name": comp_info[0],
             "sector": comp_info[1],
             "total_buy_qty": round(total_buy_qty, 4),
-            "total_buy_cost": round(total_buy_cost, 2),
+            "total_buy_cost": round(total_buy_cost, 3),
             "total_sell_qty": round(total_sell_qty, 4),
-            "total_sell_proceeds": round(total_sell_proceeds, 2),
-            "dividend_income": round(dividend_income, 2),
-            "net_pnl": round(net_pnl, 2),
-            "pnl_pct": round(pnl_pct, 2),
+            "total_sell_proceeds": round(total_sell_proceeds, 3),
+            "dividend_income": round(dividend_income, 3),
+            "net_pnl": round(net_pnl, 3),
+            "pnl_pct": round(pnl_pct, 3),
             "first_buy_date": first_buy_date.isoformat() if first_buy_date else None,
             "last_sell_date": last_sell_date.isoformat() if last_sell_date else None,
             "holding_days": holding_days,
@@ -339,6 +339,7 @@ def closed_positions(
 def computed_history(
     member_id: Optional[int] = Query(None),
     member_ids: Optional[str] = Query(None),
+    is_sip: Optional[bool] = Query(None),
     days: int = Query(365),
     db: Session = Depends(get_db)
 ):
@@ -357,7 +358,43 @@ def computed_history(
     history = service.get_computed_history(
         member_id=member_id,
         member_ids=ids_list,
-        days=days
+        days=days,
+        is_sip=is_sip
     )
     
     return history
+@router.get("/dividends")
+def get_dividends(
+    member_id: Optional[int] = Query(None),
+    member_ids: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Get dividend income history table."""
+    from app.models.dividend import DividendIncome
+    from app.models.member import Member
+    
+    query = db.query(DividendIncome, Member.name.label("member_name")).join(Member, DividendIncome.member_id == Member.id)
+    
+    if member_ids:
+        ids_list = [int(x.strip()) for x in member_ids.split(',') if x.strip()]
+        query = query.filter(DividendIncome.member_id.in_(ids_list))
+    elif member_id:
+        query = query.filter(DividendIncome.member_id == member_id)
+        
+    records = query.order_by(DividendIncome.book_close_date.desc()).all()
+    
+    return [
+        {
+            "id": r.DividendIncome.id,
+            "member_id": r.DividendIncome.member_id,
+            "member_name": r.member_name,
+            "symbol": r.DividendIncome.symbol,
+            "fiscal_year": r.DividendIncome.fiscal_year,
+            "cash_dividend_percent": r.DividendIncome.cash_dividend_percent,
+            "bonus_dividend_percent": r.DividendIncome.bonus_dividend_percent,
+            "book_close_date": r.DividendIncome.book_close_date.isoformat() if r.DividendIncome.book_close_date else None,
+            "eligible_quantity": r.DividendIncome.eligible_quantity,
+            "total_cash_amount": r.DividendIncome.total_cash_amount
+        }
+        for r in records
+    ]

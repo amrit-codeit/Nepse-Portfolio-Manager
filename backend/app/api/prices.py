@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from app.database import get_db
 from app.models.company import Company
-from app.models.price import LivePrice, NavValue, IssuePrice, PriceHistory
+from app.models.price import LivePrice, NavValue, IssuePrice, PriceHistory, IndexHistory
 from app.schemas.price import MergedPriceResponse, PriceHistoryResponse
 from typing import List, Optional
 from datetime import date as date_type
@@ -30,6 +30,32 @@ def get_issue_price(symbol: str, issue_type: Optional[str] = Query(None), db: Se
             "updated_at": record.updated_at
         }
     return None
+
+
+@router.get("/all-issues")
+def get_all_issues(db: Session = Depends(get_db)):
+    """Fetch all stored IPO/FPO/Right share issue prices with company names."""
+    query = db.query(
+        IssuePrice.id,
+        IssuePrice.symbol,
+        IssuePrice.issue_type,
+        IssuePrice.price,
+        IssuePrice.updated_at,
+        Company.name
+    ).outerjoin(Company, Company.symbol == IssuePrice.symbol)
+    
+    records = query.order_by(IssuePrice.updated_at.desc()).all()
+    return [
+        {
+            "id": r.id,
+            "symbol": r.symbol,
+            "name": r.name or "Unknown Company",
+            "type": r.issue_type,
+            "price": r.price,
+            "updated_at": r.updated_at
+        } for r in records
+    ]
+
 
 
 @router.get("", response_model=List[MergedPriceResponse])
@@ -123,3 +149,47 @@ def get_historical_prices(
         query = query.filter(PriceHistory.date <= end_date)
         
     return query.order_by(PriceHistory.date.desc()).all()
+
+
+@router.get("/index/latest")
+def get_latest_nepse_index(db: Session = Depends(get_db)):
+    """Fetch the most recent NEPSE index record."""
+    r = db.query(IndexHistory).filter(IndexHistory.index_id == 12).order_by(IndexHistory.date.desc()).first()
+    if not r:
+        return {"error": "No index data found"}
+    return {
+        "date": r.date,
+        "close": r.close,
+        "change": r.change,
+        "percent_change": r.percent_change,
+        "turnover": r.turnover
+    }
+
+
+@router.get("/index")
+def get_nepse_index(
+    start_date: Optional[date_type] = Query(None),
+    end_date: Optional[date_type] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Fetch historical NEPSE index data."""
+    query = db.query(IndexHistory).filter(IndexHistory.index_id == 12)
+    
+    if start_date:
+        query = query.filter(IndexHistory.date >= start_date)
+    if end_date:
+        query = query.filter(IndexHistory.date <= end_date)
+        
+    records = query.order_by(IndexHistory.date.desc()).all()
+    return [
+        {
+            "date": r.date,
+            "close": r.close,
+            "open": r.open,
+            "high": r.high,
+            "low": r.low,
+            "change": r.change,
+            "percent_change": r.percent_change,
+            "turnover": r.turnover
+        } for r in records
+    ]

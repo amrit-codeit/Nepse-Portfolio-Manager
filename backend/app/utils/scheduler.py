@@ -26,7 +26,7 @@ def start_scheduler():
     )
 
     scheduler.start()
-    print("✅ Background scheduler started")
+    print("[OK] Background scheduler started")
     print("   - Maintenance Mode: ACTIVE")
     print("   - Database backup: daily at 23:55 NPT (Asia/Kathmandu)")
 
@@ -35,4 +35,4 @@ def stop_scheduler():
     """Stop the scheduler gracefully."""
     if scheduler.running:
         scheduler.shutdown()
-        print("⏹️ Background scheduler stopped")
+        print("[EXIT] Background scheduler stopped")

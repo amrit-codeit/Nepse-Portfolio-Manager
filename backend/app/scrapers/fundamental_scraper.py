@@ -7,12 +7,13 @@ import re
 import json
 import logging
 import asyncio
+from datetime import datetime, timezone
 from typing import Dict, Any
 from bs4 import BeautifulSoup
 from curl_cffi import requests
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from app.models.fundamental import StockOverview, FundamentalReport
+from app.models.fundamental import StockOverview, FundamentalReport, QuarterlyGrowth
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +117,34 @@ async def scrape_fundamentals(symbol: str, db: Session):
     db.execute(stmt)
     db.commit()
     logger.info(f"Saved StockOverview for {symbol}: PE={pe_ratio}, EPS={eps_ttm}")
+
+    # ── Step 2.5: Extract Quarterly Growths (props.quartesGrowths) ──
+    growths = props.get('quartesGrowths', [])
+    if growths:
+        growth_batch = []
+        for g in growths:
+            growth_batch.append({
+                "symbol": symbol.upper(),
+                "particulars": g.get('particulars'),
+                "fiscal_year": g.get('fiscal_year'),
+                "quarter": g.get('quarter'),
+                "value": _safe_float(g.get('value')),
+                "financial_date": g.get('financial_date')
+            })
+        
+        if growth_batch:
+            gs = sqlite_insert(QuarterlyGrowth).values(growth_batch)
+            gs = gs.on_conflict_do_update(
+                index_elements=['symbol', 'particulars', 'fiscal_year', 'quarter'],
+                set_={
+                    'value': gs.excluded.value,
+                    'financial_date': gs.excluded.financial_date,
+                    'updated_at': datetime.now(timezone.utc)
+                }
+            )
+            db.execute(gs)
+            db.commit()
+            logger.info(f"Saved {len(growth_batch)} quarterly growth records for {symbol}")
 
     # ── Step 3: Fetch AJAX quarterly financials (no fsk needed) ──
     ajax_url = f"https://nepsealpha.com/ajax/financials-menu/{symbol}"

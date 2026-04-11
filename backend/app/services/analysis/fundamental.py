@@ -11,7 +11,7 @@ def calculate_graham_number(eps: float, bvps: float) -> float | None:
     if eps is None or bvps is None or eps <= 0 or bvps <= 0:
         return None
     val = 22.5 * eps * bvps
-    return round(math.sqrt(val), 2)
+    return round(math.sqrt(val), 3)
 
 def is_overvalued(ltp: float, graham_number: float | None) -> bool:
     if ltp is None or graham_number is None:

@@ -65,8 +65,8 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
         ):
             if current_qty > 0:
                 # Store the WACC used for this exit
-                txn.wacc = round(prev_wacc, 2)
-                txn.tax_wacc = round(prev_tax_wacc, 2)
+                txn.wacc = round(prev_wacc, 3)
+                txn.tax_wacc = round(prev_tax_wacc, 3)
                 
                 sell_qty = float(txn.quantity)
                 # Pro-rata reduce the cost basis
@@ -82,16 +82,16 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
 
         # For non-sell transactions, update the WACC after the transaction
         if txn.txn_type not in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):
-            txn.wacc = round(total_cost / current_qty, 2) if current_qty > 0 else 0.0
-            txn.tax_wacc = round(tax_total_cost / current_qty, 2) if current_qty > 0 else 0.0
+            txn.wacc = round(total_cost / current_qty, 3) if current_qty > 0 else 0.0
+            txn.tax_wacc = round(tax_total_cost / current_qty, 3) if current_qty > 0 else 0.0
 
     # Round final values for DB
     current_qty = round(float(current_qty), 4)
-    total_cost = round(float(total_cost), 2)
-    tax_total_cost = round(float(tax_total_cost), 2)
+    total_cost = round(float(total_cost), 3)
+    tax_total_cost = round(float(tax_total_cost), 3)
 
-    wacc = round(total_cost / current_qty, 2) if current_qty > 0 else 0.0
-    tax_wacc = round(tax_total_cost / current_qty, 2) if current_qty > 0 else 0.0
+    wacc = round(total_cost / current_qty, 3) if current_qty > 0 else 0.0
+    tax_wacc = round(tax_total_cost / current_qty, 3) if current_qty > 0 else 0.0
 
     company = db.query(Company).filter(Company.symbol == symbol).first()
     company_id = company.id if company else None
@@ -159,7 +159,7 @@ def calculate_xirr(cashflows: list[tuple[date, float]]) -> float:
         # Newton-Raphson solver. Guessing 10% annual return.
         result = newton(npv, 0.1, maxiter=100)
         # Convert decimal rate to percent and round
-        return round(float(result) * 100, 2)
+        return round(float(result) * 100, 3)
     except Exception:
         # If it fails to converge, return 0 (could be extreme losses/gains)
         return 0.0
@@ -328,18 +328,27 @@ def get_portfolio_summary(
 
     # Batch fetch technical indicators (SMA/RSI) from PriceHistory
     from app.models.price import PriceHistory
-    # We need ~250 trading days for 200 EMA
     import datetime
     
-    # Pre-fetch technicals for all symbols
+    # PERF FIX: Single query for ALL symbols instead of N queries
+    cutoff_date = datetime.date.today() - datetime.timedelta(days=400)  # ~250 trading days
+    all_price_rows = (
+        db.query(PriceHistory.symbol, PriceHistory.date, PriceHistory.close)
+        .filter(PriceHistory.symbol.in_(all_symbols), PriceHistory.date >= cutoff_date)
+        .order_by(PriceHistory.symbol, PriceHistory.date.asc())
+        .all()
+    )
+    
+    # Group by symbol in-memory
+    from collections import defaultdict
+    price_groups = defaultdict(list)
+    for sym, dt, close in all_price_rows:
+        price_groups[sym].append(close)
+    
     tech_map = {}
-    for sym in all_symbols:
-        # Fetching 250 rows for each might be slow in a loop, but better than query per holding
-        # A truly optimized version would use a subquery/window function for all symbols at once.
-        # But since holdings_count is usually ~20-30, we'll do this.
-        prices = db.query(PriceHistory).filter(PriceHistory.symbol==sym).order_by(PriceHistory.date.desc()).limit(250).all()
-        if len(prices) >= 50:
-            pdf = pd.DataFrame([{"close": p.close} for p in prices[::-1]])
+    for sym, closes in price_groups.items():
+        if len(closes) >= 50:
+            pdf = pd.DataFrame({"close": closes})
             pdf.ta.ema(length=50, append=True)
             pdf.ta.ema(length=200, append=True)
             pdf.ta.rsi(length=14, append=True)
@@ -368,6 +377,22 @@ def get_portfolio_summary(
 
     # HIGH-01: Precompute XIRR for all holdings in a single batch query
     xirr_map = batch_xirr_for_holdings(db, holdings, prices_map)
+
+    # Batch fetch dividend income per (member_id, symbol)
+    div_rows = (
+        db.query(
+            DividendIncome.member_id,
+            DividendIncome.symbol,
+            func.sum(DividendIncome.total_cash_amount).label("total_div"),
+        )
+        .filter(
+            DividendIncome.symbol.in_(all_symbols),
+            DividendIncome.eligible_quantity > 0,
+        )
+        .group_by(DividendIncome.member_id, DividendIncome.symbol)
+        .all()
+    )
+    div_map = {(r.member_id, r.symbol): float(r.total_div or 0) for r in div_rows}
 
     holding_responses = []
     total_investment = 0.0
@@ -413,11 +438,11 @@ def get_portfolio_summary(
                 total_investment=h.total_investment,
                 ltp=ltp,
                 current_value=round(
-                    current_value, 2) if current_value else None,
+                    current_value, 3) if current_value else None,
                 unrealized_pnl=round(
-                    unrealized_pnl, 2) if unrealized_pnl else None,
-                pnl_pct=round(pnl_pct, 2) if pnl_pct else None,
-                tax_profit=round(tax_profit, 2),
+                    unrealized_pnl, 3) if unrealized_pnl else None,
+                pnl_pct=round(pnl_pct, 3) if pnl_pct else None,
+                tax_profit=round(tax_profit, 3),
                 xirr=xirr_map.get((h.member_id, h.symbol), 0.0),
                 
                 # New Analysis Metrics
@@ -442,7 +467,13 @@ def get_portfolio_summary(
                     sector,
                     {}, # Reserved
                     q_map.get(h.symbol, [])
-                )
+                ),
+
+                # Dividend data
+                dividend_income=round(div_map.get((h.member_id, h.symbol), 0), 2),
+                dividend_yield=round(
+                    (div_map.get((h.member_id, h.symbol), 0) / h.total_investment * 100), 2
+                ) if h.total_investment > 0 else 0,
             )
         )
 
@@ -492,70 +523,107 @@ def get_portfolio_summary(
         member = db.query(Member).filter(Member.id == member_id).first()
         summary_member_name = member.name if member else "Unknown"
 
-    summary = PortfolioSummary(
-        member_id=member_id,
-        member_name=summary_member_name,
-        total_investment=round(total_investment, 2),
-        current_value=round(total_current_value, 2),
-        unrealized_pnl=round(overall_pnl, 2),
-        pnl_pct=round(overall_pnl_pct, 2),
-        realized_profit=round(realized_profit, 2),
-        dividend_income=round(dividend_income, 2),
-        holdings_count=len(holding_responses),
-        portfolio_xirr=0, # Computed below
-        nepse_xirr=0,     # Computed below
-        market_alpha=0,   # Computed below
-        holdings=holding_responses,
-    )
-
-    # Compute Benchmark Comparison
-    from app.services.portfolio_history import PortfolioHistoryService
-    history_svc = PortfolioHistoryService(db)
-    hist = history_svc.get_computed_history(member_id, member_ids, days=365)
+    # --- Compute segmented equity/SIP XIRR and dividend income ---
+    sip_symbols = {sym for sym, info in companies_map.items() if info[2] == 'Open-End Mutual Fund'}
     
-    if len(hist) >= 2:
-        p_cashflows = []
-        for t in all_txns:
-            if not t.txn_date: continue
-            cost = t.total_cost if t.total_cost else (t.amount or 0)
-            if t.txn_type in (TransactionType.BUY.value, TransactionType.IPO.value, TransactionType.FPO.value, TransactionType.RIGHT.value, TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value):
-                p_cashflows.append((t.txn_date, -cost))
-            elif t.txn_type in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):
-                p_cashflows.append((t.txn_date, cost))
-            elif t.txn_type == TransactionType.DIVIDEND.value and t.amount:
-                p_cashflows.append((t.txn_date, t.amount))
-                
-        if total_current_value > 0:
-            p_cashflows.append((date.today(), total_current_value))
-            
-        summary.portfolio_xirr = calculate_xirr(p_cashflows)
+    eq_cashflows = []
+    sip_cashflows = []
+    eq_current_value = 0.0
+    sip_current_value = 0.0
+    eq_div_income = 0.0
+    sip_div_income = 0.0
+    
+    for h in holding_responses:
+        if h.symbol in sip_symbols:
+            sip_current_value += (h.current_value or 0)
+            sip_div_income += (h.dividend_income or 0)
+        else:
+            eq_current_value += (h.current_value or 0)
+            eq_div_income += (h.dividend_income or 0)
+    
+    for t in all_txns:
+        if not t.txn_date:
+            continue
+        cost = t.total_cost if t.total_cost else (t.amount or 0)
+        is_sip_txn = t.symbol in sip_symbols
+        target = sip_cashflows if is_sip_txn else eq_cashflows
         
-        # Benchmark cashflows
-        bn_cashflows = []
-        from app.models.price import IndexHistory
+        if t.txn_type in (TransactionType.BUY.value, TransactionType.IPO.value, TransactionType.FPO.value, TransactionType.RIGHT.value, TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value):
+            if cost > 0:
+                target.append((t.txn_date, -cost))
+        elif t.txn_type in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):
+            if cost > 0:
+                target.append((t.txn_date, cost))
+        elif t.txn_type == TransactionType.DIVIDEND.value and t.amount:
+            target.append((t.txn_date, t.amount))
+    
+    # Portfolio-level cashflows = eq + sip combined
+    p_cashflows = eq_cashflows + sip_cashflows
+    
+    if eq_current_value > 0:
+        eq_cashflows.append((date.today(), eq_current_value))
+    if sip_current_value > 0:
+        sip_cashflows.append((date.today(), sip_current_value))
+    if total_current_value > 0:
+        p_cashflows.append((date.today(), total_current_value))
+    
+    computed_portfolio_xirr = calculate_xirr(p_cashflows)
+    computed_equity_xirr = calculate_xirr(eq_cashflows)
+    computed_sip_xirr = calculate_xirr(sip_cashflows)
+
+    # --- NEPSE Benchmark XIRR (PERF FIX: no more get_computed_history call) ---
+    from app.models.price import IndexHistory
+    all_indices = db.query(IndexHistory.date, IndexHistory.close).order_by(IndexHistory.date.desc()).all()
+    
+    computed_nepse_xirr = 0.0
+    computed_market_alpha = 0.0
+    
+    if all_indices and p_cashflows:
+        idx_today_val = all_indices[0].close
+        # PERF FIX: dict-based O(1) lookup instead of O(n) linear scan
+        idx_dict = {d: c for d, c in all_indices}
+        sorted_dates = sorted(idx_dict.keys())
         
-        # Load all index history into memory for O(1) lookup
-        all_indices = db.query(IndexHistory.date, IndexHistory.close).order_by(IndexHistory.date.desc()).all()
-        idx_today_val = all_indices[0].close if all_indices else 2000
-        
-        # Helper for closest date index
+        import bisect
         def get_index_close(target_date):
-            for d, c in all_indices:
-                if d <= target_date:
-                    return c
-            return 2000
+            pos = bisect.bisect_right(sorted_dates, target_date)
+            if pos > 0:
+                return idx_dict[sorted_dates[pos - 1]]
+            return idx_dict[sorted_dates[0]] if sorted_dates else 2000
         
+        bn_cashflows = []
         units = 0
         for t_date, amt in p_cashflows:
-            if amt < 0: # Investment
+            if amt < 0:  # Investment
                 inv_amt = abs(amt)
                 idx_at_val = get_index_close(t_date)
                 units += inv_amt / idx_at_val
                 bn_cashflows.append((t_date, -inv_amt))
         
+        if units > 0:
+            bn_cashflows.append((date.today(), units * idx_today_val))
+            computed_nepse_xirr = calculate_xirr(bn_cashflows)
         
-        bn_cashflows.append((date.today(), units * idx_today_val))
-        summary.nepse_xirr = calculate_xirr(bn_cashflows)
-        summary.market_alpha = round(summary.portfolio_xirr - summary.nepse_xirr, 2)
+        computed_market_alpha = round(computed_portfolio_xirr - computed_nepse_xirr, 3)
+
+    summary = PortfolioSummary(
+        member_id=member_id,
+        member_name=summary_member_name,
+        total_investment=round(total_investment, 3),
+        current_value=round(total_current_value, 3),
+        unrealized_pnl=round(overall_pnl, 3),
+        pnl_pct=round(overall_pnl_pct, 3),
+        realized_profit=round(realized_profit, 3),
+        dividend_income=round(dividend_income, 3),
+        holdings_count=len(holding_responses),
+        portfolio_xirr=computed_portfolio_xirr,
+        nepse_xirr=computed_nepse_xirr,
+        market_alpha=computed_market_alpha,
+        equity_xirr=computed_equity_xirr,
+        sip_xirr=computed_sip_xirr,
+        equity_dividend_income=round(eq_div_income, 3),
+        sip_dividend_income=round(sip_div_income, 3),
+        holdings=holding_responses,
+    )
         
     return summary

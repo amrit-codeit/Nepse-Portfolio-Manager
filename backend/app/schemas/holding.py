@@ -41,6 +41,10 @@ class HoldingResponse(BaseModel):
     # Performance
     xirr: Optional[float] = None
 
+    # Dividend
+    dividend_income: Optional[float] = None      # Total cash dividend received
+    dividend_yield: Optional[float] = None        # Yield on cost %
+
     model_config = {"from_attributes": True}
 
 
@@ -57,4 +61,9 @@ class PortfolioSummary(BaseModel):
     portfolio_xirr: float = 0
     nepse_xirr: float = 0
     market_alpha: float = 0
+    # Segmented XIRR (so frontend doesn't need to fetch 10K transactions)
+    equity_xirr: float = 0
+    sip_xirr: float = 0
+    equity_dividend_income: float = 0
+    sip_dividend_income: float = 0
     holdings: list[HoldingResponse] = []

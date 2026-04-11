@@ -17,16 +17,20 @@ from sqlalchemy.dialects.sqlite import insert
 from app.models.transaction import Transaction
 from app.models.price import PriceHistory
 
-def scrape_historical_prices(db: Session):
+def scrape_historical_prices(db: Session, target_symbol: str = None):
     """
-    Scrapes historical price data for all unique symbols tracked in the portfolio.
+    Scrapes historical price data for all unique symbols tracked in the portfolio,
+    or just for a specific target_symbol.
     """
     print("Starting historical price backfill...")
     
     # Step 1 & 2: Determine Date Ranges
-    # Get unique symbols from Transactions
-    unique_symbols = db.query(Transaction.symbol).distinct().all()
-    symbols_to_process = [r[0] for r in unique_symbols if r[0]]
+    if target_symbol:
+        symbols_to_process = [target_symbol.upper()]
+    else:
+        unique_symbols = db.query(Transaction.symbol).distinct().all()
+        symbols_to_process = [r[0] for r in unique_symbols if r[0]]
+
     
     today = datetime.now().date()
     today_str = today.strftime("%Y-%m-%d")

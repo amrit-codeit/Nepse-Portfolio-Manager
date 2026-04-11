@@ -80,7 +80,7 @@ function App() {
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>NEPSE Portfolio Manager</span>
           </div>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', lineHeight: 1.6 }}>
-            v1.0.0 • Personal Use Only<br />
+            v1.2.0 • Personal Use Only<br />
             Built for the Nepali Stock Market
           </div>
         </div>

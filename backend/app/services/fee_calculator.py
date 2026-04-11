@@ -145,7 +145,7 @@ def calculate_broker_commission(
 
     # Minimum commission is usually Rs. 10 or similar in Nepal,
     # but the user's formula doesn't specify it, so we stick to the math.
-    return round(commission, 2)
+    return round(commission, 3)
 
 
 def calculate_sebon_fee(
@@ -162,7 +162,7 @@ def calculate_sebon_fee(
     else:
         rate = float(get_fee_value(db, "sebon_fee_equity", txn_date))
 
-    return round(amount * (rate / 100), 2)
+    return round(amount * (rate / 100), 3)
 
 
 def calculate_dp_charge(db: Session, txn_date: date | None = None) -> float:
@@ -195,7 +195,7 @@ def calculate_cgt(
     else:
         rate = float(get_fee_value(db, "cgt_long_term_rate", txn_date))
 
-    return round(profit * (rate / 100), 2)
+    return round(profit * (rate / 100), 3)
 
 
 def calculate_buy_costs(
@@ -222,13 +222,13 @@ def calculate_buy_costs(
     total_cost = amount + broker + sebon + dp + name_transfer
 
     return {
-        "amount": round(amount, 2),
+        "amount": round(amount, 3),
         "broker_commission": broker,
         "sebon_fee": sebon,
         "dp_charge": dp,
         "name_transfer_fee": name_transfer,
         "cgt": 0,
-        "total_cost": round(total_cost, 2),
+        "total_cost": round(total_cost, 3),
     }
 
 
@@ -272,16 +272,16 @@ def calculate_sell_costs(
     # For SELL transactions, the 'total_cost' used in the transaction record
     # should be the net amount received (Amount - all fees).
     return {
-        "amount": round(sell_amount, 2),
+        "amount": round(sell_amount, 3),
         "broker_commission": broker,
         "sebon_fee": sebon,
         "dp_charge": dp,
         "name_transfer_fee": 0,
         "cgt": cgt,
-        "total_cost": round(net_received, 2),
-        "net_received": round(net_received, 2),
-        "gross_profit": round(gross_profit if manual_cgt is None else 0, 2),
-        "net_profit": round(net_profit if manual_cgt is None else 0, 2),
+        "total_cost": round(net_received, 3),
+        "net_received": round(net_received, 3),
+        "gross_profit": round(gross_profit if manual_cgt is None else 0, 3),
+        "net_profit": round(net_profit if manual_cgt is None else 0, 3),
     }
 
 

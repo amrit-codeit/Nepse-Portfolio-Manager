@@ -16,49 +16,76 @@ from app.models.price import LivePrice
 from app.models.company import Company
 
 
-def fetch_nepsealpha_live_data():
+from bs4 import BeautifulSoup
+
+def fetch_sharesansar_live_data():
     """
-    Fetches raw stock data by parsing the unescaped JSON embedded in the HTML.
-    This bypasses 403 issues from direct API calls and handles fragile fsk tokens.
+    Extract live stock trading data from Sharesansar's live trading page.
     """
     session = requests.Session(impersonate="chrome")
     
     base_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
     }
 
-    print("Step 1: Visiting main page to extract embedded JSON data...")
-    res = session.get("https://nepsealpha.com/live-market", headers=base_headers, timeout=30)
+    print("Step 1: Visiting Sharesansar live trading page...")
+    res = session.get("https://www.sharesansar.com/live-trading", headers=base_headers, timeout=30)
     
     if res.status_code != 200:
         raise Exception(f"Failed to load main page. Status: {res.status_code}")
 
-    # Data is HTML encoded inside the script blocks or divs.
-    # Unescape first to get clean JSON strings
-    unescaped = html.unescape(res.text)
+    soup = BeautifulSoup(res.text, 'html.parser')
+    table = soup.find('table', id='headFixed')
+    if not table:
+        raise Exception("Table with id 'headFixed' not found on the page.")
 
-    # Aggressive per-object regex extraction to capture all stocks regardless of block fragmentation.
-    # Matches: {"symbol":"SYMBOL", "key":value, ...}
-    pattern = r'\{"symbol":"[A-Z0-9_\ ]+",".*?\}'
-    matches = re.finditer(pattern, unescaped)
+    tbody = table.find('tbody')
+    if not tbody:
+        raise Exception("tbody not found inside the live trading table.")
 
-    all_stocks = {}
-    for match in matches:
-        try:
-            obj = json.loads(match.group(0))
-            if 'symbol' in obj:
-                # Store unique symbols (keeping the latest occurrence)
-                # Normalizing key to handle potential case variations
-                all_stocks[obj['symbol'].upper()] = obj
-        except:
+    rows = tbody.find_all('tr')
+    
+    all_stocks = []
+    for row in rows:
+        tds = row.find_all('td')
+        if len(tds) < 10:
             continue
+            
+        a_tag = tds[1].find('a')
+        if not a_tag: continue
+        symbol = a_tag.text.strip()
+        ltp = tds[2].text.strip()
+        point_change = tds[3].text.strip()
+        percent_change = tds[4].text.strip()
+        open_price = tds[5].text.strip()
+        high = tds[6].text.strip()
+        low = tds[7].text.strip()
+        volume = tds[8].text.strip()
+        prev_close = tds[9].text.strip()
+        
+        movement = "UNCHANGED"
+        td_class = tds[0].get('class', [])
+        if 'success-index' in td_class:
+            movement = "UP"
+        elif 'danger-index' in td_class:
+            movement = "DOWN"
+            
+        all_stocks.append({
+            "symbol": symbol,
+            "ltp": ltp,
+            "change": point_change,
+            "change_pct": percent_change,
+            "open_price": open_price,
+            "high": high,
+            "low": low,
+            "volume": volume,
+            "prev_close": prev_close,
+            "movement": movement
+        })
+        
+    return all_stocks
 
-    if not all_stocks:
-        raise Exception("Failed to extract any stock data from the main page.")
-
-    return list(all_stocks.values())
 
 
 def scrape_live_prices(db: Session) -> dict:
@@ -69,7 +96,7 @@ def scrape_live_prices(db: Session) -> dict:
     data = []
     
     try:
-        items = fetch_nepsealpha_live_data()
+        items = fetch_sharesansar_live_data()
         
         # Helper to parse values safely
         def safe_float(v):
@@ -89,16 +116,14 @@ def scrape_live_prices(db: Session) -> dict:
             symbol = info.get("symbol")
             if not symbol: continue
 
-            # Map NepseAlpha fields based on direct inspection of the unescaped HTML content.
-            # pointChange and percentageChange are the active keys in their direct response objects.
-            ltp = safe_float(info.get('ltp') or info.get('close') or info.get('closingPrice'))
-            change = safe_float(info.get('pointChange') or info.get('point_change') or info.get('pd') or info.get('diff'))
-            change_pct = safe_float(info.get('percentageChange') or info.get('percent_change') or info.get('p') or info.get('diff_pct'))
-            high = safe_float(info.get('high') or info.get('h') or info.get('maxPrice'))
-            low = safe_float(info.get('low') or info.get('l') or info.get('minPrice'))
-            open_price = safe_float(info.get('open_price') or info.get('openPrice') or info.get('open'))
-            volume = safe_float(info.get('volume') or info.get('vol') or info.get('v') or info.get('shareTraded'))
-            prev_close = safe_float(info.get('previous_close') or info.get('previousClose') or info.get('prev_close'))
+            ltp = safe_float(info.get('ltp'))
+            change = safe_float(info.get('change'))
+            change_pct = safe_float(info.get('change_pct'))
+            high = safe_float(info.get('high'))
+            low = safe_float(info.get('low'))
+            open_price = safe_float(info.get('open_price'))
+            volume = safe_float(info.get('volume'))
+            prev_close = safe_float(info.get('prev_close'))
             
             if ltp is not None:
                 data.append({

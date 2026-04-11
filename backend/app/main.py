@@ -7,10 +7,12 @@ A personal portfolio management system for the Nepali stock market.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+import os
 
 from app.config import settings
 from app.database import init_db, SessionLocal
 from app.services.fee_calculator import seed_fee_config
+from app.services.backup_service import create_database_backup
 from app.utils.scheduler import start_scheduler, stop_scheduler
 
 from app.api.members import router as members_router
@@ -23,25 +25,30 @@ from app.api.prices import router as prices_router
 from app.api.ipo import router as ipo_router
 from app.api.insights import router as insights_router
 from app.api.dividends import router as dividends_router
-from app.api.ai_review import router as ai_review_router
 from app.api.groups import router as groups_router
 from app.api.analysis import router as analysis_router
+from app.api.stock_detail import router as stock_detail_router
+from app.api.calculator import router as calculator_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     # Startup
-    print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    print(f"[START] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     init_db()
 
     # Seed default fee configuration
     db = SessionLocal()
     try:
         seed_fee_config(db)
-        print("✅ Fee configuration seeded")
+        print("[OK] Fee configuration seeded")
     finally:
         db.close()
+
+    # Run database backup at startup (device may be asleep at scheduled 23:55 NPT)
+    create_database_backup()
+    print("[OK] Startup backup check complete")
 
     # Start background scheduler
     start_scheduler()
@@ -50,7 +57,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     stop_scheduler()
-    print("👋 Shutting down...")
+    print("[EXIT] Shutting down...")
 
 
 app = FastAPI(
@@ -80,9 +87,10 @@ app.include_router(prices_router)
 app.include_router(ipo_router)
 app.include_router(insights_router)
 app.include_router(dividends_router)
-app.include_router(ai_review_router)
 app.include_router(groups_router)
 app.include_router(analysis_router)
+app.include_router(stock_detail_router)
+app.include_router(calculator_router)
 
 
 @app.get("/")

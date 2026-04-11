@@ -13,6 +13,7 @@ from app.scrapers.issue_autoscraper import fetch_and_update as sync_issue_prices
 from app.scrapers.history_scraper import scrape_historical_prices
 from app.scrapers.dividend_scraper import scrape_and_calculate_dividends
 from app.scrapers.fundamental_scraper import scrape_fundamentals
+from app.scrapers.index_scraper import scrape_nepse_index
 from app.models.holding import Holding
 import traceback
 
@@ -25,6 +26,17 @@ def trigger_issue_sync(db: Session = Depends(get_db)):
     try:
         result = sync_issue_prices(db)
         return {"status": "success", "message": "Issue prices synced", "data": result}
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": repr(e)}
+
+
+@router.post("/index")
+def trigger_index_sync(db: Session = Depends(get_db)):
+    """Trigger an immediate fetch of NEPSE Index data."""
+    try:
+        result = scrape_nepse_index(db)
+        return {"status": "success", "message": f"NEPSE Index synced with {result} records", "data": result}
     except Exception as e:
         traceback.print_exc()
         return {"status": "failed", "error": repr(e)}
@@ -141,6 +153,26 @@ async def trigger_fundamental_sync(symbol: str, db: Session = Depends(get_db)):
             "status": "success",
             "message": f"Fundamental sync completed for {symbol.upper()}.",
         }
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": str(e)}
+
+
+@router.post("/insights/{symbol}")
+async def trigger_insights_sync(symbol: str, db: Session = Depends(get_db)):
+    """Trigger fundamental, history, and dividend sync exclusively for a specific symbol."""
+    try:
+        symbol = symbol.upper()
+        # 1. Scrape Fundamentals
+        await scrape_fundamentals(symbol, db)
+        
+        # 2. Scrape History (OHLCV prices needed for technicals)
+        scrape_historical_prices(db, target_symbol=symbol)
+        
+        # 3. Scrape Dividends
+        scrape_and_calculate_dividends(db, target_symbol=symbol)
+        
+        return {"status": "success", "message": f"Successfully updated insights data for {symbol}"}
     except Exception as e:
         traceback.print_exc()
         return {"status": "failed", "error": str(e)}

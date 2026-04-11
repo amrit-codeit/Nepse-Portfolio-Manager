@@ -29,3 +29,20 @@ class FundamentalReport(Base):
     paid_up_capital = Column(Float, nullable=True)
     net_profit = Column(Float, nullable=True)
     sector_metrics = Column(JSON, nullable=True)  # Store dynamic rows here
+
+
+class QuarterlyGrowth(Base):
+    """Quarterly growth metrics/ratios for a stock."""
+    __tablename__ = "quarterly_growth"
+    __table_args__ = (
+        UniqueConstraint('symbol', 'particulars', 'fiscal_year', 'quarter', name='uix_symbol_growth'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, index=True, nullable=False)
+    particulars = Column(String, nullable=False)
+    fiscal_year = Column(String, nullable=False)
+    quarter = Column(Integer, nullable=False)
+    value = Column(Float, nullable=True)
+    financial_date = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
