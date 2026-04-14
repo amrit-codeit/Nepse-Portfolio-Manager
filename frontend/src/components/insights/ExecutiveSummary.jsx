@@ -142,6 +142,18 @@ export default function ExecutiveSummary({ symbol }) {
 
     return (
         <div className="animate-in">
+            {/* ===== METHODOLOGY BANNER ===== */}
+            <Alert
+                message={<span style={{ fontWeight: 600 }}><SafetyOutlined /> Portfolio Manager Methodology</span>}
+                description={
+                    <span style={{ fontSize: 13 }}>
+                        This executive summary leverages up to 8 quarters of scraped historical financial data and rigorous sector-specific trailing metrics (e.g. NPL/CAR for Banks, Gross Margins for Manufacturing). It ensures a comprehensive, institutional-grade valuation of the company's real fiscal health beyond simple price action.
+                    </span>
+                }
+                type="info"
+                showIcon
+                style={{ marginBottom: 20, background: 'var(--bg-glass)', border: '1px solid rgba(9, 132, 227, 0.3)' }}
+            />
 
             {/* ===== SECTION 1: Action Badge + Score ===== */}
             <div className="stat-card" style={{
@@ -358,7 +370,7 @@ export default function ExecutiveSummary({ symbol }) {
                 <Col xs={24} md={8}>
                     <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
                         <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.5px' }}>
-                            <SubnodeOutlined /> Bollinger Bounds
+                            <LineChartOutlined /> Bollinger Bands
                         </div>
                         {data.bb_upper && data.bb_lower ? (
                             <div>

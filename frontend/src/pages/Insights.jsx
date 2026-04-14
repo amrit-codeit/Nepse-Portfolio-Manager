@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Card, Row, Col, Select, Empty, Spin, Tag, Progress, Descriptions, Tooltip, Divider, Space,
-    Button, message, Tabs,
+    Button, message, Tabs, Alert
 } from 'antd';
 import {
     SearchOutlined, FundOutlined, LineChartOutlined, BarChartOutlined,
@@ -397,6 +397,18 @@ export default function Insights() {
                 <div style={{ textAlign: 'center', padding: '80px 0' }}><Spin size="large" tip="Loading fundamentals..." /></div>
             ) : (
                 <div className="animate-in">
+                    {/* ===== METHODOLOGY BANNER ===== */}
+                    <Alert
+                        message={<span style={{ fontWeight: 600 }}><FundOutlined /> Comprehensive Quarterly Analysis</span>}
+                        description={
+                            <span style={{ fontSize: 13 }}>
+                                Fundamental metrics displayed here are directly compiled from up to 8 quarters of rigorous financial reports. The system actively scrutinizes YoY growth trajectories, trailing margins, and vital sector-specific ratios to provide a deep, institutional-grade perspective on the firm's fiscal stamina.
+                            </span>
+                        }
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: 20, background: 'var(--bg-glass)', border: '1px solid rgba(108, 92, 231, 0.3)' }}
+                    />
                     {!fund ? (
                         <Card className="stat-card" style={{ textAlign: 'center', padding: '40px 20px', marginBottom: 24 }}>
                             <ExperimentOutlined style={{ fontSize: 48, opacity: 0.12, marginBottom: 16, display: 'block' }} />

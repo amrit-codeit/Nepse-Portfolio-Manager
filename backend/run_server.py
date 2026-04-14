@@ -1,0 +1,16 @@
+"""
+Uvicorn runner script.
+Launches the FastAPI app with log_config=None to avoid the known
+Windows reload subprocess logging formatter crash (uvicorn 0.34.x).
+"""
+
+import uvicorn
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "app.main:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+        log_config=None,
+    )

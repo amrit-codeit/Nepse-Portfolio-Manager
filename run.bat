@@ -6,7 +6,7 @@ echo.
 
 :: 1. Start Backend in a new window
 echo Starting Backend...
-start "NPM Backend" cmd /k "cd backend && venv\Scripts\activate && python -m uvicorn app.main:app --reload --port 8000"
+start "NPM Backend" cmd /k "cd backend && venv\Scripts\activate && python run_server.py"
 
 :: 2. Wait a second
 timeout /t 2 >nul
