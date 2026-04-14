@@ -78,6 +78,13 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
             render: (val) => val > 0 ? <Tag color="orange"><GiftOutlined /> {val}%</Tag> : '—'
         },
         {
+            title: 'Bonus Shares',
+            dataIndex: 'bonus_shares',
+            key: 'bonus_shares',
+            align: 'right',
+            render: (val) => val > 0 ? <strong style={{ color: 'var(--accent-primary)' }}>{val.toLocaleString('en-IN')}</strong> : '—'
+        },
+        {
             title: 'Yield on Cost',
             key: 'yield_on_cost',
             align: 'right',
@@ -91,11 +98,28 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
             }
         },
         {
-            title: 'Total Cash Income',
+            title: 'Tax Owed / Deducted',
+            dataIndex: 'total_tax',
+            key: 'total_tax',
+            align: 'right',
+            render: (val, record) => (
+                <div style={{ color: 'var(--text-secondary)' }}>
+                    {formatNPR(val)}
+                    {record.tax_owed > 0 && <div style={{ fontSize: 10, color: 'var(--accent-red)' }}>Payable</div>}
+                </div>
+            )
+        },
+        {
+            title: 'Net Cash Income',
             dataIndex: 'total_cash_amount',
             key: 'total_cash_amount',
             align: 'right',
-            render: (val) => <strong style={{ color: 'var(--accent-green)' }}>{formatNPR(val)}</strong>
+            render: (val) => {
+                if (val < 0) {
+                    return <strong style={{ color: 'var(--accent-red)' }}>({formatNPR(Math.abs(val))})</strong>;
+                }
+                return <strong style={{ color: 'var(--accent-green)' }}>{formatNPR(val)}</strong>;
+            }
         }
     ];
 
@@ -130,23 +154,31 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
     return (
         <div className="animate-in" style={{ padding: '24px 0' }}>
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                <Col xs={24} sm={12} lg={6}>
+                <Col xs={24} sm={12} lg={{ flex: '20%' }}>
                     <div className="stat-card" style={{ padding: 24 }}>
-                        <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Cash Dividends</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Net Cash Received</div>
                         <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-green)', marginTop: 8 }}>
-                            {formatNPR(filteredDividends.reduce((sum, item) => sum + item.total_cash_amount, 0))}
+                            {formatNPR(filteredDividends.reduce((sum, item) => sum + (item.total_cash_amount > 0 ? item.total_cash_amount : 0), 0))}
                         </div>
                     </div>
                 </Col>
-                <Col xs={24} sm={12} lg={6}>
+                <Col xs={24} sm={12} lg={{ flex: '20%' }}>
                     <div className="stat-card" style={{ padding: 24 }}>
-                        <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Overall Dividend Yield</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Tax Payable</div>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-red)', marginTop: 8 }}>
+                            {formatNPR(filteredDividends.reduce((sum, item) => sum + (item.tax_owed || 0), 0))}
+                        </div>
+                    </div>
+                </Col>
+                <Col xs={24} sm={12} lg={{ flex: '20%' }}>
+                    <div className="stat-card" style={{ padding: 24 }}>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Overall Yield</div>
                         <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-blue)', marginTop: 8 }}>
                             {summary?.dividend_yield ? `${summary.dividend_yield.toFixed(3)}%` : '0.000%'}
                         </div>
                     </div>
                 </Col>
-                <Col xs={24} sm={12} lg={6}>
+                <Col xs={24} sm={12} lg={{ flex: '20%' }}>
                     <div className="stat-card" style={{ padding: 24 }}>
                         <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Bonus Shares</div>
                         <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-primary)', marginTop: 8 }}>
@@ -154,7 +186,7 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
                         </div>
                     </div>
                 </Col>
-                <Col xs={24} sm={12} lg={6}>
+                <Col xs={24} sm={12} lg={{ flex: '20%' }}>
                     <div className="stat-card" style={{ padding: 24 }}>
                         <div style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Avg Yield on Cost</div>
                         <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-secondary)', marginTop: 8 }}>

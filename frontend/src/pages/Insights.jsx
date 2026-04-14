@@ -281,6 +281,110 @@ export default function Insights() {
                             </div>
                         </Col>
                     </Row>
+                    
+                    {/* Volume and MACD */}
+                    <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                        <Col xs={24} lg={12}>
+                            <div className="stat-card" style={{ padding: '20px 24px' }}>
+                                <div className="stat-label" style={{ marginBottom: 16 }}>
+                                    <BarChartOutlined /> Volume & Momentum
+                                </div>
+                                {tech?.vol_sma_20 ? (
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                                            <div>
+                                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Today's Volume</div>
+                                                <div style={{ fontSize: 16, fontWeight: 600 }}>{tech.volume?.toLocaleString()}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>20-Day Avg Volume</div>
+                                                <div style={{ fontSize: 16, fontWeight: 600 }}>{tech.vol_sma_20?.toLocaleString()}</div>
+                                            </div>
+                                        </div>
+                                        <div style={{ marginBottom: 16 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                                                <span>Volume Ratio: {tech.vol_ratio?.toFixed(2)}x</span>
+                                                <span style={{ color: tech.vol_ratio > 1.5 ? '#00b894' : 'var(--text-secondary)' }}>
+                                                    {tech.vol_ratio > 2 ? 'Surge' : tech.vol_ratio > 1.2 ? 'Expansion' : tech.vol_ratio < 0.5 ? 'Dry' : 'Average'}
+                                                </span>
+                                            </div>
+                                            <Progress
+                                                percent={Math.min(tech.vol_ratio * 50, 100)}
+                                                showInfo={false}
+                                                strokeColor={tech.vol_ratio > 1.5 ? '#00b894' : tech.vol_ratio < 0.5 ? '#d63031' : '#0984e3'}
+                                                trailColor="rgba(255,255,255,0.06)"
+                                                size="small"
+                                            />
+                                        </div>
+                                        {tech.obv_status && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
+                                                <Tag color={tech.obv_status === 'Accumulation' ? 'green' : 'red'}>{tech.obv_status}</Tag>
+                                                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>On-Balance Volume (OBV) Trend</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                                        Insufficient volume data.
+                                    </div>
+                                )}
+                            </div>
+                        </Col>
+                        
+                        <Col xs={24} lg={12}>
+                            <div className="stat-card" style={{ padding: '20px 24px', height: '100%' }}>
+                                <div className="stat-label" style={{ marginBottom: 16 }}>
+                                    <FundOutlined /> MACD & Volatility
+                                </div>
+                                {tech?.macd ? (
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                            <div style={{ fontSize: 24, fontWeight: 700, color: tech.macd_hist > 0 ? '#00b894' : '#d63031' }}>
+                                                {tech.macd_hist?.toFixed(2)}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: 13, fontWeight: 500 }}>MACD Histogram</div>
+                                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                                                    MACD: {tech.macd?.toFixed(2)} | Signal: {tech.macd_signal?.toFixed(2)}
+                                                </div>
+                                            </div>
+                                            <div style={{ marginLeft: 'auto' }}>
+                                                <Tag color={tech.macd_hist > 0 ? 'green' : 'red'}>
+                                                    {tech.macd_hist > 0 ? 'Bullish' : 'Bearish'}
+                                                </Tag>
+                                            </div>
+                                        </div>
+                                        
+                                        {tech.bb_upper && (
+                                            <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
+                                                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: 'var(--text-secondary)' }}>Bollinger Bands (20,2)</div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                                                    <div>
+                                                        <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Lower Band</div>
+                                                        <div>{formatNPR(tech.bb_lower)}</div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'center' }}>
+                                                        <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>LTP Position</div>
+                                                        <div style={{ fontWeight: 600, color: tech.ltp > tech.bb_upper ? '#d63031' : tech.ltp < tech.bb_lower ? '#00b894' : 'var(--text-primary)' }}>
+                                                            {tech.ltp > tech.bb_upper ? 'Above Upper' : tech.ltp < tech.bb_lower ? 'Below Lower' : 'Inside Bands'}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Upper Band</div>
+                                                        <div>{formatNPR(tech.bb_upper)}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                                        Insufficient data for MACD/Bollinger.
+                                    </div>
+                                )}
+                            </div>
+                        </Col>
+                    </Row>
                 </div>
             )
         },

@@ -620,7 +620,7 @@ export default function ScripDetail() {
                 children: (
                   <Row gutter={[16, 16]}>
                     {/* Yield Comparison Cards */}
-                    <Col xs={24} sm={8}>
+                    <Col xs={24} sm={12} lg={6}>
                       <div className="stat-card">
                         <div className="stat-label">Market Dividend Yield</div>
                         <div className="stat-value" style={{ fontSize: 22, color: 'var(--accent-blue)' }}>
@@ -631,7 +631,7 @@ export default function ScripDetail() {
                         </div>
                       </div>
                     </Col>
-                    <Col xs={24} sm={8}>
+                    <Col xs={24} sm={12} lg={6}>
                       <div className="stat-card">
                         <div className="stat-label">Your Yield on Cost</div>
                         <div className="stat-value" style={{ fontSize: 22, color: 'var(--accent-green)' }}>
@@ -642,7 +642,7 @@ export default function ScripDetail() {
                         </div>
                       </div>
                     </Col>
-                    <Col xs={24} sm={8}>
+                    <Col xs={24} sm={12} lg={6}>
                       <div className="stat-card">
                         <div className="stat-label">Yield Advantage</div>
                         <div className="stat-value" style={{
@@ -656,6 +656,17 @@ export default function ScripDetail() {
                         </div>
                       </div>
                     </Col>
+                    <Col xs={24} sm={12} lg={6}>
+                      <div className="stat-card">
+                        <div className="stat-label">Tax Payable</div>
+                        <div className="stat-value" style={{ fontSize: 22, color: 'var(--accent-red)' }}>
+                          {NPR(detail.dividend_history?.reduce((sum, r) => sum + (r.tax_owed || 0), 0) || 0)}
+                        </div>
+                        <div className="stat-change" style={{ color: 'var(--text-secondary)' }}>
+                          Unpaid tax on bonus shares
+                        </div>
+                      </div>
+                    </Col>
 
                     {/* Dividend Summary */}
                     <Col xs={24} sm={12}>
@@ -664,6 +675,7 @@ export default function ScripDetail() {
                           labelStyle={{ color: 'var(--text-secondary)', fontSize: 12 }}
                           contentStyle={{ fontWeight: 500, fontSize: 13 }}>
                           <Descriptions.Item label="Total Cash Dividend Received">{NPR(detail.total_cash_dividend)}</Descriptions.Item>
+                          <Descriptions.Item label="Total Tax Payable / Deducted">{NPR(detail.total_tax_deducted)}</Descriptions.Item>
                           <Descriptions.Item label="Total Bonus Shares Received">{QTY(detail.total_bonus_shares)}</Descriptions.Item>
                           <Descriptions.Item label="Latest Cash Dividend %">{PCT(detail.latest_cash_div_pct)}</Descriptions.Item>
                           <Descriptions.Item label="Face Value">Rs. {detail.face_value}</Descriptions.Item>
@@ -713,7 +725,18 @@ export default function ScripDetail() {
                               { title: 'Bonus %', dataIndex: 'bonus_pct', width: 80, align: 'right', render: v => PCT(v) },
                               { title: 'Book Close', dataIndex: 'book_close_date', width: 120 },
                               { title: 'Eligible Qty', dataIndex: 'eligible_qty', width: 100, align: 'right', render: v => QTY(v) },
-                              { title: 'Cash Amount', dataIndex: 'cash_amount', width: 120, align: 'right', render: v => NPR(v) },
+                              { title: 'Tax/Deducted', dataIndex: 'total_tax', width: 110, align: 'right', render: (v, r) => (
+                                <div>
+                                  {NPR(v)}
+                                  {r.tax_owed > 0 && <div style={{ fontSize: 10, color: 'var(--accent-red)' }}>Payable</div>}
+                                </div>
+                              )},
+                              { title: 'Net Cash Income', dataIndex: 'cash_amount', width: 120, align: 'right', render: v => {
+                                if (v < 0) {
+                                  return <strong style={{ color: 'var(--accent-red)' }}>({NPR(Math.abs(v))})</strong>;
+                                }
+                                return <strong style={{ color: 'var(--accent-green)' }}>{NPR(v)}</strong>;
+                              }},
                               { title: 'Bonus Shares', dataIndex: 'bonus_shares', width: 100, align: 'right', render: v => QTY(v) },
                             ]}
                           />

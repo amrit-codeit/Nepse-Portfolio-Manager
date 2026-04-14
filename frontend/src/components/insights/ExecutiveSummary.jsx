@@ -133,7 +133,6 @@ export default function ExecutiveSummary({ symbol }) {
     const actionCfg = getActionConfig(data?.action);
     const scoreColor = getScoreColor(data.health_score);
     const sm = data.sector_metrics || {};
-    const isBanking = data.sector?.toLowerCase().match(/bank|finance|microfinance/);
 
     // Prepare quarterly profit chart data
     const profitChartData = [...(data.quarterly_profits || [])].reverse().map(q => ({
@@ -265,12 +264,12 @@ export default function ExecutiveSummary({ symbol }) {
                             <Space size={4}>
                                 {data.ema_200_status && (
                                     <Tag color={data.ema_200_status === 'Bullish' ? 'green' : 'red'} style={{ fontSize: 10, margin: 0 }}>
-                                        {data.ema_200_status === 'Bullish' ? <RiseOutlined /> : <FallOutlined />} 200-SMA
+                                        {data.ema_200_status === 'Bullish' ? <RiseOutlined /> : <FallOutlined />} 200-EMA
                                     </Tag>
                                 )}
-                                {data.sma_50 && (
-                                    <Tag color={data.ltp > data.sma_50 ? 'green' : 'red'} style={{ fontSize: 10, margin: 0 }}>
-                                        {data.ltp > data.sma_50 ? <RiseOutlined /> : <FallOutlined />} 50-SMA
+                                {data.ema_50 && (
+                                    <Tag color={data.ltp > data.ema_50 ? 'green' : 'red'} style={{ fontSize: 10, margin: 0 }}>
+                                        {data.ltp > data.ema_50 ? <RiseOutlined /> : <FallOutlined />} 50-EMA
                                     </Tag>
                                 )}
                                 <Tag color="cyan" style={{ fontSize: 10, margin: 0 }}>
@@ -309,51 +308,174 @@ export default function ExecutiveSummary({ symbol }) {
                 </Col>
             </Row>
 
-            {/* ===== SECTION 5: Sector Health (conditional) ===== */}
-            {(sm.npl != null || sm.car != null || sm.reserves != null) && (
-                <div className="stat-card" style={{ padding: '4px 0', marginBottom: 20 }}>
-                    <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '12px 20px 0', letterSpacing: '0.5px' }}>
-                        <BankOutlined /> Sector Health — {data.sector}
+            {/* ===== SECTION 5: Momentum & Volume Confirmation ===== */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+                {/* MACD Card */}
+                <Col xs={24} md={8}>
+                    <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
+                        <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.5px' }}>
+                            <FundOutlined /> MACD
+                        </div>
+                        {data.macd_hist !== undefined && data.macd_hist !== null ? (
+                            <div>
+                                <div style={{ fontSize: 22, fontWeight: 700, color: data.macd_hist > 0 ? '#00b894' : '#d63031', marginBottom: 4 }}>
+                                    {data.macd_hist > 0 ? '+' : ''}{data.macd_hist.toFixed(2)}
+                                </div>
+                                <Tag color={data.macd_hist > 0 ? 'green' : 'red'} style={{ fontSize: 11 }}>
+                                    {data.macd_hist > 0 ? 'Upward Momentum' : 'Downward Momentum'}
+                                </Tag>
+                            </div>
+                        ) : (
+                            <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Unavailable</div>
+                        )}
                     </div>
-                    <Row gutter={0}>
-                        {sm.npl != null && (
-                            <Col xs={12} sm={6}>
-                                <MetricCard label="NPL" value={sm.npl} suffix="%" color={sm.npl < 3 ? '#00b894' : sm.npl < 5 ? '#fdcb6e' : '#d63031'} tooltip="Non-Performing Loan. <3% is healthy." />
-                            </Col>
+                </Col>
+
+                {/* Volume Check Card */}
+                <Col xs={24} md={8}>
+                    <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
+                        <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.5px' }}>
+                            <BarChartOutlined /> Volume Surge
+                        </div>
+                        {data.vol_ratio !== undefined ? (
+                            <div>
+                                <div style={{ fontSize: 22, fontWeight: 700, color: data.vol_ratio > 1.2 ? '#00b894' : 'var(--text-primary)', marginBottom: 4 }}>
+                                    {data.vol_ratio.toFixed(1)}x Avg
+                                </div>
+                                {data.obv_status && (
+                                    <Tag color={data.obv_status === 'Accumulation' ? 'green' : 'red'} style={{ fontSize: 11 }}>
+                                        {data.obv_status}
+                                    </Tag>
+                                )}
+                            </div>
+                        ) : (
+                            <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Unavailable</div>
                         )}
-                        {sm.car != null && (
-                            <Col xs={12} sm={6}>
-                                <MetricCard label="CAR" value={sm.car} suffix="%" color={sm.car > 11 ? '#00b894' : '#d63031'} tooltip="Capital Adequacy Ratio. >11% is regulatory minimum." />
-                            </Col>
+                    </div>
+                </Col>
+                
+                {/* Bollinger Bands Card */}
+                <Col xs={24} md={8}>
+                    <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
+                        <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.5px' }}>
+                            <SubnodeOutlined /> Bollinger Bounds
+                        </div>
+                        {data.bb_upper && data.bb_lower ? (
+                            <div>
+                                <div style={{ fontSize: 22, fontWeight: 700, 
+                                    color: data.ltp > data.bb_upper ? '#d63031' : data.ltp < data.bb_lower ? '#00b894' : 'var(--text-primary)', marginBottom: 4 }}>
+                                    {data.ltp > data.bb_upper ? 'Overbought' : data.ltp < data.bb_lower ? 'Oversold' : 'In Range'}
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                                    {formatNPR(data.bb_lower)} - {formatNPR(data.bb_upper)}
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Unavailable</div>
                         )}
-                        {sm.cd_ratio != null && (
-                            <Col xs={12} sm={6}>
-                                <MetricCard label="CD Ratio" value={sm.cd_ratio} suffix="%" color={sm.cd_ratio < 80 ? '#00b894' : '#fdcb6e'} tooltip="Credit-to-Deposit Ratio. <80% preferred." />
-                            </Col>
-                        )}
-                        {sm.cost_of_funds != null && (
-                            <Col xs={12} sm={6}>
-                                <MetricCard label="Cost of Funds" value={sm.cost_of_funds} suffix="%" color="var(--text-primary)" tooltip="Average cost of borrowing." />
-                            </Col>
-                        )}
-                        {sm.interest_spread != null && (
-                            <Col xs={12} sm={6}>
-                                <MetricCard label="Interest Spread" value={sm.interest_spread} suffix="%" color={sm.interest_spread > 3 ? '#00b894' : '#fdcb6e'} tooltip="Rate spread. Higher = better margins." />
-                            </Col>
-                        )}
-                        {sm.reserves != null && !isBanking && (
-                            <Col xs={12} sm={6}>
-                                <MetricCard label="Reserves" value={sm.reserves > 1e6 ? `${(sm.reserves / 1e6).toFixed(1)}M` : sm.reserves?.toLocaleString()} suffix="" color={sm.reserves > 0 ? '#00b894' : '#d63031'} tooltip="Reserves and Surplus" />
-                            </Col>
-                        )}
-                        {sm.distributable_profit != null && (
-                            <Col xs={12} sm={6}>
-                                <MetricCard label="Dist. Profit" value={sm.distributable_profit > 1e6 ? `${(sm.distributable_profit / 1e6).toFixed(1)}M` : sm.distributable_profit?.toLocaleString()} suffix="" color={sm.distributable_profit > 0 ? '#00b894' : '#d63031'} tooltip="Distributable profit available for dividends." />
-                            </Col>
-                        )}
-                    </Row>
-                </div>
-            )}
+                    </div>
+                </Col>
+            </Row>
+
+            {/* ===== SECTION 5: Sector Health (adaptive per sector) ===== */}
+            {(() => {
+                const sectorLower = (data.sector || '').toLowerCase();
+                const isBFI = sectorLower.match(/bank|finance|microfinance/);
+                const isInsurance = sectorLower.includes('insurance');
+                const isHydro = sectorLower.includes('hydro');
+                const isMfg = sectorLower.match(/manufacturing|processing/);
+                const isInvestment = sectorLower.includes('investment');
+
+                // Large number formatter for sector metrics (Rs '000)
+                const fmtL = (v) => v > 1e6 ? `${(v / 1e6).toFixed(1)}M` : v?.toLocaleString();
+
+                // Determine which metrics to show based on sector
+                let sectorMetrics = [];
+                let sectorIcon = <BankOutlined />;
+
+                if (isBFI) {
+                    sectorMetrics = [
+                        sm.npl != null && { label: 'NPL', value: sm.npl, suffix: '%', color: sm.npl < 3 ? '#00b894' : sm.npl < 5 ? '#fdcb6e' : '#d63031', tooltip: 'Non-Performing Loan. <3% is healthy for BFIs.' },
+                        sm.car != null && { label: 'CAR', value: sm.car, suffix: '%', color: sm.car > 11 ? '#00b894' : '#d63031', tooltip: 'Capital Adequacy Ratio. >11% is NRB minimum.' },
+                        sm.cd_ratio != null && { label: 'CD Ratio', value: sm.cd_ratio, suffix: '%', color: sm.cd_ratio < 80 ? '#00b894' : '#fdcb6e', tooltip: 'Credit-to-Deposit Ratio. <80% preferred by NRB.' },
+                        sm.cost_of_funds != null && { label: 'Cost of Funds', value: sm.cost_of_funds, suffix: '%', color: 'var(--text-primary)', tooltip: 'Average cost of deposits and borrowings.' },
+                        sm.interest_spread != null && { label: 'Interest Spread', value: sm.interest_spread, suffix: '%', color: sm.interest_spread > 3 ? '#00b894' : '#fdcb6e', tooltip: 'Lending rate minus deposit rate. Higher = better margins.' },
+                        sm.base_rate != null && { label: 'Base Rate', value: sm.base_rate, suffix: '%', color: 'var(--text-primary)', tooltip: 'Minimum lending rate set by the institution.' },
+                        sm.net_interest_income != null && { label: 'NII', value: fmtL(sm.net_interest_income), suffix: '', color: sm.net_interest_income > 0 ? '#00b894' : '#d63031', tooltip: "Net Interest Income (Rs '000)" },
+                        sm.distributable_profit != null && { label: 'Dist. Profit', value: fmtL(sm.distributable_profit), suffix: '', color: sm.distributable_profit > 0 ? '#00b894' : '#d63031', tooltip: 'Distributable profit available for dividends.' },
+                    ].filter(Boolean);
+                } else if (isInsurance) {
+                    sectorIcon = <SafetyOutlined />;
+                    sectorMetrics = [
+                        sm.solvency_ratio != null && { label: 'Solvency Ratio', value: sm.solvency_ratio, suffix: 'x', color: sm.solvency_ratio > 1.5 ? '#00b894' : sm.solvency_ratio > 1 ? '#fdcb6e' : '#d63031', tooltip: 'Solvency Ratio. >1.5x is healthy per Beema Samiti.' },
+                        sm.claim_ratio != null && { label: 'Claim Ratio', value: sm.claim_ratio, suffix: '%', color: sm.claim_ratio < 60 ? '#00b894' : sm.claim_ratio < 80 ? '#fdcb6e' : '#d63031', tooltip: 'Net Claim / Net Premium. <60% is excellent.' },
+                        sm.net_premium != null && { label: 'Net Premium', value: fmtL(sm.net_premium), suffix: '', color: sm.net_premium > 0 ? '#00b894' : '#d63031', tooltip: 'Net premium earned after reinsurance.' },
+                        sm.gross_premium != null && { label: 'Gross Premium', value: fmtL(sm.gross_premium), suffix: '', color: '#6c5ce7', tooltip: 'Total gross premium written.' },
+                        sm.investment_income != null && { label: 'Investment Income', value: fmtL(sm.investment_income), suffix: '', color: sm.investment_income > 0 ? '#00b894' : '#d63031', tooltip: 'Income from investments and loans.' },
+                        sm.total_investment != null && { label: 'Total Investments', value: fmtL(sm.total_investment), suffix: '', color: '#0984e3', tooltip: 'Total investment portfolio.' },
+                        sm.catastrophic_reserve != null && { label: 'Catastrophe Rsv.', value: fmtL(sm.catastrophic_reserve), suffix: '', color: sm.catastrophic_reserve > 0 ? '#00b894' : '#d63031', tooltip: 'Reserve for catastrophic events.' },
+                        sm.mgmt_expenses != null && { label: 'Mgmt Expenses', value: fmtL(sm.mgmt_expenses), suffix: '', color: 'var(--text-primary)', tooltip: 'Total management expenses.' },
+                    ].filter(Boolean);
+                } else if (isHydro) {
+                    sectorIcon = <ThunderboltOutlined />;
+                    sectorMetrics = [
+                        sm.revenue != null && { label: 'Revenue', value: fmtL(sm.revenue), suffix: '', color: sm.revenue > 0 ? '#00b894' : '#d63031', tooltip: "Quarterly revenue (Rs '000)." },
+                        sm.operating_profit != null && { label: 'Oper. Profit', value: fmtL(sm.operating_profit), suffix: '', color: sm.operating_profit > 0 ? '#00b894' : '#d63031', tooltip: 'Operating profit/loss.' },
+                        sm.debt_to_equity != null && { label: 'Debt/Equity', value: sm.debt_to_equity, suffix: 'x', color: sm.debt_to_equity < 1 ? '#00b894' : sm.debt_to_equity < 2 ? '#fdcb6e' : '#d63031', tooltip: 'Leverage ratio. <1x is conservative, >2x is risky for hydro.' },
+                        sm.current_ratio != null && { label: 'Current Ratio', value: sm.current_ratio, suffix: 'x', color: sm.current_ratio > 1.5 ? '#00b894' : sm.current_ratio > 1 ? '#fdcb6e' : '#d63031', tooltip: 'Liquidity. >1.5x is comfortable.' },
+                        sm.reserves != null && { label: 'Reserves', value: fmtL(sm.reserves), suffix: '', color: sm.reserves > 0 ? '#00b894' : '#d63031', tooltip: 'Reserves and Surplus. Negative = red flag for hydro.' },
+                        sm.borrowings != null && { label: 'Borrowings', value: fmtL(sm.borrowings), suffix: '', color: '#fdcb6e', tooltip: 'Total borrowings/loans.' },
+                    ].filter(Boolean);
+                } else if (isMfg) {
+                    sectorIcon = <ExperimentOutlined />;
+                    sectorMetrics = [
+                        sm.revenue != null && { label: 'Revenue', value: fmtL(sm.revenue), suffix: '', color: sm.revenue > 0 ? '#00b894' : '#d63031', tooltip: "Revenue from operations (Rs '000)." },
+                        sm.gross_margin != null && { label: 'Gross Margin', value: sm.gross_margin, suffix: '%', color: sm.gross_margin > 30 ? '#00b894' : sm.gross_margin > 15 ? '#fdcb6e' : '#d63031', tooltip: 'Gross Profit / Revenue. >30% is strong for manufacturing.' },
+                        sm.operating_profit != null && { label: 'Oper. Profit', value: fmtL(sm.operating_profit), suffix: '', color: sm.operating_profit > 0 ? '#00b894' : '#d63031', tooltip: 'Operating profit/loss.' },
+                        sm.current_ratio != null && { label: 'Current Ratio', value: sm.current_ratio, suffix: 'x', color: sm.current_ratio > 1.5 ? '#00b894' : sm.current_ratio > 1 ? '#fdcb6e' : '#d63031', tooltip: 'Liquidity measure. >1.5x is safe.' },
+                        sm.debt_to_equity != null && { label: 'Debt/Equity', value: sm.debt_to_equity, suffix: 'x', color: sm.debt_to_equity < 1 ? '#00b894' : sm.debt_to_equity < 2 ? '#fdcb6e' : '#d63031', tooltip: 'Leverage. <1x ideal for manufacturing.' },
+                        sm.reserves != null && { label: 'Reserves', value: fmtL(sm.reserves), suffix: '', color: sm.reserves > 0 ? '#00b894' : '#d63031', tooltip: 'Retained reserves and surplus.' },
+                    ].filter(Boolean);
+                } else if (isInvestment) {
+                    sectorIcon = <FundOutlined />;
+                    sectorMetrics = [
+                        sm.revenue != null && { label: 'Total Revenue', value: fmtL(sm.revenue), suffix: '', color: sm.revenue > 0 ? '#00b894' : '#d63031', tooltip: 'Total revenue including finance/investment income.' },
+                        sm.investment_income != null && { label: 'Finance Income', value: fmtL(sm.investment_income), suffix: '', color: sm.investment_income > 0 ? '#00b894' : '#d63031', tooltip: 'Income from investments and financial instruments.' },
+                        sm.reserves != null && { label: 'Reserves', value: fmtL(sm.reserves), suffix: '', color: sm.reserves > 0 ? '#00b894' : '#d63031', tooltip: 'Reserves and surplus.' },
+                        sm.total_assets != null && { label: 'Total Assets', value: fmtL(sm.total_assets), suffix: '', color: '#0984e3', tooltip: 'Total assets under management.' },
+                        sm.current_ratio != null && { label: 'Current Ratio', value: sm.current_ratio, suffix: 'x', color: sm.current_ratio > 1.5 ? '#00b894' : '#fdcb6e', tooltip: 'Liquidity measure.' },
+                        sm.debt_to_equity != null && { label: 'Debt/Equity', value: sm.debt_to_equity, suffix: 'x', color: sm.debt_to_equity < 1 ? '#00b894' : '#fdcb6e', tooltip: 'Leverage ratio.' },
+                    ].filter(Boolean);
+                } else {
+                    // Generic: Hotels, Tourism, Tradings, Others
+                    sectorIcon = <BarChartOutlined />;
+                    sectorMetrics = [
+                        sm.revenue != null && { label: 'Revenue', value: fmtL(sm.revenue), suffix: '', color: sm.revenue > 0 ? '#00b894' : '#d63031', tooltip: "Revenue (Rs '000)." },
+                        sm.operating_profit != null && { label: 'Oper. Profit', value: fmtL(sm.operating_profit), suffix: '', color: sm.operating_profit > 0 ? '#00b894' : '#d63031', tooltip: 'Operating profit/loss.' },
+                        sm.reserves != null && { label: 'Reserves', value: fmtL(sm.reserves), suffix: '', color: sm.reserves > 0 ? '#00b894' : '#d63031', tooltip: 'Reserves and surplus.' },
+                        sm.current_ratio != null && { label: 'Current Ratio', value: sm.current_ratio, suffix: 'x', color: sm.current_ratio > 1.5 ? '#00b894' : sm.current_ratio > 1 ? '#fdcb6e' : '#d63031', tooltip: 'Liquidity measure.' },
+                        sm.debt_to_equity != null && { label: 'Debt/Equity', value: sm.debt_to_equity, suffix: 'x', color: sm.debt_to_equity < 1 ? '#00b894' : sm.debt_to_equity < 2 ? '#fdcb6e' : '#d63031', tooltip: 'Leverage ratio.' },
+                        sm.distributable_profit != null && { label: 'Dist. Profit', value: fmtL(sm.distributable_profit), suffix: '', color: sm.distributable_profit > 0 ? '#00b894' : '#d63031', tooltip: 'Distributable profit.' },
+                    ].filter(Boolean);
+                }
+
+                if (sectorMetrics.length === 0) return null;
+
+                return (
+                    <div className="stat-card" style={{ padding: '4px 0', marginBottom: 20 }}>
+                        <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', padding: '12px 20px 0', letterSpacing: '0.5px' }}>
+                            {sectorIcon} Sector Health — {data.sector}
+                        </div>
+                        <Row gutter={0}>
+                            {sectorMetrics.map((m, i) => (
+                                <Col xs={12} sm={6} key={i}>
+                                    <MetricCard label={m.label} value={m.value} suffix={m.suffix} color={m.color} tooltip={m.tooltip} />
+                                </Col>
+                            ))}
+                        </Row>
+                    </div>
+                );
+            })()}
 
             {/* ===== SECTION 6: Dividends + Profit Trajectory ===== */}
             <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
