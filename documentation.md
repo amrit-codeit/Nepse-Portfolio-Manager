@@ -46,17 +46,19 @@
 **Nepal Portfolio Manager** is a personal-use, full-stack web application for tracking investments in the Nepali stock market (NEPSE). It supports:
 
 - **Advanced Risk Intelligence** — Automated Graham's Number valuation vs LTP gap analysis
+- **Technical Market Indicators** — Moving Averages (SMA 200), MACD, Volume surges, and Bollinger Bands with plain-english actionable signals
 - **Sectoral Deep-Dive** — Risk flags based on industry-specific metrics (NPL/CAR for Banks, Reserve/Equity for Hydros)
-- **AI Portfolio Strategy** — Local LLM integration (DeepSeek-R1) for personal investment strategy reviews
+- **AI Portfolio Strategy** — Local LLM integration (DeepSeek-R1, Qwen) for personal and categorical investment strategy reviews
 - **Multi-member portfolios** — track shares for multiple family members
 - **Dual WACC engine** — True WACC (cash basis) and Tax WACC (CDSC/MeroShare rules where bonus = Rs. 100)
+- **Dividend True-Tax Engine** — Advanced TDS tracking on both Cash and Bonus shares to dynamically identify out-of-pocket tax liabilities
 - **Automated MeroShare sync** — Selenium-based headless scraping of transaction history
 - **Live price feeds** — ShareSansar price scraping + Mutual Fund NAV scraping
 - **IPO automation** — Apply for IPOs via MeroShare for multiple members
 - **DP statement reconciliation** — Import SIP data from NMBSBFE (PDF), NIBLSF (CSV), and NI31 (XLSX)
 - **Computed portfolio history** — Historical performance charts with NEPSE index benchmarking
 - **Order Simulator** — Real-time Buy/Sell calculator with full SEBON fee breakdown and FIFO-based CGT estimation
-- **Scrip Intelligence Dashboard** — Individual stock sub-pages with historical price charts and transaction markers
+- **Scrip Intelligence Dashboard** — Individual stock sub-pages with historical price charts, valuation gauges, and dividend tax records
 - **About & Vision Panel** — Project transparency and technical stack overview
 
 ---

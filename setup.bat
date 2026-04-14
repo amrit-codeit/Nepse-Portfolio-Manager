@@ -73,12 +73,11 @@ echo ################################################
 echo #          Setup Complete!                     #
 echo ################################################
 echo.
-echo To start the application:
-echo 1. Open a terminal in 'backend' and run:
-echo    venv\Scripts\activate
-echo    python -m uvicorn app.main:app --reload
+echo Your environment is fully configured. 
+echo The application will now launch automatically...
 echo.
-echo 2. Open another terminal in 'frontend' and run:
-echo    npm run dev
-echo.
-pause
+timeout /t 3 >nul
+
+:: Navigate back to root and launch run.bat
+cd ..
+start run.bat

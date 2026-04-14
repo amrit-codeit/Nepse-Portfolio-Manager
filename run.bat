@@ -15,6 +15,12 @@ timeout /t 2 >nul
 echo Starting Frontend...
 start "NPM Frontend" cmd /k "cd frontend && npm run dev"
 
+:: 4. Wait for frontend to compile, then open browser
+echo Waiting for frontend to start...
+timeout /t 5 >nul
+echo Opening Web App in default browser...
+start http://localhost:5173
+
 echo.
 echo [SUCCESS] Both services are launching in separate windows.
 echo Keep those windows open while using the app.

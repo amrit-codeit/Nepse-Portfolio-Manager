@@ -11,24 +11,12 @@ scheduler = BackgroundScheduler()
 
 def start_scheduler():
     """Start the background scheduler with strictly necessary jobs."""
-    
-    # Backup daily at 23:55 NPT - Essential for data recovery
-    scheduler.add_job(
-        create_database_backup,
-        CronTrigger(
-            hour=23,
-            minute=55,
-            timezone="Asia/Kathmandu",
-        ),
-        id="daily_backup",
-        name="Daily Database Backup",
-        replace_existing=True,
-    )
+    # Note: Automated scheduled backup was removed.
+    # Backups now run exactly once upon application STARTUP.
+    # This is better for a local application where the device is not 24/7 online.
 
     scheduler.start()
-    print("[OK] Background scheduler started")
-    print("   - Maintenance Mode: ACTIVE")
-    print("   - Database backup: daily at 23:55 NPT (Asia/Kathmandu)")
+    print("[OK] Background scheduler started (No active jobs yet)")
 
 
 def stop_scheduler():

@@ -127,24 +127,43 @@ def get_stock_detail(
 
     div_records = div_query.order_by(DividendIncome.book_close_date.desc()).all()
 
-    total_cash_dividend = sum(r.total_cash_amount for r in div_records if r.eligible_quantity > 0)
-    total_bonus_shares = sum(
-        r.eligible_quantity * (r.bonus_dividend_percent / 100)
-        for r in div_records if r.eligible_quantity > 0
-    )
-
-    dividend_history = [
-        {
+    total_cash_dividend = 0.0
+    total_tax_deducted = 0.0
+    total_bonus_shares = 0.0
+    dividend_history = []
+    
+    for r in div_records:
+        if r.eligible_quantity <= 0:
+            continue
+            
+        qty = r.eligible_quantity
+        cash_pct = r.cash_dividend_percent / 100.0
+        bonus_pct = r.bonus_dividend_percent / 100.0
+        
+        gross_cash = qty * cash_pct * face_value
+        tax_on_cash = gross_cash * 0.05
+        tax_on_bonus = (qty * bonus_pct * face_value) * 0.05
+        total_tax = tax_on_cash + tax_on_bonus
+        net_cash = gross_cash - total_tax
+        bonus_shares = qty * bonus_pct
+        
+        total_cash_dividend += max(net_cash, 0) # Only count positive net cash as "received"
+        total_tax_deducted += total_tax
+        total_bonus_shares += bonus_shares
+        
+        dividend_history.append({
             "fiscal_year": r.fiscal_year,
             "cash_pct": r.cash_dividend_percent,
             "bonus_pct": r.bonus_dividend_percent,
             "book_close_date": r.book_close_date.isoformat() if r.book_close_date else None,
-            "eligible_qty": r.eligible_quantity,
-            "cash_amount": round(r.total_cash_amount, 3),
-            "bonus_shares": round(r.eligible_quantity * (r.bonus_dividend_percent / 100), 3),
-        }
-        for r in div_records
-    ]
+            "eligible_qty": qty,
+            # Maintain backward compatibility, replace cash_amount with net_cash
+            "cash_amount": round(net_cash, 3), 
+            "gross_cash": round(gross_cash, 3),
+            "total_tax": round(total_tax, 3),
+            "tax_owed": round(abs(net_cash), 3) if net_cash <= -1.0 else 0,
+            "bonus_shares": round(bonus_shares, 3),
+        })
 
     # --- Dividend Yield comparison ---
     latest_div = div_records[0] if div_records else None
@@ -225,6 +244,7 @@ def get_stock_detail(
 
         # Dividends
         "total_cash_dividend": round(total_cash_dividend, 3),
+        "total_tax_deducted": round(total_tax_deducted, 3),
         "total_bonus_shares": round(total_bonus_shares, 3),
         "market_yield": market_yield,
         "cost_yield": cost_yield,

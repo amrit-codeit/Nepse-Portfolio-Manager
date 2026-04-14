@@ -101,6 +101,13 @@ def analyze_sector_risk(sector: str, overview_data: dict, quarterly_data: list) 
         if isinstance(solvency, (int, float)) and solvency < 1.5:
             return True
             
+        # Claim Ratio > 90% (Net Claim / Net Premium)
+        net_claim = metrics.get("Net Claim Payment")
+        net_premium = metrics.get("Net Premium")
+        if isinstance(net_claim, (int, float)) and isinstance(net_premium, (int, float)) and net_premium > 0:
+            if (net_claim / net_premium) > 0.9:
+                return True
+
         # net_premium declining for 2 consecutive quarters
         if len(quarterly_data) >= 3:
             p1 = latest.get("sector_metrics", {}).get("Net Premium")
@@ -114,5 +121,67 @@ def analyze_sector_risk(sector: str, overview_data: dict, quarterly_data: list) 
                 
             if _p(p1) < _p(p2) and _p(p2) < _p(p3):
                 return True
+
+    # 4. Manufacturing & Processing
+    elif any(x in sector.lower() for x in ["manufacturing", "processing"]):
+        if not quarterly_data:
+            return False
+
+        latest = quarterly_data[0]
+        metrics = latest.get("sector_metrics", {})
+
+        # Current Ratio < 1.0 (liquidity risk)
+        current_assets = metrics.get("Current Assets")
+        current_liabilities = metrics.get("Current Liabilities")
+        if isinstance(current_assets, (int, float)) and isinstance(current_liabilities, (int, float)):
+            if current_liabilities > 0 and (current_assets / current_liabilities) < 1.0:
+                return True
+
+        # Gross Margin < 10% (thin margins)
+        revenue = metrics.get("Revenue") or metrics.get("Revenue from Operation")
+        gross_profit = metrics.get("Gross Profit")
+        if isinstance(revenue, (int, float)) and isinstance(gross_profit, (int, float)) and revenue > 0:
+            if (gross_profit / revenue) < 0.10:
+                return True
+
+    # 5. Investment Companies
+    elif "investment" in sector.lower():
+        if not quarterly_data:
+            return False
+
+        latest = quarterly_data[0]
+        metrics = latest.get("sector_metrics", {})
+
+        # Negative reserves
+        reserves = metrics.get("Reserve and Surplus") or metrics.get("Reserves and Surplus") or metrics.get("Reserves")
+        if isinstance(reserves, (int, float)) and reserves < 0:
+            return True
+
+        # Declining revenue over 2 quarters
+        if len(quarterly_data) >= 2:
+            rev_curr = metrics.get("Total Revenue") or metrics.get("Revenue from Contract with Customers")
+            rev_prev = (quarterly_data[1].get("sector_metrics", {}).get("Total Revenue")
+                       or quarterly_data[1].get("sector_metrics", {}).get("Revenue from Contract with Customers"))
+            if isinstance(rev_curr, (int, float)) and isinstance(rev_prev, (int, float)) and rev_prev > 0:
+                if ((rev_curr - rev_prev) / rev_prev) < -0.20:
+                    return True
+
+    # 6. Hotels, Tourism, Tradings, Others
+    elif any(x in sector.lower() for x in ["hotel", "tourism", "trading", "other"]):
+        if not quarterly_data:
+            return False
+
+        latest = quarterly_data[0]
+        metrics = latest.get("sector_metrics", {})
+
+        # Operating losses
+        op_profit = metrics.get("Operating Profit") or metrics.get("Total Operating Profit")
+        if isinstance(op_profit, (int, float)) and op_profit < 0:
+            return True
+
+        # Negative reserves
+        reserves = metrics.get("Reserve and Surplus") or metrics.get("Reserves and Surplus")
+        if isinstance(reserves, (int, float)) and reserves < 0:
+            return True
 
     return False

@@ -372,8 +372,13 @@ def get_dividends(
     """Get dividend income history table."""
     from app.models.dividend import DividendIncome
     from app.models.member import Member
+    from app.models.company import Company
     
-    query = db.query(DividendIncome, Member.name.label("member_name")).join(Member, DividendIncome.member_id == Member.id)
+    query = db.query(DividendIncome, Member.name.label("member_name"), Company.instrument).join(
+        Member, DividendIncome.member_id == Member.id
+    ).outerjoin(
+        Company, DividendIncome.symbol == Company.symbol
+    )
     
     if member_ids:
         ids_list = [int(x.strip()) for x in member_ids.split(',') if x.strip()]
@@ -383,18 +388,39 @@ def get_dividends(
         
     records = query.order_by(DividendIncome.book_close_date.desc()).all()
     
-    return [
-        {
-            "id": r.DividendIncome.id,
-            "member_id": r.DividendIncome.member_id,
+    res = []
+    for r in records:
+        div = r.DividendIncome
+        qty = div.eligible_quantity
+        
+        # Par value is 10 for Mutual Funds, 100 for Equities
+        fv = 10 if r.instrument and "Mutual Fund" in r.instrument else 100
+        
+        cash_pct = div.cash_dividend_percent / 100.0
+        bonus_pct = div.bonus_dividend_percent / 100.0
+        
+        gross_cash = qty * cash_pct * fv
+        tax_on_cash = gross_cash * 0.05
+        tax_on_bonus = (qty * bonus_pct * fv) * 0.05
+        
+        total_tax = tax_on_cash + tax_on_bonus
+        net_cash = gross_cash - total_tax
+        
+        res.append({
+            "id": div.id,
+            "member_id": div.member_id,
             "member_name": r.member_name,
-            "symbol": r.DividendIncome.symbol,
-            "fiscal_year": r.DividendIncome.fiscal_year,
-            "cash_dividend_percent": r.DividendIncome.cash_dividend_percent,
-            "bonus_dividend_percent": r.DividendIncome.bonus_dividend_percent,
-            "book_close_date": r.DividendIncome.book_close_date.isoformat() if r.DividendIncome.book_close_date else None,
-            "eligible_quantity": r.DividendIncome.eligible_quantity,
-            "total_cash_amount": r.DividendIncome.total_cash_amount
-        }
-        for r in records
-    ]
+            "symbol": div.symbol,
+            "fiscal_year": div.fiscal_year,
+            "cash_dividend_percent": div.cash_dividend_percent,
+            "bonus_dividend_percent": div.bonus_dividend_percent,
+            "book_close_date": div.book_close_date.isoformat() if div.book_close_date else None,
+            "eligible_quantity": qty,
+            # We overwrite total_cash_amount to represent the dynamic net cash
+            "total_cash_amount": round(net_cash, 3),
+            "gross_cash": round(gross_cash, 3),
+            "total_tax": round(total_tax, 3),
+            "tax_owed": round(abs(net_cash), 3) if net_cash <= -1.0 else 0,
+            "bonus_shares": round(qty * bonus_pct, 4)
+        })
+    return res

@@ -140,8 +140,9 @@ frontend/src/
 
 ### Key Formulas
 - **Graham's Number**: `√(22.5 × EPS × BVPS)` — intrinsic value benchmark
-- **Health Score (0-100)**: Weighted: ROE (20%), Sector Quality (25%), Graham Undervaluation (25%), 200-SMA Trend (15%), RSI Zone (15%)
-- **Action Badges**: Strong Buy / Accumulate / Hold / Avoid — derived from Health Score
+- **Dividend True TDS**: `Total Tax = ((Units × Cash% × Par) * 0.05) + ((Units × Bonus% × Par) * 0.05)`. User owes company if `Net Cash < 0`.
+- **Health Score (0-100)**: Multi-factorial weighting system including ROE, Sector Quality, Graham Undervaluation, 200-SMA, MACD Momentum, Bollinger Bounds, and RSI Actionable levels.
+- **Action Badges**: Strong Buy / Accumulate / Hold / Avoid — derived from Health Score and momentum metrics.
 - **XIRR**: Newton-Raphson via `scipy.optimize.newton` (backend). Segmented equity/SIP XIRR computed server-side
 - **HHI**: Herfindahl-Hirschman Index for portfolio concentration — sum of squared holding weights
 - **Total Returns**: Unrealized P&L + Realized Profit + Dividend Income
@@ -195,6 +196,11 @@ frontend/src/
 13. **Update docs**: Modify `documentation.md` for new endpoints, services, or schema changes
 14. **Preserve existing comments & docstrings** unrelated to your changes
 15. **Token economy**: Modify only necessary code. Brief explanations. No temp files left behind
+
+### Git Workflow Guidelines
+16. **Major Features**: An agent should ALWAYS create a new branch, and verify integration with existing features seamlessly.
+17. **New Features (Direct)**: If performing feature implementation directly on the branch, git commit the working state FIRST before starting edits.
+18. **Minor Corrections**: For quick bug fixes, typos, or minor corrections, there is NO NEED to git commit beforehand.
 
 ---
 

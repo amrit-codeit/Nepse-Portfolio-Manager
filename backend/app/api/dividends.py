@@ -22,7 +22,9 @@ def get_dividends(
     db: Session = Depends(get_db),
 ):
     """Get all dividend income records, optionally filtered."""
-    query = db.query(DividendIncome)
+    query = db.query(DividendIncome, Company.instrument).outerjoin(
+        Company, DividendIncome.symbol == Company.symbol
+    )
 
     if symbol:
         query = query.filter(DividendIncome.symbol == symbol.upper())
@@ -35,22 +37,42 @@ def get_dividends(
 
     records = query.order_by(DividendIncome.book_close_date.desc()).all()
 
-    return [
-        {
-            "id": r.id,
-            "member_id": r.member_id,
-            "symbol": r.symbol,
-            "fiscal_year": r.fiscal_year,
-            "cash_dividend_percent": r.cash_dividend_percent,
-            "bonus_dividend_percent": r.bonus_dividend_percent,
-            "book_close_date": r.book_close_date.isoformat() if r.book_close_date else None,
-            "eligible_quantity": r.eligible_quantity,
-            "total_cash_amount": r.total_cash_amount,
-            "total_bonus_shares": round(r.eligible_quantity * (r.bonus_dividend_percent / 100), 3),
-            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
-        }
-        for r in records
-    ]
+    res = []
+    for r in records:
+        div = r.DividendIncome
+        qty = div.eligible_quantity
+        
+        # Par value is 10 for Mutual Funds, 100 for Equities
+        fv = 10 if r.instrument and "Mutual Fund" in r.instrument else 100
+        
+        cash_pct = div.cash_dividend_percent / 100.0
+        bonus_pct = div.bonus_dividend_percent / 100.0
+        
+        gross_cash = qty * cash_pct * fv
+        tax_on_cash = gross_cash * 0.05
+        tax_on_bonus = (qty * bonus_pct * fv) * 0.05
+        
+        total_tax = tax_on_cash + tax_on_bonus
+        net_cash = gross_cash - total_tax
+
+        res.append({
+            "id": div.id,
+            "member_id": div.member_id,
+            "symbol": div.symbol,
+            "fiscal_year": div.fiscal_year,
+            "cash_dividend_percent": div.cash_dividend_percent,
+            "bonus_dividend_percent": div.bonus_dividend_percent,
+            "book_close_date": div.book_close_date.isoformat() if div.book_close_date else None,
+            "eligible_quantity": qty,
+            # We overwrite total_cash_amount to represent the dynamic net cash
+            "total_cash_amount": round(net_cash, 3),
+            "gross_cash": round(gross_cash, 3),
+            "total_tax": round(total_tax, 3),
+            "tax_owed": round(abs(net_cash), 3) if net_cash <= -1.0 else 0,
+            "total_bonus_shares": round(qty * bonus_pct, 4),
+            "updated_at": div.updated_at.isoformat() if div.updated_at else None,
+        })
+    return res
 
 
 @router.get("/summary")

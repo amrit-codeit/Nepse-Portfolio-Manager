@@ -82,10 +82,17 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
     )
 
     # --- Technical Calculations ---
+    # We will use EMA here for consistency with Insights tab
     rsi_14 = None
-    sma_200 = None
-    sma_50 = None
+    ema_200 = None
+    ema_50 = None
     ema_200_status = None
+    macd_hist = None
+    macd_status = None
+    vol_ratio = 0
+    obv_status = None
+    circuit_distance_pct = None
+    turnover_120d = None
 
     if prices and len(prices) >= 50:
         prices_chrono = prices[::-1]
@@ -93,26 +100,68 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
             "close": float(p.close),
             "high": float(p.high),
             "low": float(p.low),
+            "volume": float(p.volume or 0),
         } for p in prices_chrono])
 
         df.ta.rsi(length=14, append=True)
-        df.ta.sma(length=200, append=True)
-        df.ta.sma(length=50, append=True)
+        df.ta.ema(length=200, append=True)
+        df.ta.ema(length=50, append=True)
+        df.ta.macd(fast=12, slow=26, signal=9, append=True)
+        df.ta.sma(close='volume', length=20, append=True, prefix='VOL')
+        df.ta.obv(append=True)
+        df.ta.bbands(length=20, std=2, append=True)
 
         latest = df.iloc[-1]
+        prev_row = df.iloc[-2] if len(df) > 1 else latest
+
         rsi_val = latest.get("RSI_14")
-        sma_200_val = latest.get("SMA_200")
-        sma_50_val = latest.get("SMA_50")
+        ema_200_val = latest.get("EMA_200")
+        ema_50_val = latest.get("EMA_50")
+        macd_hist_val = latest.get("MACDh_12_26_9")
+        vol_sma_20 = latest.get("VOL_SMA_20")
+        volume = latest.get("volume", 0)
+        obv = latest.get("OBV")
+        obv_prev = prev_row.get("OBV")
+        bb_upper_val = latest.get("BBU_20_2.0_2.0")
+        bb_lower_val = latest.get("BBL_20_2.0_2.0")
+        
+        bb_upper, bb_lower = None, None
 
         if pd.notna(rsi_val):
             rsi_14 = round(float(rsi_val), 3)
-        if pd.notna(sma_200_val):
-            sma_200 = round(float(sma_200_val), 3)
-        if pd.notna(sma_50_val):
-            sma_50 = round(float(sma_50_val), 3)
+        if pd.notna(ema_200_val):
+            ema_200 = round(float(ema_200_val), 3)
+        if pd.notna(ema_50_val):
+            ema_50 = round(float(ema_50_val), 3)
+        if pd.notna(macd_hist_val):
+            macd_hist = round(float(macd_hist_val), 3)
+            macd_status = "Bullish Crossover" if macd_hist > 0 else "Bearish"
+            
+        if pd.notna(bb_upper_val): bb_upper = round(float(bb_upper_val), 2)
+        if pd.notna(bb_lower_val): bb_lower = round(float(bb_lower_val), 2)
+            
+        if pd.notna(vol_sma_20) and vol_sma_20 > 0:
+            vol_ratio = round(volume / vol_sma_20, 2)
+            
+        if pd.notna(obv) and pd.notna(obv_prev):
+            obv_status = "Accumulation" if obv > obv_prev else "Distribution"
+            
+        # NEPSE Specific: Circuit distance from previous close
+        # NEPSE circuit breaker is typically ±10% for running market, ±5% for first trading day (we assume normal 10%)
+        if len(prices_chrono) >= 2:
+            prev_close = float(prices_chrono[-2].close)
+            if prev_close > 0 and ltp:
+                circuit_high = prev_close * 1.10
+                circuit_distance_pct = round(((circuit_high - ltp) / ltp) * 100, 2)
+                
+        # Turnover over 120 days (semi-annual proxy)
+        if len(prices_chrono) >= 120 and ltp:
+            # simple average of volume over last 120 days * current price = proxy turnover
+            avg_vol_120 = df['volume'].tail(120).mean()
+            turnover_120d = avg_vol_120 * ltp
 
-    if ltp and sma_200:
-        ema_200_status = "Bullish" if ltp > sma_200 else "Bearish"
+    if ltp and ema_200:
+        ema_200_status = "Bullish" if ltp > ema_200 else "Bearish"
 
     # --- 52-Week Range ---
     high_52w = None
@@ -152,17 +201,71 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
     # Extract from latest quarterly sector_metrics
     latest_sector = quarterly[0].sector_metrics if quarterly and quarterly[0].sector_metrics else {}
     
+    # ── Banking / Finance / Microfinance ──
     npl = _parse_metric(latest_sector.get("NPL"), None)
     car = _parse_metric(latest_sector.get("CAR"), None)
     cost_of_funds = _parse_metric(latest_sector.get("Cost of funds"), None)
-    cd_ratio = _parse_metric(latest_sector.get("Credit To Deposit Ratio"), None)
+    cd_ratio = _parse_metric(latest_sector.get("Credit To Deposit Ratio") or latest_sector.get("CD ratio"), None)
     base_rate = _parse_metric(latest_sector.get("Base Rate"), None)
     interest_spread = _parse_metric(latest_sector.get("Interest Spread Rate"), None)
     distributable_profit = _parse_metric(latest_sector.get("Distributable Profit"), None)
+    deposits = _parse_metric(latest_sector.get("Deposits from Customers"), None)
+    loans_advances = _parse_metric(
+        latest_sector.get("Loans and Advances to Customers") or latest_sector.get("Loans and Advances"), None
+    )
+    net_interest_income = _parse_metric(latest_sector.get("Net Interest Income"), None)
+
+    # ── Common across most sectors ──
     reserves = _parse_metric(
         latest_sector.get("Reserves and Surplus") or latest_sector.get("Reserves") or latest_sector.get("Reserve and Surplus"),
         None
     )
+    total_equity = _parse_metric(latest_sector.get("Total Equity"), None)
+    total_assets = _parse_metric(latest_sector.get("Total Assets"), None)
+    borrowings = _parse_metric(
+        latest_sector.get("Borrowings") or latest_sector.get("Loans and Borrowings"), None
+    )
+    current_assets = _parse_metric(latest_sector.get("Current Assets"), None)
+    current_liabilities = _parse_metric(latest_sector.get("Current Liabilities"), None)
+
+    # ── Insurance (Life + Non-Life) ──
+    solvency_ratio = _parse_metric(latest_sector.get("Solvency Ratio"), None)
+    net_premium = _parse_metric(latest_sector.get("Net Premium"), None)
+    gross_premium = _parse_metric(
+        latest_sector.get("Gross Premium Earned") or latest_sector.get("Gross Premium"), None
+    )
+    net_claim = _parse_metric(latest_sector.get("Net Claim Payment"), None)
+    insurance_fund = _parse_metric(latest_sector.get("Insurance Fund"), None)
+    catastrophic_reserve = _parse_metric(latest_sector.get("Catastrophic Reserve"), None)
+    total_investment = _parse_metric(
+        latest_sector.get("Total Investment and Loans")
+        or latest_sector.get("Long Term Investment and Loans"), None
+    )
+    investment_income = _parse_metric(
+        latest_sector.get("Income From Investment Loans And Others")
+        or latest_sector.get("Income from Investment")
+        or latest_sector.get("Finance Income"), None
+    )
+    mgmt_expenses = _parse_metric(latest_sector.get("Management Expenses"), None)
+    # Computed: Claim Ratio = Net Claim / Net Premium
+    claim_ratio = round((net_claim / net_premium) * 100, 2) if net_claim and net_premium and net_premium > 0 else None
+
+    # ── Hydro / Manufacturing / Investment ──
+    revenue = _parse_metric(
+        latest_sector.get("Revenue") or latest_sector.get("Revenue from Operation")
+        or latest_sector.get("Revenue from Contract with Customers")
+        or latest_sector.get("Total Revenue"), None
+    )
+    gross_profit = _parse_metric(latest_sector.get("Gross Profit"), None)
+    operating_profit = _parse_metric(
+        latest_sector.get("Operating Profit") or latest_sector.get("Total Operating Profit"), None
+    )
+    # Computed: Gross Margin = Gross Profit / Revenue
+    gross_margin = round((gross_profit / revenue) * 100, 2) if gross_profit is not None and revenue and revenue > 0 else None
+    # Computed: Current Ratio = Current Assets / Current Liabilities
+    current_ratio = round(current_assets / current_liabilities, 2) if current_assets and current_liabilities and current_liabilities > 0 else None
+    # Computed: Debt-to-Equity = Borrowings / Total Equity
+    debt_to_equity = round(borrowings / total_equity, 2) if borrowings is not None and total_equity and total_equity > 0 else None
 
     # --- Dividend History & Yield ---
     div_records = (
@@ -208,17 +311,70 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
         if npl_val < 3:
             score += 20
             score_breakdown.append({"label": f"NPL Quality ({npl_val}%)", "pts": 20, "met": True})
+        elif npl_val < 5:
+            score += 10
+            score_breakdown.append({"label": f"Moderate NPL ({npl_val}%)", "pts": 10, "met": True})
         else:
             score_breakdown.append({"label": f"High NPL Risk ({npl_val}%)", "pts": 0, "met": False})
     elif "hydro" in sector_lower:
+        # Hydro: Reserves + Debt-to-Equity
         res_val = reserves if reserves is not None else -1
-        if res_val > 0:
+        de_val = debt_to_equity
+        if res_val > 0 and (de_val is None or de_val < 2):
             score += 20
-            score_breakdown.append({"label": "Positive Reserves (Hydro)", "pts": 20, "met": True})
+            score_breakdown.append({"label": "Positive Reserves & Low Debt (Hydro)", "pts": 20, "met": True})
+        elif res_val > 0:
+            score += 10
+            score_breakdown.append({"label": f"Positive Reserves, High D/E ({de_val}x)", "pts": 10, "met": True})
         else:
             score_breakdown.append({"label": "Negative Reserves (Hydro)", "pts": 0, "met": False})
+    elif "insurance" in sector_lower:
+        # Insurance: Solvency Ratio + Claim Ratio
+        sol_val = solvency_ratio
+        clm_val = claim_ratio
+        if sol_val is not None and sol_val > 1.5:
+            score += 12
+            score_breakdown.append({"label": f"Solvency Ratio OK ({sol_val}x)", "pts": 12, "met": True})
+        elif sol_val is not None:
+            score_breakdown.append({"label": f"Low Solvency ({sol_val}x)", "pts": 0, "met": False})
+        if clm_val is not None and clm_val < 80:
+            score += 8
+            score_breakdown.append({"label": f"Healthy Claim Ratio ({clm_val}%)", "pts": 8, "met": True})
+        elif clm_val is not None:
+            score_breakdown.append({"label": f"High Claim Ratio ({clm_val}%)", "pts": 0, "met": False})
+        # If neither metric available, use profit growth fallback
+        if sol_val is None and clm_val is None:
+            net_profit_yoy = growth_dict.get('netprofitqtrly_yoy_growth')
+            if net_profit_yoy is not None and net_profit_yoy > 0:
+                score += 20
+                score_breakdown.append({"label": f"Profit Growth ({round(net_profit_yoy, 1)}%)", "pts": 20, "met": True})
+            else:
+                score_breakdown.append({"label": "No Sector Data", "pts": 0, "met": False})
+    elif any(x in sector_lower for x in ["manufacturing", "processing"]):
+        # Manufacturing: Gross Margin + Current Ratio
+        gm_val = gross_margin
+        cr_val = current_ratio
+        if gm_val is not None and gm_val > 20:
+            score += 12
+            score_breakdown.append({"label": f"Strong Gross Margin ({gm_val}%)", "pts": 12, "met": True})
+        elif gm_val is not None:
+            score_breakdown.append({"label": f"Weak Gross Margin ({gm_val}%)", "pts": 0, "met": False})
+        if cr_val is not None and cr_val > 1.5:
+            score += 8
+            score_breakdown.append({"label": f"Current Ratio OK ({cr_val}x)", "pts": 8, "met": True})
+        elif cr_val is not None:
+            score_breakdown.append({"label": f"Low Current Ratio ({cr_val}x)", "pts": 0, "met": False})
+        # Fallback
+        if gm_val is None and cr_val is None:
+            net_profit_yoy = growth_dict.get('netprofitqtrly_yoy_growth')
+            if net_profit_yoy is not None and net_profit_yoy > 0:
+                score += 20
+                score_breakdown.append({"label": f"Profit Growth ({round(net_profit_yoy, 1)}%)", "pts": 20, "met": True})
+            else:
+                score_breakdown.append({"label": "No Sector Data", "pts": 0, "met": False})
     else:
-        # Others: Check for Profit Growth (Safe handling for None types)
+        # Generic: Hotels, Tourism, Tradings, Investment, Others
+        # Use profit growth as primary metric
         net_profit_yoy = growth_dict.get('netprofitqtrly_yoy_growth')
         if net_profit_yoy is not None:
             if net_profit_yoy > 5:
@@ -250,27 +406,39 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
         else:
             score_breakdown.append({"label": f"High PBV ({round(pbv, 3)})", "pts": 0, "met": False})
 
-    # 4. TREND MASTERY (20 pts) - 200 SMA (10) + 50 SMA (10)
-    if ltp and sma_200 and ltp > sma_200:
-        score += 10
-        if ltp and sma_50 and ltp > sma_50:
-            score += 10
-            score_breakdown.append({"label": "Full Bullish Trend (50 & 200 SMA)", "pts": 20, "met": True})
+    # 4. TREND MASTERY (20 pts) - SMA (12) + MACD (8)
+    if ltp and ema_200 and ltp > ema_200:
+        score += 6
+        if ltp and ema_50 and ltp > ema_50:
+            score += 6
+            score_breakdown.append({"label": "Full Bullish Trend (50 & 200 EMA)", "pts": 12, "met": True})
         else:
-            score_breakdown.append({"label": "Long-term Bullish Only", "pts": 10, "met": True})
+            score_breakdown.append({"label": "Long-term Bullish Only", "pts": 6, "met": True})
     else:
-        score_breakdown.append({"label": "Bearish Trend", "pts": 0, "met": False})
+        score_breakdown.append({"label": "Bearish Price Trend", "pts": 0, "met": False})
+        
+    if macd_hist is not None and macd_hist > 0:
+        score += 8
+        score_breakdown.append({"label": "MACD Bullish Momentum", "pts": 8, "met": True})
+    else:
+        score_breakdown.append({"label": "MACD Bearish", "pts": 0, "met": False})
 
-    # 5. ENTRY TIMING (15 pts) - The RSI Sweet Spot
+    # 5. ENTRY TIMING (15 pts) - RSI (10) + Volume Confirmation (5)
     if rsi_14:
         if 40 <= rsi_14 <= 65: # The "Accumulation" Zone
-            score += 15
-            score_breakdown.append({"label": "RSI Sweet Spot (40-65)", "pts": 15, "met": True})
+            score += 10
+            score_breakdown.append({"label": "RSI Sweet Spot (40-65)", "pts": 10, "met": True})
         elif rsi_14 < 40: # Oversold - Good but risky
-            score += 7
-            score_breakdown.append({"label": "RSI Oversold (Early)", "pts": 7, "met": True})
+            score += 5
+            score_breakdown.append({"label": "RSI Oversold (Early)", "pts": 5, "met": True})
         else:
             score_breakdown.append({"label": "RSI Overbought", "pts": 0, "met": False})
+            
+    if vol_ratio and vol_ratio > 1.2:
+        score += 5
+        score_breakdown.append({"label": f"Volume Expansion ({vol_ratio}x avg)", "pts": 5, "met": True})
+    else:
+        score_breakdown.append({"label": "Average/Low Volume", "pts": 0, "met": False})
 
     # =========================================================
     
@@ -367,12 +535,20 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
         "face_value": face_value,
         # Technical
         "rsi_14": rsi_14,
-        "sma_200": sma_200,
-        "sma_50": sma_50,
+        "ema_200": ema_200,
+        "ema_50": ema_50,
         "ema_200_status": ema_200_status,
+        "macd_hist": macd_hist,
+        "macd_status": macd_status,
+        "vol_ratio": vol_ratio,
+        "obv_status": obv_status,
+        "circuit_distance_pct": circuit_distance_pct,
+        "turnover_120d": turnover_120d,
         "high_52w": high_52w,
         "low_52w": low_52w,
         "placement_52w": placement_52w,
+        "bb_upper": bb_upper,
+        "bb_lower": bb_lower,
         # Scoring
         "health_score": score,
         "score_breakdown": score_breakdown,
@@ -382,8 +558,9 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
         "capital_trend": capital_trend,
         "quarterly_profits": quarterly_profits[:8],
         "quarterly_reserves": quarterly_reserves[:8],
-        # Sector-specific (banks: NPL/CAR/CD, hydro: reserves, all: distributable profit)
+        # Sector-specific metrics — all sectors covered
         "sector_metrics": {
+            # Banking / Finance / Microfinance
             "npl": npl,
             "car": car,
             "cost_of_funds": cost_of_funds,
@@ -391,7 +568,31 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
             "base_rate": base_rate,
             "interest_spread": interest_spread,
             "distributable_profit": distributable_profit,
+            "deposits": deposits,
+            "loans_advances": loans_advances,
+            "net_interest_income": net_interest_income,
+            # Insurance (Life + Non-Life)
+            "solvency_ratio": solvency_ratio,
+            "net_premium": net_premium,
+            "gross_premium": gross_premium,
+            "net_claim": net_claim,
+            "claim_ratio": claim_ratio,
+            "insurance_fund": insurance_fund,
+            "catastrophic_reserve": catastrophic_reserve,
+            "total_investment": total_investment,
+            "investment_income": investment_income,
+            "mgmt_expenses": mgmt_expenses,
+            # Common / Hydro / Manufacturing / Investment
             "reserves": reserves,
+            "total_equity": total_equity,
+            "total_assets": total_assets,
+            "borrowings": borrowings,
+            "revenue": revenue,
+            "gross_profit": gross_profit,
+            "gross_margin": gross_margin,
+            "operating_profit": operating_profit,
+            "current_ratio": current_ratio,
+            "debt_to_equity": debt_to_equity,
         }
     }
 
@@ -405,6 +606,15 @@ async def get_ai_verdict(summary_data: dict, model_name: str = None) -> dict:
     strengths = [item['label'] for item in summary_data.get('score_breakdown', []) if item['met']]
     risks = [item['label'] for item in summary_data.get('score_breakdown', []) if not item['met']]
 
+    # Format Graham interpretation to prevent AI from confusing negative/positive signs
+    graham_discount = summary_data.get("graham_discount_pct")
+    graham_desc = "N/A"
+    if graham_discount is not None:
+        if graham_discount > 0:
+            graham_desc = f"Undervalued by {graham_discount}% (LTP is below Graham value)"
+        else:
+            graham_desc = f"Overvalued by {abs(graham_discount)}% (LTP is above Graham value)"
+
     # Build compact input — small models need focused, flat context
     input_data = {
         "symbol": summary_data["symbol"],
@@ -413,10 +623,15 @@ async def get_ai_verdict(summary_data: dict, model_name: str = None) -> dict:
         "pe": summary_data["pe_ratio"],
         "pb": summary_data["pb_ratio"],
         "roe_pct": summary_data["roe_ttm"],
-        "graham_disc_pct": summary_data["graham_discount_pct"],
+        "graham_valuation": graham_desc,
         "peg": summary_data["peg_ratio"],
         "rsi": summary_data["rsi_14"],
-        "sma_trend": summary_data["ema_200_status"],
+        "ema_trend": summary_data["ema_200_status"],
+        # Add meaning explicitly for the AI
+        "macd_momentum": f"{summary_data.get('macd_status', 'N/A')} (Positive means immediate upward momentum)",
+        "volume_ratio": f"{summary_data.get('vol_ratio', 0)}x of 20-day average ( >1.2 is expansion/surge)",
+        "obv_trend": f"{summary_data.get('obv_status', 'N/A')} (Accumulation means volume supports price growth, Distribution means selling pressure)",
+        "circuit_distance": summary_data.get("circuit_distance_pct", "N/A"),
         "dividend_yield": summary_data["dividend_yield"],
         "profit_trend": summary_data["profit_trend"],
         "health_score": summary_data["health_score"],

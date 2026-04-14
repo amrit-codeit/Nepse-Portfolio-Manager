@@ -144,6 +144,7 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
         return {
             totalBonusShares,
             avgYoc: yocCount > 0 ? (totalYoc / yocCount) : 0,
+            payableTaxes: filteredDividends.filter(d => (d.tax_owed || 0) > 0)
         };
     }, [filteredDividends, summary]);
 
@@ -210,6 +211,35 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
                     locale={{ emptyText: <Empty description="No dividend records found. Ensure you have synced dividend history." /> }}
                 />
             </div>
+
+            {bonusStats.payableTaxes.length > 0 && (
+                <div className="chart-card" style={{ marginTop: 24, border: '1px solid var(--accent-red)' }}>
+                    <div className="chart-header" style={{ borderBottom: '1px solid rgba(239, 68, 68, 0.2)', background: 'rgba(239, 68, 68, 0.05)' }}>
+                        <h3 style={{ margin: 0, color: 'var(--accent-red)' }}>Out-of-Pocket Tax Obligations</h3>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>You must deposit this tax to receive your bonus shares.</div>
+                    </div>
+                    <Table
+                        columns={[
+                            { title: 'Symbol', dataIndex: 'symbol', key: 'symbol', render: text => <strong>{text}</strong> },
+                            { title: 'Member', dataIndex: 'member_name', key: 'member_name' },
+                            { title: 'Fiscal Year', dataIndex: 'fiscal_year', key: 'fiscal_year' },
+                            { title: 'Bonus Shares', dataIndex: 'bonus_shares', key: 'bonus_shares', align: 'right', render: v => `${Number(v).toFixed(2)} Units` },
+                            { 
+                                title: 'Net Tax Payable', 
+                                dataIndex: 'tax_owed', 
+                                key: 'tax_owed', 
+                                align: 'right', 
+                                render: v => <strong style={{ color: 'var(--accent-red)' }}>{formatNPR(v)}</strong> 
+                            }
+                        ]}
+                        dataSource={bonusStats.payableTaxes}
+                        rowKey="id"
+                        pagination={false}
+                        size="small"
+                        scroll={{ x: 600 }}
+                    />
+                </div>
+            )}
         </div>
     );
 }
