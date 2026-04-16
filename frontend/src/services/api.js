@@ -117,6 +117,14 @@ export const deleteGroup = (id) => api.delete(`/groups/${id}`);
 export const getAIModels = () => api.get('/analysis/models');
 export const getExecutiveSummary = (symbol) => api.get(`/analysis/summary/${symbol}`);
 export const getAIVerdict = (symbol, model) => api.post(`/analysis/summary/${symbol}/ai-verdict`, null, { params: { model } });
+export const getAITradingVerdict = (symbol, model) => api.post(`/analysis/summary/${symbol}/ai-trading-verdict`, null, { params: { model } });
+
+// --- Cloud AI (Groq) ---
+export const getAIVerdictCloud = (symbol) => api.post(`/analysis/summary/${symbol}/ai-verdict-cloud`);
+export const getAITradingVerdictCloud = (symbol) => api.post(`/analysis/summary/${symbol}/ai-trading-verdict-cloud`);
+
+// --- Frontier Prompt (Copy/Paste) ---
+export const getFrontierPrompt = (symbol, mode) => api.get(`/analysis/summary/${symbol}/frontier-prompt`, { params: { mode } });
 
 // --- Stock Detail ---
 export const getStockDetail = (symbol, params = {}) => api.get(`/stock-detail/${symbol}`, { params });

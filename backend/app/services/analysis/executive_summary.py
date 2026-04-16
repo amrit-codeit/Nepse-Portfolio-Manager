@@ -596,11 +596,10 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
         }
     }
 
-
-async def get_ai_verdict(summary_data: dict, model_name: str = None) -> dict:
+async def get_value_ai_verdict(summary_data: dict, model_name: str = None) -> dict:
     """
-    Calls unified AIService to provide a NEPSE-expert analysis.
-    Builds a compact, focused data payload optimized for small (<4B) models.
+    Value Investing AI session.
+    Builds a fundamental-heavy payload with light technical timing context.
     """
     # Extract strengths/risks from score breakdown
     strengths = [item['label'] for item in summary_data.get('score_breakdown', []) if item['met']]
@@ -615,25 +614,39 @@ async def get_ai_verdict(summary_data: dict, model_name: str = None) -> dict:
         else:
             graham_desc = f"Overvalued by {abs(graham_discount)}% (LTP is above Graham value)"
 
-    # Build compact input — small models need focused, flat context
+    # Build value-focused input — fundamentals + timing context
     input_data = {
         "symbol": summary_data["symbol"],
         "sector": summary_data["sector"],
         "ltp": summary_data["ltp"],
+        # Valuation metrics
         "pe": summary_data["pe_ratio"],
         "pb": summary_data["pb_ratio"],
-        "roe_pct": summary_data["roe_ttm"],
-        "graham_valuation": graham_desc,
         "peg": summary_data["peg_ratio"],
+        "graham_valuation": graham_desc,
+        "graham_number": summary_data.get("graham_number"),
+        # Profitability
+        "roe_pct": summary_data["roe_ttm"],
+        "eps_ttm": summary_data.get("eps_ttm"),
+        "net_profit_ttm": summary_data.get("net_profit_ttm"),
+        "npm": summary_data.get("npm"),
+        "eps_growth_yoy": summary_data.get("eps_growth_yoy"),
+        "profit_trend": summary_data["profit_trend"],
+        "capital_trend": summary_data.get("capital_trend"),
+        # Dividends
+        "dividend_yield": summary_data["dividend_yield"],
+        "cash_dividend_pct": summary_data.get("cash_dividend_pct"),
+        "bonus_dividend_pct": summary_data.get("bonus_dividend_pct"),
+        "dividend_history": summary_data.get("dividend_history", [])[:3],
+        # Technical timing (for entry/exit assessment)
         "rsi": summary_data["rsi_14"],
         "ema_trend": summary_data["ema_200_status"],
-        # Add meaning explicitly for the AI
-        "macd_momentum": f"{summary_data.get('macd_status', 'N/A')} (Positive means immediate upward momentum)",
-        "volume_ratio": f"{summary_data.get('vol_ratio', 0)}x of 20-day average ( >1.2 is expansion/surge)",
-        "obv_trend": f"{summary_data.get('obv_status', 'N/A')} (Accumulation means volume supports price growth, Distribution means selling pressure)",
-        "circuit_distance": summary_data.get("circuit_distance_pct", "N/A"),
-        "dividend_yield": summary_data["dividend_yield"],
-        "profit_trend": summary_data["profit_trend"],
+        "ema_50_status": "Bullish" if summary_data.get("ltp") and summary_data.get("ema_50") and summary_data["ltp"] > summary_data["ema_50"] else "Bearish",
+        "macd_momentum": summary_data.get("macd_status", "N/A"),
+        "volume_ratio": summary_data.get("vol_ratio", 0),
+        "obv_trend": summary_data.get("obv_status", "N/A"),
+        "placement_52w": summary_data.get("placement_52w"),
+        # Scoring context
         "health_score": summary_data["health_score"],
         "scoring_action": summary_data.get("action", "HOLD"),
         "strengths": strengths,
@@ -646,4 +659,188 @@ async def get_ai_verdict(summary_data: dict, model_name: str = None) -> dict:
     if sector_ctx:
         input_data["sector_data"] = sector_ctx
 
-    return await AIService.get_verdict(input_data, model_name)
+    return await AIService.get_value_verdict(input_data, model_name)
+
+
+async def get_trading_ai_verdict(summary_data: dict, model_name: str = None) -> dict:
+    """
+    Pure Trading AI session.
+    Builds a technical-only payload — no fundamental data.
+    Focuses on price action, momentum, and actionable trade setups.
+    """
+    input_data = {
+        "symbol": summary_data["symbol"],
+        "ltp": summary_data["ltp"],
+        # Price context
+        "high_52w": summary_data.get("high_52w"),
+        "low_52w": summary_data.get("low_52w"),
+        "placement_52w": summary_data.get("placement_52w"),
+        # Trend indicators
+        "ema_50": summary_data.get("ema_50"),
+        "ema_200": summary_data.get("ema_200"),
+        "ema_200_trend": summary_data.get("ema_200_status"),
+        "ema_50_trend": "Bullish" if summary_data.get("ltp") and summary_data.get("ema_50") and summary_data["ltp"] > summary_data["ema_50"] else "Bearish",
+        # Momentum
+        "rsi_14": summary_data.get("rsi_14"),
+        "macd_histogram": summary_data.get("macd_hist"),
+        "macd_status": summary_data.get("macd_status"),
+        # Volume
+        "volume_ratio": f"{summary_data.get('vol_ratio', 0)}x of 20-day average",
+        "obv_trend": summary_data.get("obv_status", "N/A"),
+        # Volatility & Bands
+        "bollinger_upper": summary_data.get("bb_upper"),
+        "bollinger_lower": summary_data.get("bb_lower"),
+        "bollinger_position": (
+            "Above Upper Band (overbought)" if summary_data.get("ltp") and summary_data.get("bb_upper") and summary_data["ltp"] > summary_data["bb_upper"]
+            else "Below Lower Band (oversold)" if summary_data.get("ltp") and summary_data.get("bb_lower") and summary_data["ltp"] < summary_data["bb_lower"]
+            else "Inside Bands"
+        ),
+        # NEPSE-specific
+        "circuit_distance_pct": summary_data.get("circuit_distance_pct"),
+        "turnover_120d": summary_data.get("turnover_120d"),
+        # Support/Resistance proxies
+        "support_levels": [
+            v for v in [
+                summary_data.get("bb_lower"),
+                summary_data.get("ema_50"),
+                summary_data.get("low_52w"),
+            ] if v is not None
+        ],
+        "resistance_levels": [
+            v for v in [
+                summary_data.get("bb_upper"),
+                summary_data.get("ema_200"),
+                summary_data.get("high_52w"),
+            ] if v is not None
+        ],
+    }
+
+    return await AIService.get_trading_verdict(input_data, model_name)
+
+
+# Keep legacy function for backward compatibility
+async def get_ai_verdict(summary_data: dict, model_name: str = None) -> dict:
+    """Legacy function — delegates to get_value_ai_verdict."""
+    return await get_value_ai_verdict(summary_data, model_name)
+
+
+# ---------------------------------------------------------------------------
+# Cloud API wrappers (reuse the same input_data building logic)
+# ---------------------------------------------------------------------------
+
+def _build_value_input(summary_data: dict) -> dict:
+    """Shared helper: builds value-focused input payload from summary data."""
+    strengths = [item['label'] for item in summary_data.get('score_breakdown', []) if item['met']]
+    risks = [item['label'] for item in summary_data.get('score_breakdown', []) if not item['met']]
+
+    graham_discount = summary_data.get("graham_discount_pct")
+    graham_desc = "N/A"
+    if graham_discount is not None:
+        if graham_discount > 0:
+            graham_desc = f"Undervalued by {graham_discount}% (LTP is below Graham value)"
+        else:
+            graham_desc = f"Overvalued by {abs(graham_discount)}% (LTP is above Graham value)"
+
+    input_data = {
+        "symbol": summary_data["symbol"],
+        "sector": summary_data["sector"],
+        "ltp": summary_data["ltp"],
+        "pe": summary_data["pe_ratio"],
+        "pb": summary_data["pb_ratio"],
+        "peg": summary_data["peg_ratio"],
+        "graham_valuation": graham_desc,
+        "graham_number": summary_data.get("graham_number"),
+        "roe_pct": summary_data["roe_ttm"],
+        "eps_ttm": summary_data.get("eps_ttm"),
+        "net_profit_ttm": summary_data.get("net_profit_ttm"),
+        "npm": summary_data.get("npm"),
+        "eps_growth_yoy": summary_data.get("eps_growth_yoy"),
+        "profit_trend": summary_data["profit_trend"],
+        "capital_trend": summary_data.get("capital_trend"),
+        "dividend_yield": summary_data["dividend_yield"],
+        "cash_dividend_pct": summary_data.get("cash_dividend_pct"),
+        "bonus_dividend_pct": summary_data.get("bonus_dividend_pct"),
+        "dividend_history": summary_data.get("dividend_history", [])[:3],
+        "rsi": summary_data["rsi_14"],
+        "ema_trend": summary_data["ema_200_status"],
+        "ema_50_status": "Bullish" if summary_data.get("ltp") and summary_data.get("ema_50") and summary_data["ltp"] > summary_data["ema_50"] else "Bearish",
+        "macd_momentum": summary_data.get("macd_status", "N/A"),
+        "volume_ratio": summary_data.get("vol_ratio", 0),
+        "obv_trend": summary_data.get("obv_status", "N/A"),
+        "placement_52w": summary_data.get("placement_52w"),
+        "health_score": summary_data["health_score"],
+        "scoring_action": summary_data.get("action", "HOLD"),
+        "strengths": strengths,
+        "risks": risks,
+    }
+
+    sm = summary_data.get("sector_metrics", {})
+    sector_ctx = {k: v for k, v in sm.items() if v is not None}
+    if sector_ctx:
+        input_data["sector_data"] = sector_ctx
+
+    return input_data
+
+
+def _build_trading_input(summary_data: dict) -> dict:
+    """Shared helper: builds trading-focused input payload from summary data."""
+    return {
+        "symbol": summary_data["symbol"],
+        "ltp": summary_data["ltp"],
+        "high_52w": summary_data.get("high_52w"),
+        "low_52w": summary_data.get("low_52w"),
+        "placement_52w": summary_data.get("placement_52w"),
+        "ema_50": summary_data.get("ema_50"),
+        "ema_200": summary_data.get("ema_200"),
+        "ema_200_trend": summary_data.get("ema_200_status"),
+        "ema_50_trend": "Bullish" if summary_data.get("ltp") and summary_data.get("ema_50") and summary_data["ltp"] > summary_data["ema_50"] else "Bearish",
+        "rsi_14": summary_data.get("rsi_14"),
+        "macd_histogram": summary_data.get("macd_hist"),
+        "macd_status": summary_data.get("macd_status"),
+        "volume_ratio": f"{summary_data.get('vol_ratio', 0)}x of 20-day average",
+        "obv_trend": summary_data.get("obv_status", "N/A"),
+        "bollinger_upper": summary_data.get("bb_upper"),
+        "bollinger_lower": summary_data.get("bb_lower"),
+        "bollinger_position": (
+            "Above Upper Band (overbought)" if summary_data.get("ltp") and summary_data.get("bb_upper") and summary_data["ltp"] > summary_data["bb_upper"]
+            else "Below Lower Band (oversold)" if summary_data.get("ltp") and summary_data.get("bb_lower") and summary_data["ltp"] < summary_data["bb_lower"]
+            else "Inside Bands"
+        ),
+        "circuit_distance_pct": summary_data.get("circuit_distance_pct"),
+        "turnover_120d": summary_data.get("turnover_120d"),
+        "support_levels": [
+            v for v in [
+                summary_data.get("bb_lower"),
+                summary_data.get("ema_50"),
+                summary_data.get("low_52w"),
+            ] if v is not None
+        ],
+        "resistance_levels": [
+            v for v in [
+                summary_data.get("bb_upper"),
+                summary_data.get("ema_200"),
+                summary_data.get("high_52w"),
+            ] if v is not None
+        ],
+    }
+
+
+async def get_value_ai_verdict_cloud(summary_data: dict) -> dict:
+    """Value Investing via Cloud API (Groq)."""
+    input_data = _build_value_input(summary_data)
+    return await AIService.get_value_verdict_cloud(input_data)
+
+
+async def get_trading_ai_verdict_cloud(summary_data: dict) -> dict:
+    """Trading analysis via Cloud API (Groq)."""
+    input_data = _build_trading_input(summary_data)
+    return await AIService.get_trading_verdict_cloud(input_data)
+
+
+def get_frontier_prompt(mode: str, summary_data: dict) -> str:
+    """Generates a copy-paste prompt for frontier model web UIs."""
+    if mode.lower() == "trading":
+        input_data = _build_trading_input(summary_data)
+    else:
+        input_data = _build_value_input(summary_data)
+    return AIService.generate_frontier_prompt(mode, input_data)

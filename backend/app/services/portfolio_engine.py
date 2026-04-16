@@ -230,16 +230,6 @@ def batch_xirr_for_holdings(
     holdings: list,
     prices_map: dict[str, float],
 ) -> dict[tuple[int, str], float]:
-    """
-    HIGH-01/PERF-01 fix: Compute XIRR for ALL holdings in a single batch.
-    
-    Instead of N individual queries (one per holding), this:
-    1. Fetches ALL transactions for all relevant (member_id, symbol) pairs in ONE query
-    2. Groups them in-memory by (member_id, symbol)
-    3. Computes XIRR for each group
-    
-    Returns: dict mapping (member_id, symbol) -> xirr_value
-    """
     from datetime import date as date_type
     from collections import defaultdict
 
@@ -263,7 +253,23 @@ def batch_xirr_for_holdings(
     # Group transactions by (member_id, symbol) in memory
     txn_groups: dict[tuple[int, str], list] = defaultdict(list)
     for t in all_txns:
-        txn_groups[(t.member_id, t.symbol)].append(t)
+        if t.txn_type != TransactionType.DIVIDEND.value: # Prevent double counting
+            txn_groups[(t.member_id, t.symbol)].append(t)
+            
+    # Fetch all scraped dividend incomes
+    from app.models.dividend import DividendIncome
+    all_divs = (
+        db.query(DividendIncome)
+        .filter(
+            DividendIncome.member_id.in_(all_member_ids),
+            DividendIncome.symbol.in_(all_symbols),
+            DividendIncome.total_cash_amount > 0
+        )
+        .all()
+    )
+    div_groups: dict[tuple[int, str], list] = defaultdict(list)
+    for d in all_divs:
+        div_groups[(d.member_id, d.symbol)].append((d.book_close_date, d.total_cash_amount))
 
     # Compute XIRR for each holding
     result = {}
@@ -271,11 +277,15 @@ def batch_xirr_for_holdings(
     for h in holdings:
         key = (h.member_id, h.symbol)
         txns = txn_groups.get(key, [])
-        if not txns:
+        divs = div_groups.get(key, [])
+        
+        if not txns and not divs:
             result[key] = 0.0
             continue
 
         cashflows = _build_cashflows_from_txns(txns)
+        for div_date, div_amt in divs:
+            cashflows.append((div_date, div_amt))
 
         # Add current market value as terminal cashflow
         ltp = prices_map.get(h.symbol)
@@ -554,8 +564,21 @@ def get_portfolio_summary(
         elif t.txn_type in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):
             if cost > 0:
                 target.append((t.txn_date, cost))
-        elif t.txn_type == TransactionType.DIVIDEND.value and t.amount:
-            target.append((t.txn_date, t.amount))
+        # Exclude TransactionType.DIVIDEND to prevent double counting
+                
+    # Add scraped dividends to the appropriate cashflow buckets
+    all_divs_portfolio = (
+        db.query(DividendIncome)
+        .filter(
+            DividendIncome.member_id.in_(all_member_ids),
+            DividendIncome.total_cash_amount > 0
+        )
+        .all()
+    ) if all_member_ids else []
+    
+    for d in all_divs_portfolio:
+        target = sip_cashflows if d.symbol in sip_symbols else eq_cashflows
+        target.append((d.book_close_date, d.total_cash_amount))
     
     # Portfolio-level cashflows = eq + sip combined
     p_cashflows = eq_cashflows + sip_cashflows

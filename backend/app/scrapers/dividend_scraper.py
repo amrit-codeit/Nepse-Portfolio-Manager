@@ -306,12 +306,26 @@ def scrape_and_calculate_dividends(db: Session, target_symbol: str = None) -> di
                         db, mem_id, symbol, div["book_close_date"]
                     )
 
-                    # Cash amount: qty * face_value * (cash_pct/100) * 0.95 (5% TDS)
+                    # Cash amount: qty * face_value * (cash_pct/100)
                     total_cash = 0.0
-                    if eligible_qty > 0 and div["cash_dividend_percent"] > 0:
+                    if eligible_qty > 0 and (div["cash_dividend_percent"] > 0 or div["bonus_dividend_percent"] > 0):
                         gross_cash = eligible_qty * face_value * (div["cash_dividend_percent"] / 100)
-                        total_cash = gross_cash * 0.95
-                        total_eligible += 1
+                        gross_bonus_value = eligible_qty * face_value * (div["bonus_dividend_percent"] / 100)
+                        
+                        tax_on_cash = gross_cash * 0.05
+                        tax_on_bonus = gross_bonus_value * 0.05
+                        
+                        total_tax = tax_on_cash + tax_on_bonus
+                        
+                        # Net cash is gross cash minus TOTAL tax
+                        total_cash = gross_cash - total_tax
+                        
+                        if total_cash < 0:
+                            total_cash = 0.0 # Sometimes users need to pay-in for tax, but we track actual cash received
+                            
+                        # If there is any dividend declared, mark as eligible
+                        if div["cash_dividend_percent"] > 0 or div["bonus_dividend_percent"] > 0:
+                            total_eligible += 1
 
                     # UPSERT — save all records for complete history
                     stmt = insert(DividendIncome).values(
