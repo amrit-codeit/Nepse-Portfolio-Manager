@@ -48,12 +48,13 @@
 - **Advanced Risk Intelligence** — Automated Graham's Number valuation vs LTP gap analysis
 - **Technical Market Indicators** — Moving Averages (SMA 200), MACD, Volume surges, and Bollinger Bands with plain-english actionable signals
 - **Sectoral Deep-Dive** — Risk flags based on industry-specific metrics (NPL/CAR for Banks, Reserve/Equity for Hydros)
-- **AI Portfolio Strategy** — Local LLM integration (DeepSeek-R1, Qwen) for personal and categorical investment strategy reviews
+- **Live Price & Index feeds** — Real-time ShareSansar price scraping + Automated Live NEPSE Index extraction for consistent dashboard benchmarking.
+- **Local AI Analyst** — On-device LLM integration (Ollama: Qwen 2.5, DeepSeek-R1) for zero-latency, private investment strategy reviews, moving away from high-latency cloud overhead.
 - **Multi-member portfolios** — track shares for multiple family members
 - **Dual WACC engine** — True WACC (cash basis) and Tax WACC (CDSC/MeroShare rules where bonus = Rs. 100)
 - **Dividend True-Tax Engine** — Advanced TDS tracking on both Cash and Bonus shares to dynamically identify out-of-pocket tax liabilities
 - **Automated MeroShare sync** — Selenium-based headless scraping of transaction history
-- **Live price feeds** — ShareSansar price scraping + Mutual Fund NAV scraping
+- **Mutual Fund NAV scraping** — ShareSansar mutual fund NAV scraping
 - **IPO automation** — Apply for IPOs via MeroShare for multiple members
 - **DP statement reconciliation** — Import SIP data from NMBSBFE (PDF), NIBLSF (CSV), and NI31 (XLSX)
 - **Computed portfolio history** — Historical performance charts with NEPSE index benchmarking
@@ -433,7 +434,7 @@ Selenium-based MeroShare IPO application bot:
 | Scraper | File | Method | Target |
 |---------|------|--------|--------|
 | **Company List** | [company_scraper.py](file:///d:/Projects/Portfolio/backend/app/scrapers/company_scraper.py) | Selenium + JS extraction | nepalstock.com/company |
-| **Live Prices** | [price_scraper.py](file:///d:/Projects/Portfolio/backend/app/scrapers/price_scraper.py) | Selenium + BeautifulSoup | sharesansar.com/today-share-price |
+| **Live Prices** | [price_scraper.py](file:///d:/Projects/Portfolio/backend/app/scrapers/price_scraper.py) | Selenium + BeautifulSoup | Today's share prices & NEPSE Index |
 | **NAV** | [nav_scraper.py](file:///d:/Projects/Portfolio/backend/app/scrapers/nav_scraper.py) | Selenium + BeautifulSoup | sharesansar.com/mutual-fund-navs |
 | **MeroShare** | [meroshare.py](file:///d:/Projects/Portfolio/backend/app/scrapers/meroshare.py) | Selenium (headless) | meroshare.cdsc.com.np |
 | **Issue Prices** | [issue_autoscraper.py](file:///d:/Projects/Portfolio/backend/app/scrapers/issue_autoscraper.py) | HTTP requests (no Selenium!) | sharesansar.com/existing-issues |

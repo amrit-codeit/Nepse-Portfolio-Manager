@@ -24,8 +24,8 @@ Personal-use full-stack app for tracking NEPSE investments across multiple famil
 |-------|-------|
 | **Backend** | Python 3, FastAPI, SQLAlchemy 2.0, SQLite, APScheduler |
 | **Frontend** | React 19, Vite 7, Ant Design 6, TanStack Query 5, Recharts 3 |
-| **Scraping** | Selenium (headless Chrome), BeautifulSoup4, curl_cffi |
-| **AI** | Local Ollama (qwen3b) for portfolio strategy verdicts |
+| **Scraping** | Selenium (headless Chrome), BeautifulSoup4, curl_cffi, Live NEPSE Index Scraping |
+| **AI** | Local Ollama (Qwen 2.5:3b / DeepSeek-R1) for low-latency portfolio stategy verdicts |
 
 ---
 
@@ -78,7 +78,7 @@ backend/
     scrapers/
       driver_factory.py      # Shared headless Chrome with anti-detection
       company_scraper.py     # nepalstock.com company list
-      price_scraper.py       # ShareSansar live prices
+      price_scraper.py       # ShareSansar live prices & Live NEPSE Index
       nav_scraper.py         # ShareSansar mutual fund NAVs
       meroshare.py           # MeroShare login + CSV download
       issue_autoscraper.py   # IPO/FPO/Right issue prices (HTTP, no Selenium)
