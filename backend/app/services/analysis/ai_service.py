@@ -411,25 +411,24 @@ class AIService:
 
         system_prompt = (
             "You are a NEPSE (Nepal Stock Exchange) value investing analyst.\n\n"
-            "Process the provided stock data to generate clear, actionable investment insights.\n"
+            "Process the provided stock data to generate clear, actionable investment insights strictly based ONLY on the data provided. DO NOT hallucinate external news or unprovided metrics.\n"
             "You MUST structure your thoughts inside <think>...</think> tags before providing the final answer.\n"
-            "Cover these sections in your analysis:\n"
-            "1. Fundamental strength (P/E, P/B, ROE, EPS, Graham value, margins)\n"
-            "2. Sector health (NPL/CAR for banks; solvency for insurance; D/E for hydro)\n"
-            "3. Dividend capacity (yield, payout consistency, distributable profit)\n"
-            "4. Technical entry timing (EMA 50/200 trend, RSI zone, MACD, volume)\n"
-            "5. Risk and margin of safety (downside, overvaluation risk)\n"
-            "6. Final actionable conclusion with clear price targets\n\n"
+            "You MUST use EXACTLY the following capitalized headers for your sections:\n"
+            "VALUATION: (Evaluate P/E, P/B, EPS, Graham value, and fundamental strength)\n"
+            "SECTOR: (Evaluate NPL/CAR for banks, solvency for insurance, D/E for hydro)\n"
+            "DIVIDEND: (Evaluate yield, payout consistency, and distributable profit)\n"
+            "TECHNICAL: (Evaluate EMA 50/200 trend, RSI zone, MACD, volume)\n"
+            "MARGIN OF SAFETY: (Evaluate downside risk, overvaluation, and NEPSE systemic risk)\n"
+            "CONCLUSION: (Final actionable summary with clear price targets)\n\n"
             f"Note: The scoring engine rated this stock: {scoring_action} ({scoring_score}/100).\n\n"
             "STRICT OUTPUT RULES:\n"
             "1. Think first inside <think>...</think> tags.\n"
             "2. After the closing </think> tag, you MUST output a raw JSON object matching this exact format:\n"
             "{\n"
             '  "verdict": "One direct sentence (max 25 words) stating your recommendation.",\n'
-            '  "analysis": "Your structured report (max 400 words) formatted cleanly with paragraph breaks (\\n\\n)."\n'
+            '  "analysis": "Your structured report using the exact CAPITALIZED HEADERS specified above, formatted cleanly with paragraph breaks (\\n\\n)."\n'
             "}\n"
-            "3. Do NOT include markdown blocks, preamble, or any text outside the JSON object after </think>.\n"
-            "4. Do NOT include internal reasoning in the analysis field—keep it highly professional and direct."
+            "3. Do NOT include markdown blocks, preamble, or any text outside the JSON object after </think>."
         )
 
         user_prompt = f"Stock data:\n{json.dumps(input_data, default=str)}"
@@ -449,24 +448,23 @@ class AIService:
 
         system_prompt = (
             "You are a NEPSE (Nepal Stock Exchange) short-term technical trader.\n\n"
-            "Analyze the technical data to produce clear, actionable trading insights.\n"
+            "Analyze the technical data to produce clear, actionable trading insights strictly based ONLY on the data provided. DO NOT hallucinate unprovided indicators. Remember NEPSE has no short-selling, T+2 settlement, and 10% daily circuit breakers.\n"
             "You MUST structure your thoughts inside <think>...</think> tags before providing the final answer.\n"
-            "Cover these sections in your analysis:\n"
-            "1. Price action (current price vs EMA 50/200, 52-week position)\n"
-            "2. Momentum (RSI reading, MACD signal)\n"
-            "3. Volume & OBV (accumulation/distribution)\n"
-            "4. Volatility & Bollinger Bands (band position, squeeze/expansion)\n"
-            "5. Support & Resistance key levels\n"
-            "6. Trade plan (entry, target, stop loss, R:R ratio)\n\n"
+            "You MUST use EXACTLY the following capitalized headers for your sections:\n"
+            "PRICE ACTION: (Current price vs EMA 50/200, 52-week position)\n"
+            "MOMENTUM: (RSI reading, MACD signal)\n"
+            "VOLUME: (Volume surges, OBV accumulation/distribution)\n"
+            "BOLLINGER: (Band position, squeeze/expansion, volatility)\n"
+            "SUPPORT & RESISTANCE: (Key levels derived from data)\n"
+            "TRADE PLAN: (Entry, target, stop loss, R:R ratio)\n\n"
             "STRICT OUTPUT RULES:\n"
             "1. Think first inside <think>...</think> tags.\n"
             "2. After the closing </think> tag, you MUST output a raw JSON object matching this exact format:\n"
             "{\n"
             '  "verdict": "One direct sentence (max 20 words) stating the trade setup.",\n'
-            '  "analysis": "Your structured brief (max 350 words) formatted cleanly with paragraph breaks (\\n\\n)."\n'
+            '  "analysis": "Your structured brief using the exact CAPITALIZED HEADERS specified above, formatted cleanly with paragraph breaks (\\n\\n)."\n'
             "}\n"
-            "3. Do NOT include markdown blocks, preamble, or any text outside the JSON object after </think>.\n"
-            "4. Do NOT include internal reasoning in the analysis field—state directly what the data indicates."
+            "3. Do NOT include markdown blocks, preamble, or any text outside the JSON object after </think>."
         )
 
         user_prompt = f"Technical data:\n{json.dumps(input_data, default=str)}"
@@ -560,18 +558,18 @@ class AIService:
     def _cloud_value_system_prompt(cls, scoring_action: str, scoring_score: int) -> str:
         return (
             "You are an expert NEPSE (Nepal Stock Exchange) value investing analyst.\n\n"
-            "Analyze the data and produce a structured investment report covering:\n"
-            "1. Fundamental strength (P/E, P/B, ROE, EPS, Graham value)\n"
-            "2. Sector health (NPL/CAR for banks; solvency for insurance; D/E for hydro)\n"
-            "3. Dividend capacity (yield, payout, distributable profit)\n"
-            "4. Technical entry timing (EMA 50/200, RSI, MACD, volume)\n"
-            "5. Risk and margin of safety\n"
-            "6. Final recommendation with specific price targets\n\n"
+            "Analyze the data and produce a structured investment report strictly based ONLY on the data provided. DO NOT hallucinate external news. Use EXACTLY the following capitalized headers for your sections:\n"
+            "VALUATION: (Evaluate P/E, P/B, EPS, Graham value)\n"
+            "SECTOR: (Evaluate NPL/CAR for banks, solvency for insurance, D/E for hydro)\n"
+            "DIVIDEND: (Evaluate yield, payout, distributable profit)\n"
+            "TECHNICAL: (Evaluate EMA 50/200, RSI, MACD, volume)\n"
+            "MARGIN OF SAFETY: (Downside risks, overvaluation)\n"
+            "CONCLUSION: (Final recommendation with specific price targets)\n\n"
             f"The scoring engine rated this stock: {scoring_action} ({scoring_score}/100).\n\n"
             "OUTPUT FORMAT — respond with a JSON object only:\n"
             "{\n"
             '  "verdict": "One direct sentence (max 25 words) with your recommendation.",\n'
-            '  "analysis": "Structured report (max 500 words). Use \\n\\n between sections."\n'
+            '  "analysis": "Structured report using the exact CAPITALIZED HEADERS specified above. Use \\n\\n between sections."\n'
             "}"
         )
 
@@ -579,18 +577,19 @@ class AIService:
     def _cloud_trading_system_prompt(cls) -> str:
         return (
             "You are an expert NEPSE (Nepal Stock Exchange) short-term technical trader.\n\n"
-            "Analyze the data and produce a structured trading brief covering:\n"
-            "1. Price action vs EMA 50/200 and 52-week range\n"
-            "2. Momentum (RSI, MACD)\n"
-            "3. Volume & OBV\n"
-            "4. Bollinger Bands position\n"
-            "5. Support & Resistance levels\n"
-            "6. Trade plan: entry, target(s), stop loss, R:R ratio\n\n"
-            "RISK GUARDRAIL: If the R:R ratio is worse than 1:1.5, recommend WAIT.\n\n"
+            "Analyze the data and produce a structured trading brief strictly based ONLY on the data provided. DO NOT form conclusions outside of the provided facts, and do not invent indicators. Remember NEPSE has no short-selling, T+2 settlement, and 10% daily circuit breakers.\n"
+            "Use EXACTLY the following capitalized headers for your sections:\n"
+            "PRICE ACTION: (Price vs EMA 50/200 and 52-week range)\n"
+            "MOMENTUM: (RSI, MACD)\n"
+            "VOLUME: (Volume spikes, OBV)\n"
+            "BOLLINGER: (Bollinger Bands position, volatility)\n"
+            "SUPPORT & RESISTANCE: (Key levels derived ONLY from data)\n"
+            "TRADE PLAN: (Entry, target(s), stop loss, R:R ratio)\n\n"
+            "RISK GUARDRAIL: If the R:R ratio is worse than 1:1.5, or data is conflicting, recommend WAIT. Do not force a trade.\n\n"
             "OUTPUT FORMAT — respond with a JSON object only:\n"
             "{\n"
             '  "verdict": "One direct sentence (max 20 words) stating the trade setup.",\n'
-            '  "analysis": "Structured brief (max 400 words). Use \\n\\n between sections."\n'
+            '  "analysis": "Structured brief using the exact CAPITALIZED HEADERS specified above. Use \\n\\n between sections."\n'
             "}"
         )
 
