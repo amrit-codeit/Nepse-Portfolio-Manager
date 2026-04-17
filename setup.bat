@@ -53,9 +53,9 @@ if not exist venv (
 )
 
 echo Installing backend dependencies...
-call venv\Scripts\activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+call venv\Scripts\activate.bat
+venv\Scripts\python.exe -m pip install --upgrade pip
+venv\Scripts\pip.exe install -r requirements.txt
 
 :: 4. Setup Environment Variables
 echo.
