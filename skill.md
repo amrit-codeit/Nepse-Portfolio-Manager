@@ -149,6 +149,7 @@ frontend/src/
 - **XIRR**: Newton-Raphson via `scipy.optimize.newton` (backend). Segmented equity/SIP XIRR computed server-side
 - **HHI**: Herfindahl-Hirschman Index for portfolio concentration — sum of squared holding weights
 - **Total Returns**: Unrealized P&L + Realized Profit + Dividend Income
+- **AI Trading R:R**: Net Reward / Risk. Where `Net Reward = (Target - Entry) - (7.5% CGT on Profit) - (0.8% Total commissions)`.
 
 ---
 

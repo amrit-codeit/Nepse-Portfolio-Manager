@@ -822,6 +822,11 @@ def _build_trading_input(summary_data: dict) -> dict:
                 summary_data.get("high_52w"),
             ] if v is not None
         ],
+        "trading_rules": {
+            "cgt_on_profit_pct": 7.5,
+            "broker_sebon_commission_total_pct": 0.8,
+            "min_rr_threshold": 1.5
+        }
     }
 
 
