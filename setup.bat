@@ -6,6 +6,9 @@ echo #   Nepal Portfolio Manager - Setup Wizard     #
 echo ################################################
 echo.
 
+:: Ensure we are executing from the script's own folder
+cd /d "%~dp0"
+
 :: 1. Check for Python
 python --version >nul 2>&1
 if %errorlevel% neq 0 (

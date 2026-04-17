@@ -4,6 +4,9 @@ echo #   Nepal Portfolio Manager - Starter          #
 echo ################################################
 echo.
 
+:: Ensure correct active directory
+cd /d "%~dp0"
+
 :: 1. Start unified server (Backend + Static Frontend)
 echo Starting NPM Unified Server...
 start "Nepal Portfolio Manager" cmd /k "cd backend && venv\Scripts\activate && python run_server.py"
