@@ -633,32 +633,38 @@ class AIService:
             role = (
                 "You are an expert NEPSE (Nepal Stock Exchange) short-term technical trader.\n"
                 "Review the following technical indicators and provide a professional, "
-                "structured trade plan."
+                "structured trade plan strictly based ONLY on the data provided. DO NOT form conclusions outside of the provided facts, and do not invent indicators. Remember NEPSE has no short-selling, T+2 settlement, and 10% daily circuit breakers."
             )
             rules = (
                 "STRICT RULES:\n"
-                "- If the calculated Risk:Reward ratio is worse than 1:1.5, "
-                "you MUST recommend 'WAIT' or 'DO NOT BUY'.\n"
+                "- If the calculated Risk:Reward ratio is worse than 1:1.5, or data is conflicting, "
+                "you MUST recommend 'WAIT' or 'DO NOT BUY'. Do not force a trade.\n"
                 "- Ensure Stop Losses are realistic for NEPSE "
                 "(do not set a stop loss >10% below current price for a short-term trade).\n"
-                "- Provide Entry Price, Target Price, Stop Loss, and Risk:Reward ratio.\n"
-                "- Cover: Price Action, Momentum (RSI/MACD), Volume, "
-                "Bollinger Bands, Support/Resistance, and Trade Plan."
+                "- You MUST use EXACTLY the following capitalized headers for your sections:\n"
+                "PRICE ACTION: (Price vs EMA 50/200 and 52-week range)\n"
+                "MOMENTUM: (RSI, MACD)\n"
+                "VOLUME: (Volume spikes, OBV)\n"
+                "BOLLINGER: (Bollinger Bands position, volatility)\n"
+                "SUPPORT & RESISTANCE: (Key levels derived ONLY from data)\n"
+                "TRADE PLAN: (Entry, target(s), stop loss, R:R ratio)\n"
             )
         else:
             role = (
                 "You are an expert NEPSE (Nepal Stock Exchange) value investing analyst.\n"
                 "Review the following fundamental and sector data to determine if "
-                "this stock is undervalued."
+                "this stock is undervalued strictly based ONLY on the data provided. DO NOT hallucinate external news."
             )
             rules = (
                 "STRICT RULES:\n"
-                "- Focus on Margin of Safety, P/E, P/B, ROE, Graham Number, "
-                "and dividend capacity.\n"
-                "- Analyze sector-specific metrics (NPL/CAR for banks, solvency for insurance, "
-                "D/E for hydro).\n"
                 "- If the stock is fundamentally overvalued, clearly recommend 'HOLD' or 'SELL'.\n"
-                "- Provide a clear conclusion with specific price targets."
+                "- You MUST use EXACTLY the following capitalized headers for your sections:\n"
+                "VALUATION: (Evaluate P/E, P/B, EPS, Graham value)\n"
+                "SECTOR: (Evaluate NPL/CAR for banks, solvency for insurance, D/E for hydro)\n"
+                "DIVIDEND: (Evaluate yield, payout, distributable profit)\n"
+                "TECHNICAL: (Evaluate EMA 50/200, RSI, MACD, volume)\n"
+                "MARGIN OF SAFETY: (Downside risks, overvaluation)\n"
+                "CONCLUSION: (Final recommendation with specific price targets)\n"
             )
 
         return (
@@ -668,6 +674,7 @@ class AIService:
             f"{json.dumps(input_data, indent=2, default=str)}\n"
             f"--- END DATA ---\n\n"
             f"Please provide:\n"
-            f"1. A detailed, structured analysis (organized by sections)\n"
-            f"2. A clear, single-sentence final verdict"
+            f"1. A detailed, structured analysis using the exact CAPITALIZED HEADERS specified above.\n"
+            f"2. A clear, single-sentence final verdict at the very end formatted as 'VERDICT: [Your verdict]'"
+
         )
