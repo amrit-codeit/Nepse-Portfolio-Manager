@@ -456,7 +456,7 @@ Selenium-based MeroShare IPO application bot:
 
 ### 3.10 Standalone Scripts
 
-Located in `backend/` root — maintenance/one-off utilities:
+Located in `backend/` and `backend/scripts/` — maintenance/one-off utilities:
 
 | Script | Purpose |
 |--------|---------|
@@ -464,6 +464,8 @@ Located in `backend/` root — maintenance/one-off utilities:
 | `resync_holdings.py` | Recalculate + remove ghost holdings |
 | `fix_bonus_rates.py` | Fix BONUS transactions with rate=100 or dp=25 to rate=0/dp=0 |
 | `cleanup_sips.py` | Delete corrupted SIP transactions from MeroShare source |
+| `scripts/scrape_portfolio_fundamentals.py` | Batch scraper: fetches fundamentals only for stocks held in portfolio |
+| `scripts/scrape_all_fundamentals.py` | Batch scraper: fetches fundamentals for EVERY company in the database (Add new, skip duplicate) |
 
 ---
 

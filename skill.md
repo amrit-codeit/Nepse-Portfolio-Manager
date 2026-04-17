@@ -88,6 +88,9 @@ backend/
     utils/
       encryption.py       # Fernet encrypt/decrypt
       scheduler.py         # APScheduler (backup 23:55 NPT fallback; primary backup runs at startup)
+  scripts/
+      scrape_portfolio_fundamentals.py # Batch scrape fundamentals for held portfolio stocks only
+      scrape_all_fundamentals.py       # Batch scrape fundamentals for ALL valid NEPSE companies in DB
 
 frontend/src/
   main.jsx              # Providers: StrictMode > QueryClient > Router > AntD ConfigProvider
