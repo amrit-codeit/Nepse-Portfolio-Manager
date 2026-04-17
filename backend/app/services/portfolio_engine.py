@@ -150,6 +150,7 @@ def calculate_xirr(cashflows: list[tuple[date, float]]) -> float:
     d0 = cf[0][0]
 
     def npv(r):
+        r = max(r, -0.9999)
         total = 0.0
         for d, a in cf:
             total += a / (1 + r)**((d - d0).days / 365.25)
