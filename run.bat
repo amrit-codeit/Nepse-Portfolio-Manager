@@ -4,25 +4,18 @@ echo #   Nepal Portfolio Manager - Starter          #
 echo ################################################
 echo.
 
-:: 1. Start Backend in a new window
-echo Starting Backend...
-start "NPM Backend" cmd /k "cd backend && venv\Scripts\activate && python run_server.py"
+:: 1. Start unified server (Backend + Static Frontend)
+echo Starting NPM Unified Server...
+start "Nepal Portfolio Manager" cmd /k "cd backend && venv\Scripts\activate && python run_server.py"
 
-:: 2. Wait a second
-timeout /t 2 >nul
-
-:: 3. Start Frontend in a new window
-echo Starting Frontend...
-start "NPM Frontend" cmd /k "cd frontend && npm run dev"
-
-:: 4. Wait for frontend to compile, then open browser
-echo Waiting for frontend to start...
+:: 2. Wait for server to start, then open browser
+echo Waiting for server to initialize...
 timeout /t 5 >nul
 echo Opening Web App in default browser...
-start http://localhost:5173
+start http://localhost:8000
 
 echo.
-echo [SUCCESS] Both services are launching in separate windows.
-echo Keep those windows open while using the app.
+echo [SUCCESS] The application is running!
+echo You can also access it on other devices using your computer's local IP address (e.g. http://192.168.1.XX:8000).
 echo.
 pause

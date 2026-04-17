@@ -82,7 +82,9 @@ echo [3/3] Setting up Frontend...
 cd ..\frontend
 echo Installing frontend dependencies (this may take a minute)...
 call npm install
-echo [OK] Frontend dependencies installed.
+echo Building frontend for production...
+call npm run build
+echo [OK] Frontend dependencies installed and built.
 
 echo.
 echo ################################################

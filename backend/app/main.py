@@ -6,8 +6,11 @@ A personal portfolio management system for the Nepali stock market.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
 import os
+from pathlib import Path
 
 from app.config import settings
 from app.database import init_db, SessionLocal
@@ -93,17 +96,32 @@ app.include_router(stock_detail_router)
 app.include_router(calculator_router)
 
 
-@app.get("/")
-def root():
-    """Health check endpoint."""
-    return {
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "status": "running",
-    }
-
-
 @app.get("/api/health")
 def health():
     """Health check for frontend."""
     return {"status": "ok"}
+
+# =========================================================================
+# Serve React Frontend (Single Page Application)
+# =========================================================================
+frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
+if frontend_dist.exists() and (frontend_dist / "index.html").exists():
+    # Mount static assets
+    app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
+    
+    # Optional files like vite.svg, favicon.ico in root of dist
+    for static_file in frontend_dist.glob("*.*"):
+        if static_file.is_file() and static_file.name != "index.html":
+            app.mount(f"/{static_file.name}", StaticFiles(directory=frontend_dist, check_dir=False), name=static_file.name)
+
+    # Catch-all to serve index.html for React Router
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path.startswith("api/"):
+            return {"detail": "Not Found"}
+        return FileResponse(frontend_dist / "index.html")
+else:
+    @app.get("/")
+    def no_frontend():
+        return {"app": settings.APP_NAME, "status": "running", "warning": "Frontend build not statically deployed."}
