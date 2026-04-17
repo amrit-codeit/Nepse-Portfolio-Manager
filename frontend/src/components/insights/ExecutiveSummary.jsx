@@ -9,6 +9,7 @@ import {
     WarningOutlined, BankOutlined, FundOutlined,
     BarChartOutlined, LineChartOutlined, StockOutlined,
     CopyOutlined, CloudOutlined, DesktopOutlined,
+    CalculatorOutlined, RetweetOutlined, CheckSquareOutlined, ControlOutlined
 } from '@ant-design/icons';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { getAIModels, getExecutiveSummary, getAIVerdict, getAITradingVerdict, getAIVerdictCloud, getAITradingVerdictCloud, getFrontierPrompt } from '../../services/api';
@@ -94,6 +95,15 @@ const SECTION_ICONS = {
     'valuation': <DashboardOutlined style={{ color: '#6c5ce7' }} />,
     'obv': <BarChartOutlined style={{ color: '#00cec9' }} />,
     'volatility': <ExperimentOutlined style={{ color: '#e17055' }} />,
+    'signal': <FireOutlined style={{ color: '#e84393' }} />,
+    'trade numbers': <CalculatorOutlined style={{ color: '#0984e3' }} />,
+    'why this signal': <InfoCircleOutlined style={{ color: '#636e72' }} />,
+    'key levels': <ControlOutlined style={{ color: '#00b894' }} />,
+    'what would change it': <RetweetOutlined style={{ color: '#6c5ce7' }} />,
+    'beginner checklist': <CheckSquareOutlined style={{ color: '#00b894' }} />,
+    'overview': <DashboardOutlined style={{ color: '#0984e3' }} />,
+    'finances': <FundOutlined style={{ color: '#00b894' }} />,
+    'dividend outlook': <DollarOutlined style={{ color: '#fdcb6e' }} />,
 };
 
 function getSectionIcon(headerText) {
@@ -147,16 +157,22 @@ function FormattedAnalysis({ text, isCloud }) {
         const firstLine = lines[0].trim();
         
         // Detect section headers: "Something:" or "1. Something:" or "## Something" patterns
+        const isCenteredHeader = /^[━─-]+\s*[A-Z\s&]+\s*[━─-]+$/.test(firstLine);
         const isHeader = /^(?:\d+\.\s*)?(?:#+\s*)?[A-Z].*:$/m.test(firstLine) || 
-                         /^(?:\d+\.\s*)?(?:#+\s*)?[A-Z][^.!?]*(?:[:])/.test(firstLine) && firstLine.length < 80;
+                         /^(?:\d+\.\s*)?(?:#+\s*)?[A-Z][^.!?]*(?:[:])/.test(firstLine) && firstLine.length < 80 ||
+                         isCenteredHeader;
         
         if (isHeader) {
             // Clean header text
             let headerText = firstLine.replace(/^(?:\d+\.\s*)?(?:#+\s*)?/, '').replace(/:+$/, '').trim();
+            if (isCenteredHeader) {
+                headerText = firstLine.replace(/^[━─-]+\s*/, '').replace(/\s*[━─-]+$/, '').trim();
+            }
+            
             let bodyLines = lines.slice(1).join('\n').trim();
             
             // If header and body are on the same line (split by ":")
-            if (!bodyLines && firstLine.includes(':')) {
+            if (!bodyLines && firstLine.includes(':') && !isCenteredHeader) {
                 const colonIdx = firstLine.indexOf(':');
                 const afterColon = firstLine.slice(colonIdx + 1).trim();
                 if (afterColon) {

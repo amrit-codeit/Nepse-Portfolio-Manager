@@ -9,20 +9,36 @@ echo.
 :: 1. Check for Python
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Python is not installed or not in PATH.
-    echo Please install Python 3.10+ from python.org
+    echo [INFO] Python is not installed or not in PATH. Attempting automatic installation via winget...
+    winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+    if !errorlevel! neq 0 (
+        echo [ERROR] Failed to install Python automatically.
+        echo Please install Python 3.10+ manually from https://www.python.org/downloads/
+        pause
+        exit /b 1
+    )
+    echo [INFO] Python installed successfully. 
+    echo Please close this terminal window and run setup.bat again to refresh environment variables.
     pause
-    exit /b 1
+    exit /b 0
 )
 echo [OK] Python found.
 
 :: 2. Check for Node.js
 node --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Node.js is not installed or not in PATH.
-    echo Please install Node.js from nodejs.org
+    echo [INFO] Node.js is not installed or not in PATH. Attempting automatic installation via winget...
+    winget install -e --id OpenJS.NodeJS --accept-package-agreements --accept-source-agreements
+    if !errorlevel! neq 0 (
+        echo [ERROR] Failed to install Node.js automatically.
+        echo Please install Node.js manually from https://nodejs.org/
+        pause
+        exit /b 1
+    )
+    echo [INFO] Node.js installed successfully.
+    echo Please close this terminal window and run setup.bat again to refresh environment variables.
     pause
-    exit /b 1
+    exit /b 0
 )
 echo [OK] Node.js found.
 
