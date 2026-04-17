@@ -741,15 +741,21 @@ class AIService:
         """
         if mode.lower() == "trading":
             role = cls._cloud_trading_system_prompt()
-            rules = ""
+            # Remove JSON formatting instructions for human readability in Chat UIs
+            json_block_pattern = r"OUTPUT FORMAT — respond with a JSON object only:.*?\}\n\n"
+            role = re.sub(json_block_pattern, "", role, flags=re.DOTALL)
+            # Remove specific JSON field references
+            role = role.replace('"analysis": "Your entire text response written EXACTLY per the following structure."', "Structure your response as follows:")
         else:
             role = cls._cloud_value_system_prompt("N/A", 50)
-            rules = ""
+            json_block_pattern = r"OUTPUT FORMAT — respond with a JSON object only:.*?\}\n\n"
+            role = re.sub(json_block_pattern, "", role, flags=re.DOTALL)
+            role = role.replace('"analysis": "Your entire text response written EXACTLY per the following structure."', "Structure your response as follows:")
 
         return (
             f"{role}\n\n"
             f"--- STOCK DATA ---\n"
             f"{json.dumps(input_data, indent=2, default=str)}\n"
             f"--- END DATA ---\n\n"
-            f"Please output only the JSON response mapping to the exact structure."
+            f"Please provide your analysis based on the data above in the requested structure."
         )
