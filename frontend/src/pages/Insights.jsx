@@ -179,7 +179,7 @@ function PriceHistoryCard({ symbol, transactions }) {
 // ============================================================================
 // Stock360View — The unified detail view
 // ============================================================================
-function Stock360View({ selectedSymbol, companies }) {
+function Stock360View({ selectedSymbol, companies, selectedMember, memberName }) {
     const queryClient = useQueryClient();
 
     // Technical + Fundamental data (existing Insights API)
@@ -197,9 +197,10 @@ function Stock360View({ selectedSymbol, companies }) {
     });
 
     // Portfolio context — stock detail for logged-in portfolio
+    const params = selectedMember ? { member_id: selectedMember } : {};
     const { data: portfolioDetail, isLoading: detailLoading } = useQuery({
-        queryKey: ['stockDetail', selectedSymbol, {}],
-        queryFn: () => getStockDetail(selectedSymbol, {}).then(r => r.data),
+        queryKey: ['stockDetail', selectedSymbol, params],
+        queryFn: () => getStockDetail(selectedSymbol, params).then(r => r.data),
         enabled: !!selectedSymbol,
     });
 
@@ -401,29 +402,35 @@ function Stock360View({ selectedSymbol, companies }) {
                                             <div style={{ padding: 16, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
                                                 <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12, color: 'var(--text-secondary)' }}>Trading Gate Verifications</div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                                    <span>Market Context (Gate 2)</span>
+                                                    <Tooltip title="Is the overall NEPSE market going up? Buying in a bear market is highly risky and often leads to losses.">
+                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Market Health (Gate 2)</span>
+                                                    </Tooltip>
                                                     <Tag color={marketContext?.market_verdict === 'BULLISH' ? 'green' : marketContext?.market_verdict === 'BEARISH' ? 'red' : 'blue'}>{marketContext?.market_verdict || 'UNKNOWN'}</Tag>
                                                 </div>
                                                 {extTech.sector && marketContext?.sectors && marketContext.sectors[extTech.sector] && (
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                                        <span>Sector Context: {extTech.sector} (Gate 3)</span>
+                                                        <Tooltip title="Is this specific sector attracting money compared to others? Money rotates between sectors.">
+                                                            <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Sector Trend: {extTech.sector} (Gate 3)</span>
+                                                        </Tooltip>
                                                         <Tag color={marketContext.sectors[extTech.sector].trend.includes('Uptrend') ? 'green' : marketContext.sectors[extTech.sector].trend.includes('Downtrend') ? 'red' : 'blue'}>{marketContext.sectors[extTech.sector].trend}</Tag>
                                                     </div>
                                                 )}
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                                    <Tooltip title="Fundamental Floors: Checks for NPL < 5%, CAR > 11% (BFIs), or Positive EPS (Others)">
-                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Fund. Floors (Gate 4)</span>
+                                                    <Tooltip title="Checks if the company has safe debt levels (NPL < 5%) or positive earnings. Filters out junk companies.">
+                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Fundamental Safety (Gate 4)</span>
                                                     </Tooltip>
                                                     <Tag color={extTech.gate4_fundamental === 'PASS' ? 'green' : extTech.gate4_fundamental === 'FAIL' ? 'red' : 'default'}>{extTech.gate4_fundamental}</Tag>
                                                 </div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                                    <Tooltip title="Average Daily Turnover Last 20 Days">
-                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Liquidity ADT &gt; 50L (Gate 1)</span>
+                                                    <Tooltip title="Are enough shares naturally traded daily (over 50 Lakhs) to easily buy/sell without crashing the price?">
+                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Sufficient Liquidity (Gate 1)</span>
                                                     </Tooltip>
                                                     <Tag color={extTech.gate1_liquidity === 'PASS' ? 'green' : 'red'}>{extTech.gate1_liquidity}</Tag>
                                                 </div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                    <span>Technical Matrix (Gate 5)</span>
+                                                    <Tooltip title="The algorithm's final technical verdict combining moving averages, volume surges, and RSI momentum.">
+                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Technical Buy Signal (Gate 5)</span>
+                                                    </Tooltip>
                                                     <Tag color={extTech.gate5_technical.includes('BUY') ? 'green' : extTech.gate5_technical === 'AVOID' ? 'red' : 'default'}>{extTech.gate5_technical}</Tag>
                                                 </div>
                                             </div>
@@ -831,7 +838,29 @@ function Stock360View({ selectedSymbol, companies }) {
 
                     {/* Detailed dividend table from portfolio context */}
                     {detail?.dividend_history?.length > 0 && (
-                        <Card size="small" title="Dividend History Details" style={{ marginTop: 20 }}>
+                        <>
+                            <Row gutter={[16, 16]} style={{ marginTop: 24, marginBottom: 16 }}>
+                                <Col xs={24} sm={12}>
+                                    <div className="stat-card" style={{ padding: '20px 24px', borderLeft: '4px solid var(--accent-green)' }}>
+                                        <div className="stat-label" style={{ color: 'var(--text-secondary)', marginBottom: 8 }}><DollarOutlined /> Total Net Cash Received</div>
+                                        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-green)' }}>
+                                            {formatNPR(detail.dividend_history.reduce((sum, h) => sum + (h.cash_amount > 0 ? h.cash_amount : 0), 0))}
+                                        </div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>From your eligible holdings</div>
+                                    </div>
+                                </Col>
+                                <Col xs={24} sm={12}>
+                                    <div className="stat-card" style={{ padding: '20px 24px', borderLeft: '4px solid var(--accent-primary)' }}>
+                                        <div className="stat-label" style={{ color: 'var(--text-secondary)', marginBottom: 8 }}><StockOutlined /> Total Bonus Shares Added</div>
+                                        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-primary)' }}>
+                                            {QTY(detail.dividend_history.reduce((sum, h) => sum + (h.bonus_shares || 0), 0))} <span style={{ fontSize: 14 }}>Units</span>
+                                        </div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Accumulated free shares</div>
+                                    </div>
+                                </Col>
+                            </Row>
+                            
+                            <Card size="small" title="Dividend History Details" style={{ marginTop: 20 }}>
                             <Table className="portfolio-table" dataSource={detail.dividend_history} rowKey="fiscal_year" size="small" pagination={false}
                                 columns={[
                                     { title: 'Fiscal Year', dataIndex: 'fiscal_year', width: 120 },
@@ -844,7 +873,8 @@ function Stock360View({ selectedSymbol, companies }) {
                                     { title: 'Bonus Shares', dataIndex: 'bonus_shares', width: 100, align: 'right', render: v => QTY(v) },
                                 ]}
                             />
-                        </Card>
+                            </Card>
+                        </>
                     )}
                 </div>
             ),
@@ -889,7 +919,7 @@ function Stock360View({ selectedSymbol, companies }) {
                         <div>
                             <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--accent-secondary)' }}>
                                 {selectedSymbol}
-                                {hasPortfolioData && <Tag color="green" style={{ marginLeft: 12 }}>IN PORTFOLIO</Tag>}
+                                {hasPortfolioData && <Tag color="green" style={{ marginLeft: 12 }}>IN PORTFOLIO {memberName ? `OF ${memberName}` : ''}</Tag>}
                             </div>
                             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                                 {companyInfo?.name} {companyInfo?.sector ? `• ${companyInfo.sector}` : ''}
@@ -938,11 +968,23 @@ export default function Insights() {
     const initialSymbol = searchParams.get('symbol') || null;
     const [selectedSymbol, setSelectedSymbol] = useState(initialSymbol);
     const [activeOuterTab, setActiveOuterTab] = useState(initialSymbol ? 'stock360' : 'screener');
+    const [selectedMember, setSelectedMember] = useState(null);
 
     const { data: companies, isLoading: loadingCompanies } = useQuery({
         queryKey: ['companies', 'all'],
         queryFn: () => getCompanies({ limit: 1000 }).then(r => r.data.companies),
     });
+
+    const { data: members, isLoading: loadingMembers } = useQuery({
+        queryKey: ['members'],
+        queryFn: () => getMembers().then(r => r.data),
+    });
+
+    const activeMemberName = useMemo(() => {
+        if (!selectedMember || !members) return null;
+        const m = members.find(x => x.id === selectedMember);
+        return m ? m.name.toUpperCase() : null;
+    }, [selectedMember, members]);
 
     // Update URL when symbol changes
     useEffect(() => {
@@ -971,6 +1013,24 @@ export default function Insights() {
                     {/* Symbol Search Bar */}
                     <Card size="small" className="filter-card" style={{ marginBottom: 24 }}>
                         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+                            <div style={{ width: 250 }}>
+                                <span style={{ display: 'block', marginBottom: 4, fontSize: '0.8rem', opacity: 0.6 }}>Portfolio Filter</span>
+                                <Select
+                                    allowClear
+                                    style={{ width: '100%' }}
+                                    placeholder="All Portfolios"
+                                    loading={loadingMembers}
+                                    onChange={(v) => setSelectedMember(v)}
+                                    value={selectedMember}
+                                    size="large"
+                                >
+                                    {members?.map(m => (
+                                        <Select.Option key={m.id} value={m.id}>
+                                            {m.name}
+                                        </Select.Option>
+                                    ))}
+                                </Select>
+                            </div>
                             <div style={{ width: 450 }}>
                                 <span style={{ display: 'block', marginBottom: 4, fontSize: '0.8rem', opacity: 0.6 }}>Search Symbol</span>
                                 <Select
@@ -999,7 +1059,7 @@ export default function Insights() {
                             )}
                         </div>
                     </Card>
-                    <Stock360View selectedSymbol={selectedSymbol} companies={companies} />
+                    <Stock360View selectedSymbol={selectedSymbol} companies={companies} selectedMember={selectedMember} memberName={activeMemberName} />
                 </>
             ),
         },
