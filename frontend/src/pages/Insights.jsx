@@ -411,11 +411,19 @@ function Stock360View({ selectedSymbol, companies }) {
                                                     </div>
                                                 )}
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                                    <span>Liquidity ADT &gt; 15L (Gate 1)</span>
+                                                    <Tooltip title="Fundamental Floors: Checks for NPL < 5%, CAR > 11% (BFIs), or Positive EPS (Others)">
+                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Fund. Floors (Gate 4)</span>
+                                                    </Tooltip>
+                                                    <Tag color={extTech.gate4_fundamental === 'PASS' ? 'green' : extTech.gate4_fundamental === 'FAIL' ? 'red' : 'default'}>{extTech.gate4_fundamental}</Tag>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                    <Tooltip title="Average Daily Turnover Last 20 Days">
+                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Liquidity ADT &gt; 15L (Gate 1)</span>
+                                                    </Tooltip>
                                                     <Tag color={extTech.gate1_liquidity === 'PASS' ? 'green' : 'red'}>{extTech.gate1_liquidity}</Tag>
                                                 </div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                    <span>Technical Trigger (Gate 5)</span>
+                                                    <span>Technical Matrix (Gate 5)</span>
                                                     <Tag color={extTech.gate5_technical.includes('BUY') ? 'green' : extTech.gate5_technical === 'AVOID' ? 'red' : 'default'}>{extTech.gate5_technical}</Tag>
                                                 </div>
                                             </div>

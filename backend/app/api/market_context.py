@@ -15,6 +15,7 @@ from sqlalchemy import func
 from app.database import get_db
 from app.models.price import IndexHistory, PriceHistory
 from app.models.company import Company
+from app.models.fundamental import FundamentalReport
 from app.scrapers.index_scraper import SECTOR_INDICES, INDEX_TO_SECTOR
 import pandas as pd
 import pandas_ta as ta
@@ -350,6 +351,28 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
     company = db.query(Company).filter(Company.symbol == symbol).first()
     sector = company.sector if company else None
 
+    # ------- GATE 4: Fundamental Floors -------
+    fund_report = db.query(FundamentalReport).filter(FundamentalReport.symbol == symbol).order_by(FundamentalReport.id.desc()).first()
+    npl = None
+    car = None
+    eps = None
+    gate4_fundamental = "UNKNOWN"
+    
+    if fund_report and fund_report.sector_metrics:
+        metrics = fund_report.sector_metrics
+        npl = metrics.get('NPL')
+        car = metrics.get('CAR')
+        eps = metrics.get('EPS Reported')
+
+        is_bfi = sector and any(s in sector for s in ['Bank', 'Finance', 'Microfinance'])
+        
+        if is_bfi:
+            if npl is not None and car is not None:
+                gate4_fundamental = "PASS" if (npl < 5.0 and car > 11.0) else "FAIL"
+        else:
+            if eps is not None:
+                gate4_fundamental = "PASS" if eps > 0 else "FAIL"
+
     return {
         "symbol": symbol,
         "sector": sector,
@@ -391,7 +414,11 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
         "adt_20": round(adt_20, 2) if adt_20 else None,
         # Trading Gates
         "gate1_liquidity": gate1_liquidity,
+        "gate4_fundamental": gate4_fundamental,
         "gate5_technical": gate5_technical,
+        "npl": npl,
+        "car": car,
+        "eps_reported": eps,
         # Risk Management (ATR-based)
         "stop_loss": atr_stop,
         "target_1": atr_target_1,
