@@ -418,7 +418,7 @@ function Stock360View({ selectedSymbol, companies }) {
                                                 </div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                                                     <Tooltip title="Average Daily Turnover Last 20 Days">
-                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Liquidity ADT &gt; 15L (Gate 1)</span>
+                                                        <span style={{ borderBottom: '1px dashed rgba(255,255,255,0.3)', cursor: 'help' }}>Liquidity ADT &gt; 50L (Gate 1)</span>
                                                     </Tooltip>
                                                     <Tag color={extTech.gate1_liquidity === 'PASS' ? 'green' : 'red'}>{extTech.gate1_liquidity}</Tag>
                                                 </div>
@@ -427,6 +427,25 @@ function Stock360View({ selectedSymbol, companies }) {
                                                     <Tag color={extTech.gate5_technical.includes('BUY') ? 'green' : extTech.gate5_technical === 'AVOID' ? 'red' : 'default'}>{extTech.gate5_technical}</Tag>
                                                 </div>
                                             </div>
+                                            {/* True Relative Strength (RS) Segment */}
+                                            {extTech.rs_trend && (
+                                                <div style={{ padding: 16, background: 'rgba(0,0,0,0.2)', borderRadius: 8, marginTop: 16 }}>
+                                                    <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8, color: 'var(--text-secondary)' }}>Relative Strength vs NEPSE (60D)</div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span style={{ fontSize: 13 }}>Alpha (Outperformance)</span>
+                                                        <div>
+                                                            {extTech.rs_alpha !== null && (
+                                                                <span style={{ fontSize: 12, marginRight: 8, color: extTech.rs_alpha > 0 ? '#10b981' : '#ef4444' }}>
+                                                                    {extTech.rs_alpha > 0 ? '+' : ''}{extTech.rs_alpha}%
+                                                                </span>
+                                                            )}
+                                                            <Tag color={extTech.rs_trend === 'Outperforming' ? 'green' : extTech.rs_trend === 'Underperforming' ? 'red' : 'blue'}>
+                                                                {extTech.rs_trend}
+                                                            </Tag>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </Col>
 
                                         {/* Execution Levels (ATR & Pivots) */}
@@ -540,7 +559,12 @@ function Stock360View({ selectedSymbol, companies }) {
                                         </div>
                                         {tech.bb_upper && (
                                             <div style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
-                                                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: 'var(--text-secondary)' }}>Bollinger Bands (20,2)</div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)' }}>Bollinger Bands (20,2)</div>
+                                                    {tech.bb_squeeze && (
+                                                        <Tag color="orange" style={{ margin: 0 }}>SQUEEZE</Tag>
+                                                    )}
+                                                </div>
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                                                     <div><div style={{ color: 'var(--text-muted)', fontSize: 10 }}>Lower Band</div><div>{formatNPR(tech.bb_lower)}</div></div>
                                                     <div style={{ textAlign: 'center' }}>

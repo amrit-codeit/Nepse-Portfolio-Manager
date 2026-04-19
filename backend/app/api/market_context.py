@@ -317,9 +317,28 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
     low_52w = float(df["low"].min())
     placement_52w = ((close - low_52w) / (high_52w - low_52w) * 100) if high_52w > low_52w else 0
 
+    # Bollinger Squeeze (if current bandwidth is within 5% of its 120-day minimum)
+    df['bb_bandwidth'] = (df['BBU_20_2.0_2.0'] - df['BBL_20_2.0_2.0']) / df['SMA_20']
+    bb_squeeze = False
+    if len(df) >= 120:
+        min_bw_120 = df['bb_bandwidth'].tail(120).min()
+        current_bw = float(df['bb_bandwidth'].iloc[-1])
+        bb_squeeze = bool(current_bw <= (min_bw_120 * 1.05))
+
+    # Relative Strength (RS) vs NEPSE (60-Day Alpha)
+    rs_trend = "UNKNOWN"
+    rs_alpha = None
+    nepse_prices = db.query(IndexHistory).filter(IndexHistory.index_id == 12).order_by(IndexHistory.date.desc()).limit(250).all()
+    if len(df) >= 60 and len(nepse_prices) >= 60:
+        nepse_prices = nepse_prices[::-1]
+        stock_rtn_60d = (close - float(df.iloc[-60]['close'])) / float(df.iloc[-60]['close'])
+        nepse_rtn_60d = (float(nepse_prices[-1].close) - float(nepse_prices[-60].close)) / float(nepse_prices[-60].close)
+        rs_alpha = stock_rtn_60d - nepse_rtn_60d
+        rs_trend = "Outperforming" if rs_alpha > 0.05 else "Underperforming" if rs_alpha < -0.05 else "Market Performer"
+
     # ------- TRADING GATE VERDICTS -------
-    # GATE 1: Liquidity (ADT > Rs. 15 Lakhs = 1,500,000)
-    gate1_liquidity = "PASS" if adt_20 and adt_20 > 1_500_000 else "FAIL"
+    # GATE 1: Liquidity (ADT > Rs. 50 Lakhs = 5,000,000)
+    gate1_liquidity = "PASS" if adt_20 and adt_20 > 5_000_000 else "FAIL"
 
     # GATE 5: Technical Trigger
     bullish_count = sum([
@@ -398,6 +417,9 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
         "vol_sma_20": vol_sma_20,
         "vol_ratio": round(vol_ratio, 2) if vol_ratio else None,
         "obv_status": obv_status,
+        "bb_squeeze": bb_squeeze,
+        "rs_trend": rs_trend,
+        "rs_alpha": round(rs_alpha * 100, 2) if rs_alpha else None,
         # 52-week
         "high_52w": round(high_52w, 2),
         "low_52w": round(low_52w, 2),
