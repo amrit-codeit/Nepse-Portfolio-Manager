@@ -139,4 +139,7 @@ export const getIPOJobStatus = (job_id) => api.get(`/ipo/status/${job_id}`);
 export const simulateBuy = (data) => api.post('/calculator/buy', data);
 export const simulateSell = (data) => api.post('/calculator/sell', data);
 
+// --- Screener ---
+export const getScreenerData = () => api.get('/screener');
+
 export default api;

@@ -8,7 +8,6 @@ import {
   SettingOutlined,
   BankOutlined,
   ThunderboltOutlined,
-  ExperimentOutlined,
   InfoCircleOutlined,
   StockOutlined,
   CalculatorOutlined,
@@ -21,7 +20,6 @@ import Settings from './pages/Settings';
 import Prices from './pages/Prices';
 import ApplyIPO from './pages/ApplyIPO';
 import Insights from './pages/Insights';
-import ScripDetail from './pages/ScripDetail';
 import Calculator from './pages/Calculator';
 import About from './pages/About';
 
@@ -32,8 +30,7 @@ const menuItems = [
   { key: '/holdings', icon: <FundOutlined />, label: 'Holdings' },
   { key: '/transactions', icon: <SwapOutlined />, label: 'Transactions' },
   { key: '/prices', icon: <BankOutlined />, label: 'Prices' },
-  { key: '/insights', icon: <ExperimentOutlined />, label: 'Insights' },
-  { key: '/scrip-detail', icon: <StockOutlined />, label: 'Scrip Detail' },
+  { key: '/insights', icon: <StockOutlined />, label: 'Stock Explorer' },
   { key: '/calculator', icon: <CalculatorOutlined />, label: 'Calculator' },
   { key: '/apply-ipo', icon: <ThunderboltOutlined />, label: 'Apply IPO' },
   { key: '/upload', icon: <UploadOutlined />, label: 'Sync & Credentials' },
@@ -94,7 +91,6 @@ function App() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/prices" element={<Prices />} />
             <Route path="/insights" element={<Insights />} />
-            <Route path="/scrip-detail" element={<ScripDetail />} />
             <Route path="/calculator" element={<Calculator />} />
             <Route path="/apply-ipo" element={<ApplyIPO />} />
             <Route path="/upload" element={<Upload />} />
