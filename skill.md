@@ -104,7 +104,7 @@ frontend/src/
     ApplyIPO.jsx        # Multi-member IPO application with job polling
     Upload.jsx          # MeroShare sync, CSV upload, DP import, credentials
     Settings.jsx        # Fee config, backup controls, history backfill
-    Insights.jsx        # Fundamental analysis + Executive Summary viewer
+    Insights.jsx        # Modular Stock 360° shell holding Technical, Fundamental, and Strategy subtabs
     ScripDetail.jsx     # 360° stock/SIP detail: qty breakdown, yield, XIRR, Graham, txn history, price history chart
     Dividends.jsx       # Dividend history & yield analysis
     Members.jsx         # Member management
@@ -112,7 +112,8 @@ frontend/src/
   components/
     MemberSelector.jsx  # All / Individual / Custom Groups (localStorage)
     dashboard/          # OverviewTab, PerformanceTab, RiskTab, DividendTab
-    insights/           # ExecutiveSummary.jsx
+    insights/           # ExecutiveSummary, TechnicalTabs, FundamentalTabs, StrategyTester
+    portfolio/          # PriceHistoryCard
 ```
 
 ---

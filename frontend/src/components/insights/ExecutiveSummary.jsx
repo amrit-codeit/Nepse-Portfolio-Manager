@@ -698,21 +698,54 @@ export default function ExecutiveSummary({ symbol }) {
                     </div>
                 </Col>
                 <Col xs={24} md={8}>
-                    <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
-                        <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.5px' }}>
-                            <LineChartOutlined /> Bollinger Bands
-                        </div>
-                        {data.bb_upper && data.bb_lower ? (
-                            <div>
-                                <div style={{ fontSize: 22, fontWeight: 700, color: data.ltp > data.bb_upper ? '#d63031' : data.ltp < data.bb_lower ? '#00b894' : 'var(--text-primary)', marginBottom: 4 }}>
-                                    {data.ltp > data.bb_upper ? 'Overbought' : data.ltp < data.bb_lower ? 'Oversold' : 'In Range'}
-                                </div>
-                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{formatNPR(data.bb_lower)} - {formatNPR(data.bb_upper)}</div>
+                    {data.ext_tech ? (
+                        <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
+                            <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.5px' }}>
+                                <FireOutlined /> BB Squeeze
                             </div>
-                        ) : <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Unavailable</div>}
-                    </div>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: data.ext_tech.bb_squeeze ? '#e17055' : 'var(--text-secondary)', marginBottom: 4 }}>
+                                {data.ext_tech.bb_squeeze ? 'ACTIVE' : 'INACTIVE'}
+                            </div>
+                            <Tag color={data.ext_tech.bb_squeeze ? 'orange' : 'default'} style={{ fontSize: 11 }}>
+                                {data.ext_tech.bb_squeeze ? 'Pending Breakout' : 'Normal Volatility'}
+                            </Tag>
+                        </div>
+                    ) : (
+                        <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
+                            <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.5px' }}>
+                                <LineChartOutlined /> Bollinger Bands
+                            </div>
+                            {data.bb_upper && data.bb_lower ? (
+                                <div>
+                                    <div style={{ fontSize: 22, fontWeight: 700, color: data.ltp > data.bb_upper ? '#d63031' : data.ltp < data.bb_lower ? '#00b894' : 'var(--text-primary)', marginBottom: 4 }}>
+                                        {data.ltp > data.bb_upper ? 'Overbought' : data.ltp < data.bb_lower ? 'Oversold' : 'In Range'}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{formatNPR(data.bb_lower)} - {formatNPR(data.bb_upper)}</div>
+                                </div>
+                            ) : <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Unavailable</div>}
+                        </div>
+                    )}
                 </Col>
             </Row>
+            
+            {data.ext_tech && data.ext_tech.rs_alpha != null && (
+                <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+                     <Col xs={24} md={12}>
+                        <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
+                            <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.5px' }}>
+                                <RiseOutlined /> Relative Strength vs NEPSE
+                            </div>
+                            <div style={{ fontSize: 22, fontWeight: 700, color: data.ext_tech.rs_alpha > 0 ? '#00b894' : '#d63031', marginBottom: 4 }}>
+                                {data.ext_tech.rs_alpha > 0 ? '+' : ''}{data.ext_tech.rs_alpha}% Alpha
+                            </div>
+                            <Tag color={data.ext_tech.rs_trend === 'Outperforming' ? 'green' : data.ext_tech.rs_trend === 'Underperforming' ? 'red' : 'blue'} style={{ fontSize: 11 }}>
+                                {data.ext_tech.rs_trend}
+                            </Tag>
+                        </div>
+                    </Col>
+                </Row>
+            )}
+
         </>
     );
 

@@ -93,13 +93,21 @@ export default function About() {
                     </Card>
 
                     <Card style={{ marginTop: 24, borderRadius: 12, background: 'rgba(129, 140, 248, 0.03)', border: '1px dashed var(--accent-primary)' }}>
-                        <Space direction="vertical" size={4}>
+                        <Space direction="vertical" size={6}>
                             <Title level={5} style={{ margin: 0, fontSize: 14 }}>
                                 <ApiOutlined /> Support Information
                             </Title>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                This system is for private use. Ensure your local deepseek instance is running for strategy reviews.
+                            <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                                This system is for private use. Ensure your local AI instance (e.g., DeepSeek/Ollama) is running for strategy reviews.
                             </Text>
+                            <div style={{ marginTop: 12, padding: '12px 16px', background: 'rgba(239, 68, 68, 0.03)', borderRadius: 10, borderLeft: '4px solid var(--accent-red)' }}>
+                                <Text strong style={{ fontSize: 13, color: 'var(--text-primary)', display: 'block', marginBottom: 4 }}>
+                                    Legal Disclaimer
+                                </Text>
+                                <Text style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                                    This application is provided strictly for educational and personal research purposes. The analytics, AI-generated insights, and financial metrics presented here do not constitute professional investment or financial advice. All data and calculations should be manually cross-verified.
+                                </Text>
+                            </div>
                         </Space>
                     </Card>
                 </Col>

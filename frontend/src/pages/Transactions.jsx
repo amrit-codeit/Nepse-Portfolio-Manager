@@ -577,6 +577,8 @@ function Transactions() {
             <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
                 <Select
                     placeholder="All Members"
+                    showSearch
+                    optionFilterProp="label"
                     allowClear
                     style={{ width: 180 }}
                     onChange={(v) => setMemberId(v)}
@@ -786,6 +788,8 @@ function Transactions() {
                     <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Select Member:</label>
                     <Select
                         placeholder="Select Member"
+                        showSearch
+                        optionFilterProp="label"
                         style={{ width: '100%' }}
                         onChange={setImportMemberId}
                         value={importMemberId}
@@ -828,6 +832,8 @@ function Transactions() {
                     <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Select Member:</label>
                     <Select
                         placeholder="Select Member"
+                        showSearch
+                        optionFilterProp="label"
                         style={{ width: '100%' }}
                         onChange={setImportMemberId}
                         value={importMemberId}

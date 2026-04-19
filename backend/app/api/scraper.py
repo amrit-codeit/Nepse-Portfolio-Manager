@@ -194,6 +194,9 @@ async def trigger_insights_sync(symbol: str, db: Session = Depends(get_db)):
         # 3. Scrape Dividends
         scrape_and_calculate_dividends(db, target_symbol=symbol)
         
+        # 4. Scrape Live Prices (To get latest LTP for calculations)
+        scrape_live_prices(db)
+        
         return {"status": "success", "message": f"Successfully updated insights data for {symbol}"}
     except Exception as e:
         traceback.print_exc()

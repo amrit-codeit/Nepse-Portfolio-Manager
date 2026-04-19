@@ -12,6 +12,7 @@ from app.services.analysis.ai_service import AIService
 from app.config import settings
 import pandas as pd
 import pandas_ta as ta
+from app.api.market_context import get_extended_stock_technicals
 
 
 def _parse_metric(val, default=0):
@@ -593,7 +594,8 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
             "operating_profit": operating_profit,
             "current_ratio": current_ratio,
             "debt_to_equity": debt_to_equity,
-        }
+        },
+        "ext_tech": get_extended_stock_technicals(symbol, db)
     }
 
 async def get_value_ai_verdict(summary_data: dict, model_name: str = None) -> dict:
@@ -646,6 +648,9 @@ async def get_value_ai_verdict(summary_data: dict, model_name: str = None) -> di
         "volume_ratio": summary_data.get("vol_ratio", 0),
         "obv_trend": summary_data.get("obv_status", "N/A"),
         "placement_52w": summary_data.get("placement_52w"),
+        "bollinger_squeeze": summary_data.get("ext_tech", {}).get("bb_squeeze", False),
+        "rs_vs_nepse_trend": summary_data.get("ext_tech", {}).get("rs_trend", "N/A"),
+        "adt_20_days": summary_data.get("ext_tech", {}).get("adt_20", 0),
         # Scoring context
         "health_score": summary_data["health_score"],
         "scoring_action": summary_data.get("action", "HOLD"),
@@ -768,6 +773,9 @@ def _build_value_input(summary_data: dict) -> dict:
         "volume_ratio": summary_data.get("vol_ratio", 0),
         "obv_trend": summary_data.get("obv_status", "N/A"),
         "placement_52w": summary_data.get("placement_52w"),
+        "bollinger_squeeze": summary_data.get("ext_tech", {}).get("bb_squeeze", False),
+        "rs_vs_nepse_trend": summary_data.get("ext_tech", {}).get("rs_trend", "N/A"),
+        "adt_20_days": summary_data.get("ext_tech", {}).get("adt_20", 0),
         "health_score": summary_data["health_score"],
         "scoring_action": summary_data.get("action", "HOLD"),
         "strengths": strengths,
@@ -806,6 +814,9 @@ def _build_trading_input(summary_data: dict) -> dict:
             else "Below Lower Band (oversold)" if summary_data.get("ltp") and summary_data.get("bb_lower") and summary_data["ltp"] < summary_data["bb_lower"]
             else "Inside Bands"
         ),
+        "bollinger_squeeze": summary_data.get("ext_tech", {}).get("bb_squeeze", False),
+        "rs_vs_nepse_trend": summary_data.get("ext_tech", {}).get("rs_trend", "N/A"),
+        "adt_20_days": summary_data.get("ext_tech", {}).get("adt_20", 0),
         "circuit_distance_pct": summary_data.get("circuit_distance_pct"),
         "turnover_120d": summary_data.get("turnover_120d"),
         "support_levels": [

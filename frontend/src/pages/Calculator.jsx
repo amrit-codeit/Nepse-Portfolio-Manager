@@ -348,6 +348,8 @@ function SellCalculator() {
                         <div style={{ marginBottom: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Member</div>
                         <Select
                             value={memberId}
+                            showSearch
+                            optionFilterProp="label"
                             onChange={handleMemberChange}
                             options={members}
                             placeholder="All Members"

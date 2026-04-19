@@ -448,3 +448,104 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
         "risk_reward": risk_reward,
         "data_points": len(df),
     }
+
+@router.get("/backtest/{symbol}")
+def run_backtest(symbol: str, strategy: str = "ema_cross", db: Session = Depends(get_db)):
+    """
+    Runs a simple vectorized backtest for a given symbol and strategy.
+    Supported strategies: 'ema_cross' (50/200), 'rsi_bounce' (buy < 30, sell > 70).
+    """
+    symbol = symbol.upper()
+    prices = (
+        db.query(PriceHistory)
+        .filter(PriceHistory.symbol == symbol)
+        .order_by(PriceHistory.date.asc())
+        .all()
+    )
+    if not prices or len(prices) < 200:
+        return {"error": "Insufficient price history for backtesting"}
+        
+    df = pd.DataFrame([{
+        "date": p.date.isoformat() if hasattr(p.date, 'isoformat') else p.date,
+        "close": float(p.close),
+    } for p in prices])
+    
+    initial_capital = 100000
+    capital = initial_capital
+    position = 0
+    trades = []
+    
+    if strategy == "ema_cross":
+        df.ta.ema(length=50, append=True)
+        df.ta.ema(length=200, append=True)
+        df.dropna(inplace=True)
+        
+        for i in range(1, len(df)):
+            prev = df.iloc[i-1]
+            curr = df.iloc[i]
+            
+            # Cross up (Buy)
+            if prev['EMA_50'] <= prev['EMA_200'] and curr['EMA_50'] > curr['EMA_200']:
+                if position == 0:
+                    shares = int(capital // curr['close'])
+                    cost = shares * curr['close']
+                    capital -= cost
+                    position = shares
+                    trades.append({"type": "Buy", "date": curr['date'], "price": round(curr['close'], 2), "shares": shares})
+            
+            # Cross down (Sell)
+            elif prev['EMA_50'] >= prev['EMA_200'] and curr['EMA_50'] < curr['EMA_200']:
+                if position > 0:
+                    revenue = position * curr['close']
+                    capital += revenue
+                    buy_price = trades[-1]['price']
+                    profit = revenue - (position * buy_price)
+                    trades.append({"type": "Sell", "date": curr['date'], "price": round(curr['close'], 2), "shares": position, "profit": round(profit, 2)})
+                    position = 0
+                    
+    elif strategy == "rsi_bounce":
+        df.ta.rsi(length=14, append=True)
+        df.dropna(inplace=True)
+        
+        for i in range(1, len(df)):
+            prev = df.iloc[i-1]
+            curr = df.iloc[i]
+            
+            # Cross up 30 (Buy)
+            if prev['RSI_14'] <= 30 and curr['RSI_14'] > 30:
+                if position == 0:
+                    shares = int(capital // curr['close'])
+                    cost = shares * curr['close']
+                    capital -= cost
+                    position = shares
+                    trades.append({"type": "Buy", "date": curr['date'], "price": round(curr['close'], 2), "shares": shares})
+            
+            # Cross down 70 (Sell)
+            elif prev['RSI_14'] >= 70 and curr['RSI_14'] < 70:
+                if position > 0:
+                    revenue = position * curr['close']
+                    capital += revenue
+                    buy_price = trades[-1]['price']
+                    profit = revenue - (position * buy_price)
+                    trades.append({"type": "Sell", "date": curr['date'], "price": round(curr['close'], 2), "shares": position, "profit": round(profit, 2)})
+                    position = 0
+
+    # Calculate final equity
+    final_equity = capital + (position * df.iloc[-1]['close'])
+    total_return = ((final_equity - initial_capital) / initial_capital) * 100
+    
+    # Win rate
+    sell_trades = [t for t in trades if t['type'] == 'Sell']
+    winning_trades = len([t for t in sell_trades if t.get('profit', 0) > 0])
+    win_rate = (winning_trades / len(sell_trades)) * 100 if sell_trades else 0
+    
+    return {
+        "symbol": symbol,
+        "strategy": strategy,
+        "initial_capital": initial_capital,
+        "final_equity": round(final_equity, 2),
+        "total_return_pct": round(total_return, 2),
+        "total_trades": len(sell_trades),
+        "win_rate_pct": round(win_rate, 2),
+        "trades": trades[-20:] # Return last 20 for UI
+    }

@@ -94,10 +94,14 @@ export const scrapePrices = () => api.post('/scraper/prices');
 export const scrapeIssues = () => api.post('/scraper/issues');
 export const syncMeroshare = (memberIds) => api.post('/scraper/meroshare/sync', memberIds ? { member_ids: memberIds } : null);
 export const syncHistory = () => api.post('/scraper/history');
-export const scrapeIndex = () => api.post('/scraper/index');
+export const scrapeIndex = () => api.post('/scraper/all-indices');
 export const syncDividends = () => api.post('/scraper/dividends');
 export const scrapeFundamentals = (symbol) => api.post(`/scraper/fundamentals/${symbol}`);
 export const scrapeInsights = (symbol) => api.post(`/scraper/insights/${symbol}`);
+export const scrapeCorporateActions = (symbol) => api.post(`/market/scrape-corporate-actions/${symbol}`);
+
+// --- Backtesting ---
+export const runBacktest = (symbol, strategy) => api.get(`/market/backtest/${symbol}`, { params: { strategy } });
 
 // --- Dividends ---
 export const getDividends = (params) => api.get('/dividends', { params });

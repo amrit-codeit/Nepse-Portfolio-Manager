@@ -139,6 +139,8 @@ export default function ApplyIPO() {
                 <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                     <Select
                         placeholder="Select member to check IPOs"
+                        showSearch
+                        optionFilterProp="label"
                         style={{ width: 300 }}
                         options={members.map(m => ({ label: m.display_name || m.name, value: m.id }))}
                         value={fetchMemberId}

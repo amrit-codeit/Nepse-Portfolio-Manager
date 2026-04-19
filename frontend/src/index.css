@@ -509,3 +509,45 @@ body {
   align-items: center;
   gap: 8px;
 }
+
+/* ===== Subtabs (nested inside Stock 360 tabs) ===== */
+.custom-subtabs .ant-tabs-nav {
+  margin-bottom: 16px !important;
+}
+
+.custom-subtabs .ant-tabs-nav::before {
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+.custom-subtabs .ant-tabs-tab {
+  color: var(--text-muted) !important;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 8px 0 !important;
+  transition: color 0.2s ease;
+}
+
+.custom-subtabs .ant-tabs-tab:hover {
+  color: var(--text-secondary) !important;
+}
+
+.custom-subtabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--accent-primary) !important;
+  font-weight: 600;
+}
+
+.custom-subtabs .ant-tabs-ink-bar {
+  background: var(--accent-primary) !important;
+  height: 2px !important;
+}
+
+/* ===== Filter Card (Search bar area) ===== */
+.filter-card .ant-card-body {
+  padding: 16px 20px !important;
+}
+
+/* ===== Bg Glass Helper ===== */
+.bg-glass {
+  background: rgba(255,255,255,0.02);
+  backdrop-filter: blur(4px);
+}

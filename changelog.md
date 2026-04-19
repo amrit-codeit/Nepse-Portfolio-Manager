@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-04-19
+### Added
+- **Dynamic Trade Executor**: Interactive position sizing tool with Capital and Risk sliders, calculating ATR-based Entry, Stop Loss, and Targets.
+- **Strategy Tester**: Vectorized backtesting engine to evaluate algorithmic strategies (EMA Crossover, RSI Mean Reversion) over historical price data.
+- **Advanced Technical Indicators**: Integrated Bollinger Band Squeeze detection and Relative Strength (RS Alpha) vs NEPSE index in the underlying analysis engine.
+- **Modular Subtabs**: Decomposed the monolithic Stock Explorer view into streamlined Technical, Fundamental, and Strategy subtabs for better data consumption.
+
+### Changed
+- **UI Architecture**: Refactored `Insights.jsx` (1000+ lines) into clean, focused sub-components (`TechnicalTabs`, `FundamentalTabs`, `StrategyTester`).
+- **Component Reusability**: Extracted unified `PriceHistoryCard` into a shared portfolio component for consistent historical charting across the application.
+
+
 ## [1.2.0] - 2026-04-10
 ### Added
 - **Buy/Sell Calculator**: Real-time trade simulator with full SEBON fee breakdown and FIFO-based Capital Gains Tax (CGT) estimation.

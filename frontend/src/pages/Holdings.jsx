@@ -721,6 +721,8 @@ function Holdings() {
             <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Select
                     placeholder="All Members"
+                    showSearch
+                    optionFilterProp="label"
                     allowClear
                     style={{ width: 180 }}
                     onChange={(v) => setMemberId(v)}

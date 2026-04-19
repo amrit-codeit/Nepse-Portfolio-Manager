@@ -290,6 +290,12 @@ Uses `pydantic-settings` for environment-based configuration:
 | GET | `/` | Merged LTP + NAV prices for all companies |
 | GET | `/issue-price` | Get cached IPO/RIGHT/FPO price |
 
+#### `/api/market` — market_context.py (Assumed/New)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/backtest` | Vectorized backtesting engine for trading strategies |
+
 #### `/api/scraper` — [scraper.py](file:///d:/Projects/Portfolio/backend/app/api/scraper.py)
 
 | Method | Path | Description |
@@ -512,6 +518,7 @@ Layout: `Sider` (240px, dark, collapsible) + `Content`.
 | **ApplyIPO** | [ApplyIPO.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/ApplyIPO.jsx) | 10 KB | Multi-member IPO application with job polling |
 | **Upload** | [Upload.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Upload.jsx) | 26 KB | MeroShare sync, CSV upload, DP statement import, credential mgmt |
 | **Settings** | [Settings.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Settings.jsx) | 11 KB | Fee config editor, backup controls, history backfill |
+| **Insights** | [Insights.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/Insights.jsx) | 18 KB | Modular Stock 360° shell holding Technical, Fundamental, and Strategy subtabs |
 | **ScripDetail** | [ScripDetail.jsx](file:///d:/Projects/Portfolio/frontend/src/pages/ScripDetail.jsx) | 17 KB | 360° stock/SIP analysis: qty breakdown, XIRR, ROI, Graham, dividends, yield comparison, transaction history |
 
 ### 4.4 Components
@@ -520,6 +527,8 @@ Layout: `Sider` (240px, dark, collapsible) + `Content`.
 |-----------|------|---------|
 | **MemberSelector** | [MemberSelector.jsx](file:///d:/Projects/Portfolio/frontend/src/components/MemberSelector.jsx) | Three-mode selector: All / Individual / Custom Groups (localStorage) |
 | **DashboardTabs** | `components/dashboard/` | Extracted overview, performance, and risk tabs from the Dashboard. |
+| **Insights Subtabs** | `components/insights/` | Feature modules: `TechnicalTabs`, `FundamentalTabs`, `StrategyTester` for the Stock Explorer view. |
+| **PriceHistoryCard** | `components/portfolio/`| Shared charting component for rendering historical price trends with Tx markers. |
 
 ### 4.5 API Service Layer
 

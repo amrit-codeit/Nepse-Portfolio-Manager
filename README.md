@@ -54,5 +54,12 @@ Once the setup is complete, starting the app is just as easy:
 ## ⚖️ License
 This software is provided for personal, non-commercial use under the **MIT License**.
 
----
+## ⚖️ Legal Disclaimer
+
+This application is provided strictly for educational and personal research purposes. 
+
+* **No Financial Advice:** The analytics, AI-generated insights, and financial metrics presented here are for informational use only and do not constitute professional investment, financial, or legal advice.
+* **Accuracy of Data:** While this system uses advanced scraping and modeling, stock market data is volatile. All calculations, including WACC and tax liabilities, should be manually cross-verified.
+* **Personal Passion Project:** This is a "vibe-coded" application intended to demonstrate modern software engineering patterns in the context of the Nepali Stock Market. 
+
 *Created with ❤️ for Nepali Investors.*

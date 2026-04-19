@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, Table, InputNumber, Button, message, Divider, Alert, Space, Modal, Form, DatePicker, Input, Tag } from 'antd';
+import { Card, Table, InputNumber, Button, message, Divider, Alert, Space, Modal, Form, DatePicker, Input, Tag, Tabs, Row, Col, Typography } from 'antd';
 import { SettingOutlined, SaveOutlined, HistoryOutlined, PlusOutlined } from '@ant-design/icons';
 import { getFeeConfig, updateFeeConfig, getFeeConfigHistory, addFeeConfigVersion } from '../services/api';
 import { useState } from 'react';
@@ -70,52 +70,52 @@ function Settings() {
     const cgtConfigs = (feeConfig || []).filter(c => c.key.startsWith('cgt_'));
 
     const renderConfigTable = (configs, title) => (
-        <div style={{ marginBottom: 24 }}>
-            <h3 style={{ marginBottom: 12, color: 'var(--text-primary)' }}>{title}</h3>
             <Table
+                style={{ marginTop: 12 }}
                 dataSource={configs}
                 rowKey="key"
                 pagination={false}
-                size="small"
+                size="middle"
                 columns={[
                     {
-                        title: 'Parameter',
+                        title: 'Parameter Name',
                         dataIndex: 'description',
                         key: 'description',
-                        render: (d, r) => d || r.key,
-                    },
-                    {
-                        title: 'Key',
-                        dataIndex: 'key',
-                        key: 'key',
-                        width: 200,
-                        render: (k) => <code style={{ fontSize: 11, color: 'var(--accent-secondary)' }}>{k}</code>,
-                    },
-                    {
-                        title: 'Value',
-                        dataIndex: 'value',
-                        key: 'value',
-                        width: 150,
-                        render: (v, r) => (
-                            <InputNumber
-                                defaultValue={Number(v)}
-                                size="small"
-                                style={{ width: 120 }}
-                                onChange={(val) => setEditedValues(prev => ({ ...prev, [r.key]: val }))}
-                            />
+                        render: (d, r) => (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{d || r.key}</span>
+                                <code style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{r.key}</code>
+                            </div>
                         ),
                     },
                     {
-                        title: 'Effective',
-                        dataIndex: 'effective_from',
-                        key: 'effective_from',
-                        width: 120,
-                        render: (v) => v ? <Tag color="blue">{v}</Tag> : <Tag color="default">Default</Tag>,
+                        title: 'Current Rate',
+                        dataIndex: 'value',
+                        key: 'value',
+                        width: 200,
+                        render: (v, r) => (
+                            <Space size="small">
+                                <InputNumber
+                                    defaultValue={Number(v)}
+                                    size="middle"
+                                    style={{ width: 140, fontWeight: 600 }}
+                                    onChange={(val) => setEditedValues(prev => ({ ...prev, [r.key]: val }))}
+                                />
+                            </Space>
+                        ),
                     },
                     {
-                        title: '',
+                        title: 'Status',
+                        dataIndex: 'effective_from',
+                        key: 'effective_from',
+                        width: 150,
+                        render: (v) => v ? <Tag color="green">Active: {v}</Tag> : <Tag color="blue">System Default</Tag>,
+                    },
+                    {
+                        title: 'Actions',
                         key: 'actions',
-                        width: 160,
+                        width: 180,
+                        align: 'right',
                         render: (_, r) => (
                             <Space size="small">
                                 {editedValues[r.key] !== undefined && (
@@ -125,22 +125,48 @@ function Settings() {
                                         icon={<SaveOutlined />}
                                         onClick={() => handleSave(r.key)}
                                         loading={updateMutation.isPending}
+                                        style={{ background: 'var(--gradient-primary)', border: 'none' }}
                                     >
                                         Save
                                     </Button>
                                 )}
                                 <Button
                                     size="small"
+                                    type="default"
                                     icon={<HistoryOutlined />}
                                     onClick={() => setHistoryModal({ visible: true, key: r.key, title: r.description || r.key })}
+                                    title="View Audit History"
+                                    style={{ color: 'var(--text-secondary)' }}
                                 />
                             </Space>
                         ),
                     },
                 ]}
             />
-        </div>
     );
+
+    const settingTabs = [
+        {
+            key: 'broker',
+            label: '📊 Broker Commissions',
+            children: renderConfigTable(brokerConfigs, 'Broker commission tiers based on trade volume.'),
+        },
+        {
+            key: 'sebon',
+            label: '🏛️ SEBON Fees',
+            children: renderConfigTable(sebonConfigs, 'Regulatory board fee rates.'),
+        },
+        {
+            key: 'dp',
+            label: '💳 DP & Transfer',
+            children: renderConfigTable(dpConfigs, 'Depository Participant and Name Transfer charges.'),
+        },
+        {
+            key: 'cgt',
+            label: '💰 Capital Gains Tax',
+            children: renderConfigTable(cgtConfigs, 'Tax brackets for individual and corporate investors.'),
+        }
+    ];
 
     return (
         <div className="animate-in">
@@ -150,33 +176,40 @@ function Settings() {
             </div>
 
 
-            <Alert
-                type="info"
-                showIcon
-                message="Fee configuration"
-                description="These values are used to calculate broker commission, SEBON fees, DP charges, and Capital Gains Tax. When rates change, add a new version with an effective date to preserve history."
-                style={{ marginBottom: 16, borderRadius: 10 }}
-            />
-
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setVersionModal(true)}
-                >
-                    Add Rate Change Version
-                </Button>
-            </div>
-
-            <Card style={{ borderRadius: 14 }} loading={isLoading}>
-                {renderConfigTable(brokerConfigs, '📊 Broker Commission Tiers')}
-                <Divider />
-                {renderConfigTable(sebonConfigs, '🏛️ SEBON Regulatory Fee')}
-                <Divider />
-                {renderConfigTable(dpConfigs, '💳 DP & Transfer Charges')}
-                <Divider />
-                {renderConfigTable(cgtConfigs, '💰 Capital Gains Tax')}
-            </Card>
+            <Row gutter={[24, 24]}>
+                <Col xs={24} lg={6}>
+                    <Card style={{ borderRadius: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', height: '100%' }}>
+                        <Typography.Title level={4} style={{ marginTop: 0 }}>Fee Engine Configuration</Typography.Title>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.6, marginBottom: 24 }}>
+                            Modify the underlying rates used by the system to calculate exact true-cost averages, break-even targets, and net portfolio summaries. 
+                            <br/><br/>
+                            Rates are strictly timestamped to preserve the historical integrity of your legacy trades.
+                        </p>
+                        
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setVersionModal(true)}
+                            block
+                            size="large"
+                            style={{ background: 'var(--gradient-primary)', border: 'none' }}
+                        >
+                            Publish New Rate Version
+                        </Button>
+                    </Card>
+                </Col>
+                
+                <Col xs={24} lg={18}>
+                    <Card style={{ borderRadius: 14 }} loading={isLoading} bodyStyle={{ padding: '0px 24px 24px 24px' }}>
+                        <Tabs 
+                            defaultActiveKey="broker" 
+                            items={settingTabs}
+                            size="large"
+                            tabBarStyle={{ marginBottom: 24 }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
 
             {/* History Modal */}
             <Modal
