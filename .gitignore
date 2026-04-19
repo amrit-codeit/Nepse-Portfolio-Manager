@@ -22,7 +22,7 @@ build/
 *.png
 *.jpg
 *.jpeg
-*.html
+# (Removed *.html to allow frontend/index.html)
 meroshare_diag.log
 meroshare_before_login.png
 meroshare_after_login.png

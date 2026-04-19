@@ -153,10 +153,17 @@ def get_historical_prices(
 
 @router.get("/index/latest")
 def get_latest_nepse_index(db: Session = Depends(get_db)):
-    """Fetch the most recent NEPSE index record."""
-    r = db.query(IndexHistory).filter(IndexHistory.index_id == 12).order_by(IndexHistory.date.desc()).first()
+    """Fetch the most recent NEPSE index record, prioritizing Live status if available."""
+    # First priority: Look for the Live index updated by the live scraper
+    r = db.query(IndexHistory).filter(IndexHistory.index_id == 0).order_by(IndexHistory.date.desc()).first()
+    
+    # Second priority: Fallback to the official historical index record
+    if not r:
+        r = db.query(IndexHistory).filter(IndexHistory.index_id == 12).order_by(IndexHistory.date.desc()).first()
+        
     if not r:
         return {"error": "No index data found"}
+        
     return {
         "date": r.date,
         "close": r.close,

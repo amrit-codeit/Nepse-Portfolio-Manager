@@ -266,8 +266,8 @@ def scrape_live_prices(db: Session) -> dict:
         index_data = fetch_nepse_index()
         if index_data:
             stmt = sqlite_insert(IndexHistory).values({
-                "index_name": "NEPSE Index",
-                "index_id": 12,
+                "index_name": "NEPSE Index (Live)",
+                "index_id": 0,
                 "date": index_data["date"],
                 "close": index_data["close"],
                 "change": index_data["change"],

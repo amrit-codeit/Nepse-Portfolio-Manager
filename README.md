@@ -1,52 +1,58 @@
 # Nepal Portfolio Manager (Premium Edition)
 
-A professional-grade personal portfolio management system designed specifically for the Nepali stock market (NEPSE). Track investments with precision using dual-WACC logic, automated MeroShare synchronization, and DP statement reconciliation for mutual funds.
+A professional-grade personal portfolio management and AI analysis system designed specifically for the Nepali stock market (NEPSE). Track investments with precision using dual-WACC logic, automated MeroShare synchronization, and advanced AI-driven stock insights.
 
 ## 🚀 One-Click Setup (Windows)
 
-The project includes automated scripts for a frictionless start.
+We've designed the installation to be completely zero-friction. You literally just click a file and wait.
 
-1. **Prerequisites**:
-   - [Python 3.10+](https://www.python.org/downloads/)
-   - [Node.js](https://nodejs.org/)
+### Installation
+1. Download or clone this repository to your PC.
+2. Double-click the **`setup.bat`** file in the main folder.
+3. **Grab a coffee!** The script is fully automated. It will:
+   - Check if your PC has Python and Node.js.
+   - **Automatically download and install Python and Node.js** (via Windows `winget`) if you don't have them!
+   - Create a securely isolated virtual environment.
+   - Install all backend dependencies (FastAPI, Pandas, etc.).
+   - Create secure `.env` files with a fresh, locally-generated encryption key.
+   - Install all frontend dependencies (React, Vite, Tailwind).
 
-2. **Installation**:
-   - Double-click **`setup.bat`** in the root folder.
-   - This creates a virtual environment, installs dependencies (FastAPI & React), and generates your local encryption keys.
+*(Note: If `setup.bat` installs Python or Node for you, it may notify you to close the black terminal window and double-click `setup.bat` one more time so your PC recognizes the new software).*
 
-3. **Running the App**:
-   - Double-click **`run.bat`**.
-   - Accessible at: `http://localhost:5173`
+### 🏃 Running the Application
+Once the setup is complete, starting the app is just as easy:
+1. Double-click the **`run.bat`** file.
+2. Your system will launch both the backend server and frontend interface.
+3. Your web browser will automatically open to `http://localhost:5173`. 
 
-## ✨ Advanced Features
+---
 
-- **📊 Advanced Transaction Management**:
-  - **Equity vs SIP Separation**: Dedicated tabs for managing secondary market shares and open-ended mutual funds.
-  - **DP Statement Import**: Pure data import for SIPs (NI31, NIBLSF, NMBSBFE, etc.) directly from official PDF/CSV statements.
-  - **Smart Classification**: Strict priority-based tagging (IPO, FPO, Bonus, Right, Merge, Buy, Sell) using advanced regex and quantity validation.
+## 💡 How to Use the Project
 
-- **📈 Dual WACC Engine**:
-  - **True WACC**: Bonus/Right shares at actual cost (Rs. 0 for bonus). Reflects your true financial ROI.
-  - **Tax WACC**: Matches MeroShare/CDSC rules (Rs. 100 for bonus). Critical for Capital Gains Tax (CGT) accuracy.
+### 1. Connecting MeroShare
+- Upon launch, navigate to the **Settings** or Profile tab.
+- Enter your MeroShare details securely. Your credentials are encrypted locally on your hard drive (they are never sent to the internet).
+- Return to your Dashboard and click "Sync MeroShare" to pull your live secondary market transactions automatically.
 
-- **📉 Analysis Tools**:
-  - **Order Simulator**: Real-time Buy/Sell calculator with SEBON fees and FIFO CGT estimation.
-  - **Scrip Intelligence**: Detailed dashboards for every stock with historical charts and transaction dots.
-  - **Advanced Metrics**: Herfindahl-Hirschman Index (HHI), Portfolio XIRR, and Yield on Cost tracking.
+### 2. Managing Your Portfolio 
+- **Equities vs SIPs**: Manage your standard share holdings on the Equity page and mutual funds (like NI31 or NIBLSF) in the SIP dashboard.
+- **DP Statements**: Manually upload your DP statements directly via PDF/CSV for precise transaction tracking (bonuses, right shares, FPO, etc.).
 
-- **🛡️ Secure & Private**:
-  - **Local-First**: All data is stored in a local SQLite database (`portfolio.db`).
-  - **Encrypted**: Your MeroShare credentials are encrypted locally on your machine.
+### 3. Exploring NEPSE Insights (AI Analysis)
+- Navigate to the **Insights** tab to get a professional 360-degree view of your stocks.
+- **Fundamental & Technical Data**: The system automatically pulls live market data, P/E, EPS, dividend history, and technical indicators (RSI, MACD, Bollinger Bands).
+- The built-in **Local AI Assistant** analyzes these metrics using strictly formatted Value Investing or Trading frameworks, providing actionable verdicts just like a professional portfolio manager.
 
-## ⚖️ License & Intellectual Property
+---
 
-This software is provided for personal, non-commercial use. 
+## ✨ Key Features
+- **Dual WACC Engine**: Tracks both True-cost WACC (Bonus shares at Rs. 0 for real ROI) and Tax-cost WACC (Bonus shares at Rs. 100 for CDSC Capital Gains Tax accuracy).
+- **Data Privacy**: Local-First Architecture utilizing SQLite (`portfolio.db`). Your data never leaves your computer.
+- **Dividend Tax Logic**: Automatically deducts 5% TDS for both cash and bonus dividends precisely.
+- **Performance Simulators**: Real-time Buy/Sell calculators with built-in SEBON fee schedules.
 
-### Recommended License: MIT License
-If you plan to share this on GitHub, the **MIT License** is the industry standard for lightweight, open-source projects. 
-- **Permission**: Commercial use, modification, distribution, and private use.
-- **Condition**: The above copyright notice and this permission notice shall be included in all copies.
-- **Limitation**: No Liability; No Warranty.
+## ⚖️ License
+This software is provided for personal, non-commercial use under the **MIT License**.
 
 ---
 *Created with ❤️ for Nepali Investors.*
