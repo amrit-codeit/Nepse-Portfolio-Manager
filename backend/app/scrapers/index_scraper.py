@@ -1,3 +1,10 @@
+"""
+Index History Scraper — NEPSE Composite + Sector Sub-Indices.
+
+Scrapes historical index data from ShareSansar's DataTable API.
+The same paginated API is used for all indices — only `index_id` differs.
+"""
+
 import time
 import json
 from datetime import datetime, date, timedelta
@@ -8,43 +15,59 @@ from sqlalchemy.dialects.sqlite import insert
 
 from app.models.price import IndexHistory
 
-def scrape_nepse_index(db: Session):
-    """
-    Scrapes the COMPLETE historical data for the NEPSE Index from Sharesansar.com,
-    covering trading days from Jan 1, 2020 to today.
-    """
-    print("Starting NEPSE Index data extraction (Phase 1)...")
-    
-    # Calculate incremental date range
-    latest_date = db.query(func.max(IndexHistory.date)).filter(IndexHistory.index_id == 12).scalar()
-    
-    if latest_date:
-        start_date = latest_date + timedelta(days=1)
-    else:
-        start_date = date(2020, 1, 1)
-        
-    start_date_str = start_date.strftime("%Y-%m-%d")
-    today = datetime.now().date()
-    today_str = today.strftime("%Y-%m-%d")
-    
-    if start_date > today:
-        print("NEPSE Index data is already up to date.")
-        return 0
+# ---------------------------------------------------------------------------
+# ShareSansar sector sub-index IDs (stable, well-known)
+# ---------------------------------------------------------------------------
+SECTOR_INDICES = {
+    12: "NEPSE Index",
+    58: "Banking",
+    60: "Hotels And Tourism",
+    62: "Hydro Power",
+    64: "Development Banks",
+    66: "Finance",
+    68: "Non Life Insurance",
+    70: "Manufacturing And Processing",
+    72: "Others",
+    74: "Microfinance",
+    76: "Life Insurance",
+    78: "Investment",
+    80: "Tradings",
+    # Sensitive index (composite of BFIs)
+    54: "Sensitive Index",
+    # Float index
+    56: "Float Index",
+}
 
-    print(f"Fetching Index data from {start_date_str} to {today_str}")
+# Map ShareSansar index names → Company.sector values for cross-referencing
+INDEX_TO_SECTOR = {
+    "Banking": "Commercial Banks",
+    "Hotels And Tourism": "Hotels And Tourism",
+    "Hydro Power": "Hydro Power",
+    "Development Banks": "Development Banks",
+    "Finance": "Finance",
+    "Non Life Insurance": "Non Life Insurance",
+    "Manufacturing And Processing": "Manufacturing And Processing",
+    "Others": "Others",
+    "Microfinance": "Microfinance",
+    "Life Insurance": "Life Insurance",
+    "Investment": "Investment",
+    "Tradings": "Tradings",
+}
 
+
+def _fetch_index_data(session, index_id, index_name, start_date_str, today_str):
+    """Fetch paginated index history from ShareSansar for a single index."""
     base_url = "https://www.sharesansar.com/index-history-data"
-    
     headers = {
         "X-Requested-With": "XMLHttpRequest",
         "Referer": "https://www.sharesansar.com/index-history-data",
         "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
 
     def get_params(draw, start, length):
         return {
-            "index_id": "12",
+            "index_id": str(index_id),
             "from": start_date_str,
             "to": today_str,
             "draw": str(draw),
@@ -53,109 +76,136 @@ def scrape_nepse_index(db: Session):
             "_": str(int(time.time() * 1000))
         }
 
-    session = requests.Session(impersonate="chrome")
-
-    # Phase 1: Discover Total Records
-    initial_params = get_params(draw=1, start=0, length=10)
-    
+    # Phase 1: Discover total records
     try:
-        res = session.get(base_url, headers=headers, params=initial_params, timeout=20)
+        res = session.get(base_url, headers=headers, params=get_params(1, 0, 10), timeout=30)
         res.raise_for_status()
         data = res.json()
         records_total = int(data.get("recordsTotal", 0))
     except Exception as e:
-        print(f"Failed to fetch initial NEPSE index metadata: {e}")
-        return 0
+        print(f"  [FAIL] {index_name}: {e}")
+        return []
 
     if records_total == 0:
-        print("No NEPSE index records found.")
-        return 0
+        return []
 
-    print(f"Found {records_total} total records. Starting Phase 2 & 3: Paginated Fetching...")
-
-    # Phase 2 & 3: Execute Paginated Fetching
-    batch_size = 50
+    # Phase 2: Paginated fetch
+    batch_size = 100
     all_data = []
-    
     draw = 2
+
     for start in range(0, records_total, batch_size):
-        print(f"Fetching batch: start={start}")
-        params = get_params(draw=draw, start=start, length=batch_size)
-        
         try:
-            res = session.get(base_url, headers=headers, params=params, timeout=20)
+            res = session.get(base_url, headers=headers, params=get_params(draw, start, batch_size), timeout=30)
             res.raise_for_status()
-            batch_json = res.json()
-            records = batch_json.get("data", [])
-            all_data.extend(records)
+            batch = res.json().get("data", [])
+            all_data.extend(batch)
         except Exception as e:
-            print(f"Failed to fetch batch {start}: {e}")
-        
+            print(f"  [WARN] {index_name} batch {start}: {e}")
         draw += 1
-        # Phase 4: Rate Limiting
-        time.sleep(0.5)
+        time.sleep(0.3)
 
-    print(f"Completed fetching {len(all_data)} total rows. Processing and saving to database...")
+    return all_data
 
-    # Phase 5: Collect and Save
-    insert_batch = []
-    for row in all_data:
-        # 12 is NEPSE, Sharesansar typically returns HTML string in the first col and other data
-        # Data example:
-        # "data": [
-        #   [
-        #     "1",                         # SN
-        #     "2020-01-01",                # Date (Wait, depends on order)
-        #     "1166.03",                   # Open
-        #     "1175.05",                   # High
-        #     ...                          # Low, Close, Volume...
-        #   ]
-        # ]
-        # Wait, the structure in Sharesansar indices history datatable:
-        # S.No., Published Date, Open, High, Low, Close, Change, % Change, Turnover
-        
+
+def _parse_rows(raw_data, index_name, index_id):
+    """Parse raw ShareSansar response rows into insert-ready dicts."""
+    import re
+    parsed = []
+    for row in raw_data:
         try:
-            # The response is now a list of dictionaries
             pub_date_str = str(row.get('published_date', '')).strip()
-            
-            # Use current for index value
-            close_price_val = row.get('current')
-            if close_price_val is None:
+            close_val = row.get('current')
+            if close_val is None:
                 continue
 
-            # Safely Parse published date
             if '<' in pub_date_str:
-                import re
                 pub_date_str = re.sub('<[^<]+>', '', pub_date_str).strip()
-            
-            pub_date = datetime.strptime(pub_date_str, "%Y-%m-%d").date()
-            
-            close_price = float(str(close_price_val).replace(',', '').strip())
-            open_price = float(str(row.get('open', 0)).replace(',', '').strip()) if row.get('open') else None
-            high_price = float(str(row.get('high', 0)).replace(',', '').strip()) if row.get('high') else None
-            low_price = float(str(row.get('low', 0)).replace(',', '').strip()) if row.get('low') else None
-            change = float(str(row.get('change_', 0)).replace(',', '').strip()) if row.get('change_') else None
-            pct_change = float(str(row.get('per_change', 0)).replace(',', '').strip()) if row.get('per_change') else None
-            turnover = float(str(row.get('turnover', 0)).replace(',', '').strip()) if row.get('turnover') else None
 
-            insert_batch.append({
-                "index_name": "NEPSE Index",
-                "index_id": 12,
+            pub_date = datetime.strptime(pub_date_str, "%Y-%m-%d").date()
+            close_price = float(str(close_val).replace(',', '').strip())
+
+            def safe_float(v):
+                if v is None:
+                    return None
+                try:
+                    return float(str(v).replace(',', '').strip())
+                except (ValueError, TypeError):
+                    return None
+
+            parsed.append({
+                "index_name": index_name,
+                "index_id": index_id,
                 "date": pub_date,
                 "close": close_price,
-                "open": open_price,
-                "high": high_price,
-                "low": low_price,
-                "change": change,
-                "percent_change": pct_change,
-                "turnover": turnover
+                "open": safe_float(row.get('open')),
+                "high": safe_float(row.get('high')),
+                "low": safe_float(row.get('low')),
+                "change": safe_float(row.get('change_')),
+                "percent_change": safe_float(row.get('per_change')),
+                "turnover": safe_float(row.get('turnover')),
             })
-        except Exception as e:
-            # Skip rows with parsing issues quietly
+        except Exception:
+            continue
+    return parsed
+
+
+def scrape_nepse_index(db: Session):
+    """Scrape NEPSE Index history only (backward compat)."""
+    return scrape_indices(db, index_ids=[12])
+
+
+def scrape_sector_indices(db: Session):
+    """Scrape ALL sector sub-indices (excluding NEPSE main — that's scraped separately)."""
+    sector_ids = [k for k in SECTOR_INDICES if k != 12]
+    return scrape_indices(db, index_ids=sector_ids)
+
+
+def scrape_all_indices(db: Session):
+    """Scrape NEPSE Index + ALL sector sub-indices."""
+    return scrape_indices(db, index_ids=list(SECTOR_INDICES.keys()))
+
+
+def scrape_indices(db: Session, index_ids: list[int] = None):
+    """
+    Generic index scraper. Fetches historical data for specified index IDs
+    from ShareSansar and upserts into the IndexHistory table.
+    """
+    if index_ids is None:
+        index_ids = list(SECTOR_INDICES.keys())
+
+    today = datetime.now().date()
+    today_str = today.strftime("%Y-%m-%d")
+
+    session = requests.Session(impersonate="chrome")
+    total_saved = 0
+
+    for idx_id in index_ids:
+        index_name = SECTOR_INDICES.get(idx_id, f"Index_{idx_id}")
+
+        # Incremental: find latest date for this index
+        latest_date = db.query(func.max(IndexHistory.date)).filter(
+            IndexHistory.index_id == idx_id
+        ).scalar()
+
+        start_date = (latest_date + timedelta(days=1)) if latest_date else date(2020, 1, 1)
+        if start_date > today:
+            print(f"  [SKIP] {index_name} — already up-to-date")
             continue
 
-    if insert_batch:
-        stmt = insert(IndexHistory).values(insert_batch)
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        print(f"  [FETCH] {index_name} (ID={idx_id}) from {start_date_str} to {today_str}")
+
+        raw_data = _fetch_index_data(session, idx_id, index_name, start_date_str, today_str)
+        if not raw_data:
+            continue
+
+        parsed = _parse_rows(raw_data, index_name, idx_id)
+        if not parsed:
+            continue
+
+        # Bulk upsert
+        stmt = insert(IndexHistory).values(parsed)
         on_conflict_stmt = stmt.on_conflict_do_update(
             index_elements=['index_name', 'date'],
             set_={
@@ -171,6 +221,7 @@ def scrape_nepse_index(db: Session):
         )
         db.execute(on_conflict_stmt)
         db.commit()
-    
-    print(f"Successfully processed and saved {len(insert_batch)} NEPSE Index daily records.")
-    return len(insert_batch)
+        total_saved += len(parsed)
+        print(f"  [OK] {index_name}: {len(parsed)} records saved")
+
+    return total_saved

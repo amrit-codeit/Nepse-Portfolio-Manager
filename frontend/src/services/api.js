@@ -142,4 +142,13 @@ export const simulateSell = (data) => api.post('/calculator/sell', data);
 // --- Screener ---
 export const getScreenerData = () => api.get('/screener');
 
+// --- Market Context (Conjunction Trading) ---
+export const getMarketContext = () => api.get('/market/context');
+export const getSectorContext = (sector) => api.get(`/market/context/${encodeURIComponent(sector)}`);
+export const getExtendedTechnicals = (symbol) => api.get(`/market/stock-technicals/${symbol}`);
+
+// --- Scraper Triggers ---
+export const scrapeSectorIndices = () => api.post('/scraper/sector-indices');
+export const scrapeAllIndices = () => api.post('/scraper/all-indices');
+
 export default api;

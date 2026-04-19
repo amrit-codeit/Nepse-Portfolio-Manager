@@ -13,7 +13,7 @@ from app.scrapers.issue_autoscraper import fetch_and_update as sync_issue_prices
 from app.scrapers.history_scraper import scrape_historical_prices
 from app.scrapers.dividend_scraper import scrape_and_calculate_dividends
 from app.scrapers.fundamental_scraper import scrape_fundamentals
-from app.scrapers.index_scraper import scrape_nepse_index
+from app.scrapers.index_scraper import scrape_nepse_index, scrape_sector_indices, scrape_all_indices
 from app.models.holding import Holding
 import traceback
 
@@ -37,6 +37,28 @@ def trigger_index_sync(db: Session = Depends(get_db)):
     try:
         result = scrape_nepse_index(db)
         return {"status": "success", "message": f"NEPSE Index synced with {result} records", "data": result}
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": repr(e)}
+
+
+@router.post("/sector-indices")
+def trigger_sector_index_sync(db: Session = Depends(get_db)):
+    """Scrape ALL sector sub-index historical data from ShareSansar."""
+    try:
+        result = scrape_sector_indices(db)
+        return {"status": "success", "message": f"Sector indices synced with {result} records", "data": result}
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": repr(e)}
+
+
+@router.post("/all-indices")
+def trigger_all_index_sync(db: Session = Depends(get_db)):
+    """Scrape NEPSE Index + ALL sector sub-indices."""
+    try:
+        result = scrape_all_indices(db)
+        return {"status": "success", "message": f"All indices synced with {result} records", "data": result}
     except Exception as e:
         traceback.print_exc()
         return {"status": "failed", "error": repr(e)}

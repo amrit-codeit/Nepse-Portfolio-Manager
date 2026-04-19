@@ -16,6 +16,7 @@ import {
 import {
     getCompanies, getInsights, getDividends, scrapeInsights,
     getMembers, getStockDetail, getSymbolsList, getHistoricalPrices,
+    getMarketContext, getExtendedTechnicals
 } from '../services/api';
 import ExecutiveSummary from '../components/insights/ExecutiveSummary';
 import StockScreener from '../components/insights/StockScreener';
@@ -202,6 +203,19 @@ function Stock360View({ selectedSymbol, companies }) {
         enabled: !!selectedSymbol,
     });
 
+    // Market Context (Conjunction System)
+    const { data: marketContext } = useQuery({
+        queryKey: ['marketContext'],
+        queryFn: () => getMarketContext().then(r => r.data),
+    });
+
+    // Extended Technicals (Trading Gates, ATR, Pivots)
+    const { data: extTech } = useQuery({
+        queryKey: ['extendedTechnicals', selectedSymbol],
+        queryFn: () => getExtendedTechnicals(selectedSymbol).then(r => r.data),
+        enabled: !!selectedSymbol,
+    });
+
     // Scrape mutation
     const scrapeInsightsMut = useMutation({
         mutationFn: () => scrapeInsights(selectedSymbol),
@@ -373,6 +387,67 @@ function Stock360View({ selectedSymbol, companies }) {
                             </div>
                         </Col>
                     </Row>
+
+                    {/* Extended Technicals & Conjunction System (New Section) */}
+                    {extTech && !extTech.error && (
+                        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                            <Col xs={24}>
+                                <div className="stat-card" style={{ padding: '20px 24px', background: 'linear-gradient(145deg, rgba(16, 185, 129, 0.05) 0%, rgba(15, 23, 42, 0) 100%)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                    <div className="stat-label" style={{ marginBottom: 16, color: '#10b981' }}><SafetyCertificateOutlined /> Conjunction Trading & Execution (Gates)</div>
+                                    
+                                    <Row gutter={[24, 24]}>
+                                        {/* Gate Checks */}
+                                        <Col xs={24} md={12}>
+                                            <div style={{ padding: 16, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+                                                <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12, color: 'var(--text-secondary)' }}>Trading Gate Verifications</div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                    <span>Market Context (Gate 2)</span>
+                                                    <Tag color={marketContext?.market_verdict === 'BULLISH' ? 'green' : marketContext?.market_verdict === 'BEARISH' ? 'red' : 'blue'}>{marketContext?.market_verdict || 'UNKNOWN'}</Tag>
+                                                </div>
+                                                {extTech.sector && marketContext?.sectors && marketContext.sectors[extTech.sector] && (
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                        <span>Sector Context: {extTech.sector} (Gate 3)</span>
+                                                        <Tag color={marketContext.sectors[extTech.sector].trend.includes('Uptrend') ? 'green' : marketContext.sectors[extTech.sector].trend.includes('Downtrend') ? 'red' : 'blue'}>{marketContext.sectors[extTech.sector].trend}</Tag>
+                                                    </div>
+                                                )}
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                    <span>Liquidity ADT &gt; 15L (Gate 1)</span>
+                                                    <Tag color={extTech.gate1_liquidity === 'PASS' ? 'green' : 'red'}>{extTech.gate1_liquidity}</Tag>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>Technical Trigger (Gate 5)</span>
+                                                    <Tag color={extTech.gate5_technical.includes('BUY') ? 'green' : extTech.gate5_technical === 'AVOID' ? 'red' : 'default'}>{extTech.gate5_technical}</Tag>
+                                                </div>
+                                            </div>
+                                        </Col>
+
+                                        {/* Execution Levels (ATR & Pivots) */}
+                                        <Col xs={24} md={12}>
+                                            <div style={{ padding: 16, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+                                                <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12, color: 'var(--text-secondary)' }}>ATR Risk Management Levels</div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                    <span>ATR (14) Volatility</span>
+                                                    <span style={{ fontWeight: 600 }}>{formatNPR(extTech.atr_14)}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                    <span>Stop Loss (-1.5x ATR)</span>
+                                                    <span style={{ fontWeight: 600, color: '#ef4444' }}>{formatNPR(extTech.stop_loss)}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                    <span>Target 1 (+2.0x ATR)</span>
+                                                    <span style={{ fontWeight: 600, color: '#10b981' }}>{formatNPR(extTech.target_1)}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>Risk/Reward Ratio</span>
+                                                    <span style={{ fontWeight: 600, color: extTech.risk_reward >= 1.5 ? '#10b981' : '#f59e0b' }}>1 : {extTech.risk_reward}</span>
+                                                </div>
+                                            </div>
+                                        </Col>
+                                    </Row>
+                                </div>
+                            </Col>
+                        </Row>
+                    )}
 
                     {/* EMAs */}
                     <Row gutter={[16, 16]}>
