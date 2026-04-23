@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { Row, Col, Progress, Tag, Tooltip, Tabs, Slider, InputNumber } from 'antd';
+import React from 'react';
+import { Row, Col, Progress, Tag, Tooltip, Tabs } from 'antd';
 import { 
     BarChartOutlined, DashboardOutlined, SafetyCertificateOutlined,
-    RiseOutlined, FallOutlined, ThunderboltOutlined, FundOutlined,
-    AimOutlined, SlidersOutlined
+    RiseOutlined, FallOutlined, ThunderboltOutlined, FundOutlined
 } from '@ant-design/icons';
 import PriceHistoryCard from '../portfolio/PriceHistoryCard';
 
@@ -29,8 +28,6 @@ function getRSILabel(rsi) {
 }
 
 export default function TechnicalTabs({ symbol, tech, extTech, marketContext, transactions }) {
-    const [capital, setCapital] = useState(100000);
-    const [riskPct, setRiskPct] = useState(2);
 
     const IndicatorsTab = () => (
         <div className="animate-in" style={{ marginTop: 16 }}>
@@ -188,6 +185,61 @@ export default function TechnicalTabs({ symbol, tech, extTech, marketContext, tr
                     </div>
                 </Col>
             </Row>
+            
+            {/* Extended Technicals */}
+            {extTech && !extTech.error && (
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={24} lg={12}>
+                    <div className="stat-card" style={{ padding: '20px 24px', height: '100%' }}>
+                        <div className="stat-label" style={{ marginBottom: 16 }}><RiseOutlined /> Trend Strength & Volatility</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>ADX (14) - Trend Strength</span>
+                                <span style={{ fontWeight: 600 }}>{extTech.adx_14 ? `${extTech.adx_14} (${extTech.adx_14 > 25 ? 'Strong' : 'Weak'})` : 'N/A'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>ATR (14) - Average True Range</span>
+                                <span style={{ fontWeight: 600 }}>{extTech.atr_14 ? formatNPR(extTech.atr_14) : 'N/A'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Avg Daily Turnover (20d)</span>
+                                <span style={{ fontWeight: 600 }}>{extTech.adt_20 ? formatNPR(extTech.adt_20) : 'N/A'}</span>
+                            </div>
+                            {extTech.vsa_reversal && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '8px 12px', borderRadius: 6, marginTop: 8 }}>
+                                    <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Volume Spread Analysis</span>
+                                    <Tag color={extTech.vsa_reversal.includes('Bullish') ? 'green' : 'red'}>{extTech.vsa_reversal} ✨</Tag>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </Col>
+                <Col xs={24} lg={12}>
+                    <div className="stat-card" style={{ padding: '20px 24px', height: '100%' }}>
+                        <div className="stat-label" style={{ marginBottom: 16 }}><AimOutlined /> Floor Pivot Points</div>
+                        {extTech.pivot_points ? (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', textAlign: 'center', fontSize: 12 }}>
+                                <div><div style={{ color: 'var(--text-secondary)' }}>S2</div><div style={{ color: '#00b894', fontWeight: 600, marginTop: 4 }}>{formatNPR(extTech.pivot_points.S2)}</div></div>
+                                <div><div style={{ color: 'var(--text-secondary)' }}>S1</div><div style={{ color: '#00b894', fontWeight: 600, marginTop: 4 }}>{formatNPR(extTech.pivot_points.S1)}</div></div>
+                                <div><div style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Pivot</div><div style={{ color: 'var(--text-primary)', fontWeight: 700, marginTop: 4 }}>{formatNPR(extTech.pivot_points.P)}</div></div>
+                                <div><div style={{ color: 'var(--text-secondary)' }}>R1</div><div style={{ color: '#d63031', fontWeight: 600, marginTop: 4 }}>{formatNPR(extTech.pivot_points.R1)}</div></div>
+                                <div><div style={{ color: 'var(--text-secondary)' }}>R2</div><div style={{ color: '#d63031', fontWeight: 600, marginTop: 4 }}>{formatNPR(extTech.pivot_points.R2)}</div></div>
+                            </div>
+                        ) : <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>N/A</div>}
+                        
+                        {extTech.target_1 && extTech.stop_loss && (
+                            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed rgba(255,255,255,0.1)' }}>
+                                <div className="stat-label" style={{ marginBottom: 12, fontSize: 12 }}>ATR-Based Trade Setup</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                                    <div><span style={{ color: 'var(--text-secondary)' }}>Stop Loss: </span><span style={{ color: '#d63031', fontWeight: 600 }}>{formatNPR(extTech.stop_loss)}</span></div>
+                                    <div><span style={{ color: 'var(--text-secondary)' }}>Target 1: </span><span style={{ color: '#00b894', fontWeight: 600 }}>{formatNPR(extTech.target_1)}</span></div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </Col>
+            </Row>
+            )}
         </div>
     );
 
@@ -255,107 +307,10 @@ export default function TechnicalTabs({ symbol, tech, extTech, marketContext, tr
         </div>
     );
 
-    const TradeExecutorTab = () => {
-        if (!extTech || extTech.error || !extTech.ltp) {
-            return <div style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '40px' }}>Insufficient data for Trade Planner</div>;
-        }
-
-        const ltp = extTech.ltp;
-        const slPrice = extTech.stop_loss;
-        const targetPrice = extTech.target_1;
-        const riskPerShare = ltp - slPrice;
-        
-        // Stop loss might be above LTP if in deep downtrend, handle logically
-        const validSetup = riskPerShare > 0;
-        const maxLoss = capital * (riskPct / 100);
-        const positionSize = validSetup ? Math.floor(maxLoss / riskPerShare) : 0;
-        const actualCost = positionSize * ltp;
-        const potentialProfit = validSetup ? positionSize * (targetPrice - ltp) : 0;
-
-        return (
-            <div className="animate-in" style={{ marginTop: 16 }}>
-                <Row gutter={[24, 24]}>
-                    <Col xs={24} lg={10}>
-                        <div className="stat-card" style={{ padding: '24px' }}>
-                            <div className="stat-label" style={{ marginBottom: 24, fontSize: 16 }}><SlidersOutlined /> Position Calculator</div>
-                            <div style={{ marginBottom: 20 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                    <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Trading Capital (NPR)</label>
-                                    <span style={{ fontWeight: 600 }}>{formatNPR(capital, 0)}</span>
-                                </div>
-                                <Slider 
-                                    min={10000} max={2000000} step={10000} 
-                                    value={capital} onChange={setCapital}
-                                    tooltip={{ formatter: v => formatNPR(v, 0) }} 
-                                />
-                            </div>
-                            <div style={{ marginBottom: 20 }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                    <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Risk per Trade (%)</label>
-                                    <span style={{ fontWeight: 600, color: '#ef4444' }}>{riskPct}% ({formatNPR(maxLoss, 0)})</span>
-                                </div>
-                                <Slider 
-                                    min={0.5} max={5} step={0.5} 
-                                    value={riskPct} onChange={setRiskPct}
-                                    trackStyle={{ backgroundColor: '#ef4444' }} 
-                                />
-                            </div>
-                        </div>
-                    </Col>
-                    
-                    <Col xs={24} lg={14}>
-                        <div className="stat-card" style={{ padding: '24px', background: 'linear-gradient(145deg, rgba(108, 92, 231, 0.05) 0%, rgba(15, 23, 42, 0) 100%)', border: '1px solid rgba(108, 92, 231, 0.2)', height: '100%' }}>
-                            <div className="stat-label" style={{ marginBottom: 24, fontSize: 16, color: '#6c5ce7' }}><AimOutlined /> ATR Trade Plan</div>
-                            
-                            {!validSetup ? (
-                                <div style={{ padding: '20px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 8, color: '#ef4444' }}>
-                                    This stock is currently trading below its stop loss level. Long setups are not advised.
-                                </div>
-                            ) : (
-                                <div>
-                                    <Row gutter={16} style={{ marginBottom: 24 }}>
-                                        <Col span={8}>
-                                            <div style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Entry (LTP)</div>
-                                            <div style={{ fontSize: 24, fontWeight: 700 }}>{formatNPR(ltp)}</div>
-                                        </Col>
-                                        <Col span={8} style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 16 }}>
-                                            <div style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Stop Loss</div>
-                                            <div style={{ fontSize: 24, fontWeight: 700, color: '#ef4444' }}>{formatNPR(slPrice)}</div>
-                                            <div style={{ fontSize: 11, color: '#ef4444' }}>-1.5x ATR</div>
-                                        </Col>
-                                        <Col span={8} style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 16 }}>
-                                            <div style={{ color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Target 1</div>
-                                            <div style={{ fontSize: 24, fontWeight: 700, color: '#10b981' }}>{formatNPR(targetPrice)}</div>
-                                            <div style={{ fontSize: 11, color: '#10b981' }}>+2.0x ATR ({extTech.risk_reward} R:R)</div>
-                                        </Col>
-                                    </Row>
-                                    
-                                    <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
-                                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>Suggested Position Size</div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                                            <div>
-                                                <div style={{ fontSize: 32, fontWeight: 800, color: '#00b894', lineHeight: 1 }}>{positionSize} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' }}>Kittas</span></div>
-                                                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8 }}>Cost: ~{formatNPR(actualCost, 0)}</div>
-                                            </div>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Potential Profit at Target</div>
-                                                <div style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>+{formatNPR(potentialProfit, 0)}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </Col>
-                </Row>
-            </div>
-        );
-    };
 
     const items = [
         { key: 'indicators', label: 'Indicators & Signals', children: <IndicatorsTab /> },
         { key: 'gates', label: 'Conjunction Gates', children: <GatesTab /> },
-        { key: 'executor', label: 'Trade Executor', children: <TradeExecutorTab /> },
     ];
 
     return (

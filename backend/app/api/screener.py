@@ -60,6 +60,7 @@ def get_screener_data(db: Session = Depends(get_db)):
         prices_chrono = prices[::-1]  # Reverse to chronological
         df = pd.DataFrame([{
             "close": p.close,
+            "open": p.open or p.close,
             "high": p.high or p.close,
             "low": p.low or p.close,
             "volume": p.volume or 0,
@@ -101,6 +102,31 @@ def get_screener_data(db: Session = Depends(get_db)):
         volume = safe_float(latest.get("volume"))
         vol_ratio = (volume / vol_sma_20) if volume and vol_sma_20 and vol_sma_20 > 0 else None
 
+        vsa_reversal = None
+        open_p = safe_float(latest.get("open"))
+        close_p = safe_float(latest.get("close"))
+        high_p = safe_float(latest.get("high"))
+        low_p = safe_float(latest.get("low"))
+
+        if open_p is not None and close_p is not None and high_p is not None and low_p is not None:
+            body = abs(close_p - open_p)
+            upper_wick = high_p - max(open_p, close_p)
+            lower_wick = min(open_p, close_p) - low_p
+            
+            if vol_ratio and vol_ratio >= 1.5 and len(df) > 1:
+                prev = df.iloc[-2]
+                prev_open = safe_float(prev.get("open"))
+                prev_close = safe_float(prev.get("close"))
+                if prev_open is not None and prev_close is not None:
+                    if lower_wick > (2 * body) and upper_wick < body:
+                        vsa_reversal = "Bullish Reversal (Hammer)"
+                    elif upper_wick > (2 * body) and lower_wick < body:
+                        vsa_reversal = "Bearish Reversal (Shooting Star)"
+                    elif close_p > open_p and prev_close < prev_open and close_p > prev_open and open_p < prev_close:
+                        vsa_reversal = "Bullish Engulfing (High Vol)"
+                    elif close_p < open_p and prev_close > prev_open and close_p < prev_open and open_p > prev_close:
+                        vsa_reversal = "Bearish Engulfing (High Vol)"
+
         technicals_map[symbol] = {
             "ltp": ltp,
             "high_52w": high_52w,
@@ -119,6 +145,7 @@ def get_screener_data(db: Session = Depends(get_db)):
             "volume": volume,
             "vol_sma_20": vol_sma_20,
             "vol_ratio": round(vol_ratio, 2) if vol_ratio else None,
+            "vsa_reversal": vsa_reversal,
             "data_points": len(prices),
         }
 
@@ -163,6 +190,7 @@ def get_screener_data(db: Session = Depends(get_db)):
             "volume": tech["volume"] if tech else None,
             "vol_sma_20": tech["vol_sma_20"] if tech else None,
             "vol_ratio": tech["vol_ratio"] if tech else None,
+            "vsa_reversal": tech["vsa_reversal"] if tech else None,
             "high_52w": tech["high_52w"] if tech else None,
             "low_52w": tech["low_52w"] if tech else None,
             "placement_52w": tech["placement_52w"] if tech else None,

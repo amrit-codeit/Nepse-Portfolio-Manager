@@ -22,7 +22,6 @@ import ExecutiveSummary from '../components/insights/ExecutiveSummary';
 import StockScreener from '../components/insights/StockScreener';
 import TechnicalTabs from '../components/insights/TechnicalTabs';
 import FundamentalTabs from '../components/insights/FundamentalTabs';
-import StrategyTester from '../components/insights/StrategyTester';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
     CartesianGrid, Legend, PieChart, Pie, Cell, ComposedChart, Line, Area,
@@ -262,11 +261,6 @@ function Stock360View({ selectedSymbol, companies, selectedMember, memberName })
                 />
             ),
         },
-        {
-            key: 'tester',
-            label: <span><TrophyOutlined /> Strategy Tester</span>,
-            children: <StrategyTester symbol={selectedSymbol} />,
-        },
     ];
 
     // Conditionally add Transactions tab only if portfolio data exists
@@ -459,7 +453,7 @@ export default function Insights() {
         <div className="animate-in">
             <div className="page-header">
                 <h1>Stock Explorer</h1>
-                <p className="subtitle">Screen, analyze, and trade NEPSE securities with full technical & fundamental context</p>
+                <p className="subtitle">Screen and analyze NEPSE securities with institutional-grade fundamental & technical context</p>
             </div>
 
             <Tabs

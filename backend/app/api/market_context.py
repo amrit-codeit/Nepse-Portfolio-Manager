@@ -13,8 +13,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
-from app.models.price import IndexHistory, PriceHistory
+from app.models.price import IndexHistory, PriceHistory, LivePrice, NavValue
 from app.models.company import Company
+from datetime import datetime
 from app.models.fundamental import FundamentalReport
 from app.scrapers.index_scraper import SECTOR_INDICES, INDEX_TO_SECTOR
 import pandas as pd
@@ -237,6 +238,50 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
         "volume": p.volume or 0,
     } for p in prices])
 
+    company = db.query(Company).filter(Company.symbol == symbol).first()
+    if company:
+        live = db.query(LivePrice).filter(LivePrice.company_id == company.id).first()
+        live_price, live_vol, live_open, live_high, live_low, updated_at = None, 0, None, None, None, None
+        
+        if live and live.ltp and live.ltp > 0:
+            live_price = live.ltp
+            live_vol = live.volume
+            live_open = live.open_price or live.ltp
+            live_high = live.high or live.ltp
+            live_low = live.low or live.ltp
+            updated_at = live.updated_at
+        else:
+            nav = db.query(NavValue).filter(NavValue.company_id == company.id).first()
+            if nav and nav.nav:
+                live_price = nav.nav
+                live_vol = 0
+                live_open, live_high, live_low = live_price, live_price, live_price
+                updated_at = nav.updated_at
+                
+        if live_price and not df.empty:
+            live_date = updated_at.date() if updated_at else datetime.today().date()
+            last_hist_date = df.iloc[-1]['date']
+            
+            if live_date > last_hist_date:
+                new_row = pd.DataFrame([{
+                    "date": live_date,
+                    "open": live_open,
+                    "high": live_high,
+                    "low": live_low,
+                    "close": live_price,
+                    "volume": live_vol or 0
+                }])
+                df = pd.concat([df, new_row], ignore_index=True)
+            elif live_date == last_hist_date:
+                df.at[df.index[-1], 'close'] = live_price
+                if live_vol is not None and pd.notna(live_vol):
+                    df.at[df.index[-1], 'volume'] = live_vol
+                if live_high is not None and pd.notna(live_high):
+                    df.at[df.index[-1], 'high'] = max(live_high, df.at[df.index[-1], 'high'])
+                if live_low is not None and pd.notna(live_low):
+                    df.at[df.index[-1], 'low'] = min(live_low, df.at[df.index[-1], 'low'])
+
+
     # Compute all indicators
     df.ta.atr(length=14, append=True)
     df.ta.sma(length=20, append=True)
@@ -302,6 +347,29 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
 
     # RSI
     rsi_14 = sf(latest.get("RSI_14"))
+
+    # VSA: High Volume Reversal
+    vsa_reversal = None
+    open_p = float(latest["open"])
+    body = abs(close - open_p)
+    upper_wick = high - max(open_p, close)
+    lower_wick = min(open_p, close) - low
+    
+    if vol_ratio and vol_ratio >= 1.5:
+        prev_open = float(prev["open"])
+        prev_close = float(prev["close"])
+        # Bullish reversal: long lower wick, small body
+        if lower_wick > (2 * body) and upper_wick < body:
+            vsa_reversal = "Bullish Reversal (Hammer)"
+        # Bearish reversal: long upper wick, small body
+        elif upper_wick > (2 * body) and lower_wick < body:
+            vsa_reversal = "Bearish Reversal (Shooting Star)"
+        # Bullish Engulfing
+        elif close > open_p and prev_close < prev_open and close > prev_open and open_p < prev_close:
+            vsa_reversal = "Bullish Engulfing (High Vol)"
+        # Bearish Engulfing
+        elif close < open_p and prev_close > prev_open and close < prev_open and open_p > prev_close:
+            vsa_reversal = "Bearish Engulfing (High Vol)"
 
     # EMA status
     ema_20 = sf(latest.get("EMA_20"))
@@ -420,6 +488,7 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
         "bb_squeeze": bb_squeeze,
         "rs_trend": rs_trend,
         "rs_alpha": round(rs_alpha * 100, 2) if rs_alpha else None,
+        "vsa_reversal": vsa_reversal,
         # 52-week
         "high_52w": round(high_52w, 2),
         "low_52w": round(low_52w, 2),

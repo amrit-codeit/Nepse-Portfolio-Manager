@@ -20,7 +20,7 @@ import Settings from './pages/Settings';
 import Prices from './pages/Prices';
 import ApplyIPO from './pages/ApplyIPO';
 import Insights from './pages/Insights';
-import Calculator from './pages/Calculator';
+import TradingDesk from './pages/TradingDesk';
 import About from './pages/About';
 
 const { Sider, Content } = Layout;
@@ -31,7 +31,7 @@ const menuItems = [
   { key: '/transactions', icon: <SwapOutlined />, label: 'Transactions' },
   { key: '/prices', icon: <BankOutlined />, label: 'Prices' },
   { key: '/insights', icon: <StockOutlined />, label: 'Stock Explorer' },
-  { key: '/calculator', icon: <CalculatorOutlined />, label: 'Calculator' },
+  { key: '/trading', icon: <ThunderboltOutlined />, label: 'Trading Desk' },
   { key: '/apply-ipo', icon: <ThunderboltOutlined />, label: 'Apply IPO' },
   { key: '/upload', icon: <UploadOutlined />, label: 'Sync & Credentials' },
   { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
@@ -91,7 +91,7 @@ function App() {
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/prices" element={<Prices />} />
             <Route path="/insights" element={<Insights />} />
-            <Route path="/calculator" element={<Calculator />} />
+            <Route path="/trading" element={<TradingDesk />} />
             <Route path="/apply-ipo" element={<ApplyIPO />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/settings" element={<Settings />} />

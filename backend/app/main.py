@@ -34,6 +34,7 @@ from app.api.stock_detail import router as stock_detail_router
 from app.api.calculator import router as calculator_router
 from app.api.screener import router as screener_router
 from app.api.market_context import router as market_context_router
+from app.api.trading import router as trading_router
 
 
 @asynccontextmanager
@@ -98,6 +99,7 @@ app.include_router(stock_detail_router)
 app.include_router(calculator_router)
 app.include_router(screener_router)
 app.include_router(market_context_router)
+app.include_router(trading_router)
 
 
 @app.get("/api/health")

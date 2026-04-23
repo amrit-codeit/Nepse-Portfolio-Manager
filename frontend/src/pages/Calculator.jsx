@@ -24,7 +24,7 @@ function formatNPR(value) {
 // ─────────────────────────────────────────────────────────────
 // BUY CALCULATOR
 // ─────────────────────────────────────────────────────────────
-function BuyCalculator() {
+export function BuyCalculator() {
     const [symbol, setSymbol] = useState(null);
     const [quantity, setQuantity] = useState(null);
     const [rate, setRate] = useState(null);
@@ -232,7 +232,7 @@ function BuyResult({ result }) {
 // ─────────────────────────────────────────────────────────────
 // SELL CALCULATOR
 // ─────────────────────────────────────────────────────────────
-function SellCalculator() {
+export function SellCalculator() {
     const [memberId, setMemberId] = useState(null);
     const [symbol, setSymbol] = useState(null);
     const [quantity, setQuantity] = useState(null);

@@ -6,6 +6,7 @@ from app.models.price import LivePrice, NavValue, FeeConfig, IssuePrice, PriceHi
 from app.models.portfolio_snapshot import PortfolioSnapshot
 from app.models.dividend import DividendIncome
 from app.models.fundamental import StockOverview, FundamentalReport
+from app.models.trading import TradeSetup, TradeJournal
 
 __all__ = [
     "Member",
@@ -24,4 +25,6 @@ __all__ = [
     "StockOverview",
     "FundamentalReport",
     "MemberGroup",
+    "TradeSetup",
+    "TradeJournal",
 ]

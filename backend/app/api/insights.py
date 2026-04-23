@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.price import PriceHistory
+from app.models.price import PriceHistory, LivePrice, NavValue
+from app.models.company import Company
 from app.models.fundamental import StockOverview, FundamentalReport, QuarterlyGrowth
 import pandas as pd
 import pandas_ta as ta
+from datetime import datetime
 
 router = APIRouter(prefix="/api/insights", tags=["Insights"])
 
@@ -36,6 +38,53 @@ def get_insights(symbol: str, db: Session = Depends(get_db)):
         "close": p.close, 
         "volume": p.volume
     } for p in prices])
+    
+    # 1.5 Inject Live Price / NAV
+    company = db.query(Company).filter(Company.symbol == symbol).first()
+    if company:
+        live = db.query(LivePrice).filter(LivePrice.company_id == company.id).first()
+        live_price, live_vol, live_open, live_high, live_low, updated_at = None, 0, None, None, None, None
+        
+        if live and live.ltp and live.ltp > 0:
+            live_price = live.ltp
+            live_vol = live.volume
+            live_open = live.open_price or live.ltp
+            live_high = live.high or live.ltp
+            live_low = live.low or live.ltp
+            updated_at = live.updated_at
+        else:
+            nav = db.query(NavValue).filter(NavValue.company_id == company.id).first()
+            if nav and nav.nav:
+                live_price = nav.nav
+                live_vol = 0
+                live_open, live_high, live_low = live_price, live_price, live_price
+                updated_at = nav.updated_at
+                
+        if live_price and not df.empty:
+            live_date = updated_at.date() if updated_at else datetime.today().date()
+            last_hist_date = df.iloc[-1]['date']
+            
+            if live_date > last_hist_date:
+                # Append new row
+                new_row = pd.DataFrame([{
+                    "date": live_date,
+                    "open": live_open,
+                    "high": live_high,
+                    "low": live_low,
+                    "close": live_price,
+                    "volume": live_vol or 0
+                }])
+                df = pd.concat([df, new_row], ignore_index=True)
+            elif live_date == last_hist_date:
+                # Update existing row with live intraday values
+                df.at[df.index[-1], 'close'] = live_price
+                if live_vol is not None and pd.notna(live_vol):
+                    df.at[df.index[-1], 'volume'] = live_vol
+                if live_high is not None and pd.notna(live_high):
+                    df.at[df.index[-1], 'high'] = max(live_high, df.at[df.index[-1], 'high'])
+                if live_low is not None and pd.notna(live_low):
+                    df.at[df.index[-1], 'low'] = min(live_low, df.at[df.index[-1], 'low'])
+
     
     # Calculate indicators
     df.ta.ema(length=50, append=True)

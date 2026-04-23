@@ -155,4 +155,14 @@ export const getExtendedTechnicals = (symbol) => api.get(`/market/stock-technica
 export const scrapeSectorIndices = () => api.post('/scraper/sector-indices');
 export const scrapeAllIndices = () => api.post('/scraper/all-indices');
 
+// --- Trading Desk ---
+export const getTradeSetups = (status) => api.get('/trading/setups', { params: status ? { status } : {} });
+export const createTradeSetup = (data) => api.post('/trading/setups', data);
+export const updateTradeSetup = (id, data) => api.put(`/trading/setups/${id}`, data);
+export const deleteTradeSetup = (id) => api.delete(`/trading/setups/${id}`);
+export const getTradeSignals = () => api.get('/trading/setups/signals');
+export const getTradeJournal = () => api.get('/trading/journal');
+export const createTradeJournalEntry = (data) => api.post('/trading/journal', data);
+export const getTradeJournalStats = () => api.get('/trading/journal/stats');
+
 export default api;

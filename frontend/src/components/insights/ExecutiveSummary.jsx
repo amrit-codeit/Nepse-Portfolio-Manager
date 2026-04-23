@@ -12,7 +12,7 @@ import {
     CalculatorOutlined, RetweetOutlined, CheckSquareOutlined, ControlOutlined
 } from '@ant-design/icons';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
-import { getAIModels, getExecutiveSummary, getAIVerdict, getAITradingVerdict, getAIVerdictCloud, getAITradingVerdictCloud, getFrontierPrompt } from '../../services/api';
+import { getAIModels, getExecutiveSummary, getAIVerdict, getAIVerdictCloud, getFrontierPrompt } from '../../services/api';
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
@@ -45,15 +45,15 @@ function getRSIColor(rsi) {
 
 function getActionConfig(action) {
     switch (action) {
-        case 'Strong Buy':
+        case 'Deep Value':
             return { color: '#00b894', bg: 'rgba(0,184,148,0.12)', icon: <ThunderboltOutlined />, glow: '0 0 20px rgba(0,184,148,0.3)' };
-        case 'Accumulate':
+        case 'Undervalued':
             return { color: '#0984e3', bg: 'rgba(9,132,227,0.12)', icon: <RiseOutlined />, glow: '0 0 20px rgba(9,132,227,0.3)' };
-        case 'Hold':
+        case 'Fairly Priced':
             return { color: '#fdcb6e', bg: 'rgba(253,203,110,0.12)', icon: <SafetyOutlined />, glow: '0 0 20px rgba(253,203,110,0.2)' };
-        case 'Avoid/Reduce':
+        case 'Overvalued':
             return { color: '#d63031', bg: 'rgba(214,48,49,0.12)', icon: <FallOutlined />, glow: '0 0 20px rgba(214,48,49,0.3)' };
-        case 'Strong Sell':
+        case 'Speculative Premium':
             return { color: '#c0392b', bg: 'rgba(192,57,43,0.15)', icon: <CloseCircleOutlined />, glow: '0 0 20px rgba(192,57,43,0.4)' };
         default:
             return { color: 'var(--text-secondary)', bg: 'rgba(255,255,255,0.05)', icon: <InfoCircleOutlined />, glow: 'none' };
@@ -442,7 +442,6 @@ function AIAnalystPanel({ title, mode, model, setModel, models, onGenerateLocal,
 
 export default function ExecutiveSummary({ symbol }) {
     const [selectedValueModel, setSelectedValueModel] = useState("qwen2.5:3b-instruct-q4_0");
-    const [selectedTradingModel, setSelectedTradingModel] = useState("qwen2.5:3b-instruct-q4_0");
 
     const { data: modelData } = useQuery({
         queryKey: ['ai-models'],
@@ -468,17 +467,6 @@ export default function ExecutiveSummary({ symbol }) {
         staleTime: Infinity,
     });
 
-    const {
-        data: tradingAiData,
-        isFetching: tradingAiLoading,
-        refetch: generateTradingAI
-    } = useQuery({
-        queryKey: ['ai-verdict-trading', symbol, selectedTradingModel],
-        queryFn: () => getAITradingVerdict(symbol, selectedTradingModel).then(r => r.data),
-        enabled: false,
-        staleTime: Infinity,
-    });
-
     // Cloud AI queries (Groq)
     const {
         data: valueCloudData,
@@ -487,17 +475,6 @@ export default function ExecutiveSummary({ symbol }) {
     } = useQuery({
         queryKey: ['ai-verdict-value-cloud', symbol],
         queryFn: () => getAIVerdictCloud(symbol).then(r => r.data),
-        enabled: false,
-        staleTime: Infinity,
-    });
-
-    const {
-        data: tradingCloudData,
-        isFetching: tradingCloudLoading,
-        refetch: generateTradingCloud
-    } = useQuery({
-        queryKey: ['ai-verdict-trading-cloud', symbol],
-        queryFn: () => getAITradingVerdictCloud(symbol).then(r => r.data),
         enabled: false,
         staleTime: Infinity,
     });
@@ -929,111 +906,14 @@ export default function ExecutiveSummary({ symbol }) {
         </div>
     );
 
-    const ValueInvestingContent = (
-        <div className="animate-in">
-            <ValuationGrid />
-            <ProfitabilityGrid />
-            <TechTechnicalIndicators />
-            <SectorHealthCard />
-            <DividendsAndProfitTraj />
-            <ScoreBreakdown />
-            <AIAnalystPanel 
-                title="AI Value Investing Narrative" 
-                mode="value"
-                model={selectedValueModel}
-                setModel={setSelectedValueModel}
-                models={models}
-                onGenerateLocal={() => generateValueAI()}
-                localLoading={valueAiLoading}
-                localData={valueAiData}
-                onGenerateCloud={() => generateValueCloud()}
-                cloudLoading={valueCloudLoading}
-                cloudData={valueCloudData}
-                symbol={data.symbol}
-            />
-        </div>
-    );
-
-    const PureTradingContent = (
-        <div className="animate-in">
-            <TechTechnicalIndicators />
-            <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-                <Col xs={24} md={12}>
-                    <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
-                        <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12, letterSpacing: '0.5px' }}>
-                            < ThunderboltOutlined /> Short-term Momentum
-                        </div>
-                        <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>MACD HIST</div>
-                                <div style={{ fontSize: 18, fontWeight: 700, color: data.macd_hist > 0 ? '#00b894' : '#d63031' }}>
-                                    {data.macd_hist ? data.macd_hist.toFixed(2) : '—'}
-                                </div>
-                            </div>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>RSI ZONE</div>
-                                <Tag color={data.rsi_14 >= 70 ? 'red' : data.rsi_14 <= 30 ? 'green' : 'blue'} style={{ fontSize: 10 }}>
-                                    {data.rsi_14 >= 70 ? 'OB' : data.rsi_14 <= 30 ? 'OS' : 'Neutral'}
-                                </Tag>
-                            </div>
-                            <div style={{ textAlign: 'center' }}>
-                                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>VOLUME</div>
-                                <div style={{ fontSize: 18, fontWeight: 700 }}>{data.vol_ratio ? data.vol_ratio.toFixed(1) : '—'}x</div>
-                            </div>
-                        </div>
-                    </div>
-                </Col>
-                <Col xs={24} md={12}>
-                     <div className="stat-card" style={{ padding: '16px 20px', height: '100%' }}>
-                        <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10, letterSpacing: '0.5px' }}>
-                            <SafetyOutlined /> Support & Resistance (Approx.)
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                           <p style={{ margin: '4px 0' }}>Support 1 (Lower BB): <span style={{ color: '#00b894' }}>{formatNPR(data.bb_lower)}</span></p>
-                           <p style={{ margin: '4px 0' }}>Support 2 (EMA 50): <span style={{ color: '#fdcb6e' }}>{formatNPR(data.ema_50)}</span></p>
-                           <p style={{ margin: '4px 0' }}>Resistance 1 (Upper BB): <span style={{ color: '#d63031' }}>{formatNPR(data.bb_upper)}</span></p>
-                        </div>
-                    </div>
-                </Col>
-            </Row>
-            <AIAnalystPanel 
-                title="AI Trading Specialist Narrative" 
-                mode="trading"
-                model={selectedTradingModel}
-                setModel={setSelectedTradingModel}
-                models={models}
-                onGenerateLocal={() => generateTradingAI()}
-                localLoading={tradingAiLoading}
-                localData={tradingAiData}
-                onGenerateCloud={() => generateTradingCloud()}
-                cloudLoading={tradingCloudLoading}
-                cloudData={tradingCloudData}
-                symbol={data.symbol}
-            />
-        </div>
-    );
-
-    const tabItems = [
-        {
-            key: 'value',
-            label: <span style={{ fontSize: 13, fontWeight: 600 }}><BankOutlined /> Value Investing</span>,
-            children: ValueInvestingContent,
-        },
-        {
-            key: 'trading',
-            label: <span style={{ fontSize: 13, fontWeight: 600 }}><ThunderboltOutlined /> Trading</span>,
-            children: PureTradingContent,
-        },
-    ];
-
     return (
         <div className="animate-in">
             {/* ===== METHODOLOGY BANNER ===== */}
             <Alert
-                message={<span style={{ fontWeight: 600 }}><SafetyOutlined /> Portfolio Manager Methodology</span>}
+                message={<span style={{ fontWeight: 600 }}><SafetyOutlined /> Value Assessment Methodology</span>}
                 description={
                     <span style={{ fontSize: 13 }}>
-                        This executive summary leverages institutional-grade sector analysis and deep technical data. Switch between Value Investing for long-term health and Trading for short-term momentum opportunities.
+                        Institutional-grade sector analysis synthesized with technical timing context. Evaluates intrinsic value, dividend capacity, and optimal entry positioning for long-term investors.
                     </span>
                 }
                 type="info"
@@ -1041,7 +921,7 @@ export default function ExecutiveSummary({ symbol }) {
                 style={{ marginBottom: 20, background: 'var(--bg-glass)', border: '1px solid rgba(9, 132, 227, 0.3)' }}
             />
 
-            {/* ===== ACTION BADGE + SCORE (GLOBAL) ===== */}
+            {/* ===== VALUATION BADGE + SCORE ===== */}
             <div className="stat-card" style={{
                 marginBottom: 20,
                 padding: '20px 24px',
@@ -1069,21 +949,36 @@ export default function ExecutiveSummary({ symbol }) {
                             {data.action?.toUpperCase()}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
-                            Global Aggregate Market Sentiment
+                            Value Assessment
                         </div>
                     </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Health Score</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Value Score</div>
                     <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor }}>{data.health_score}<span style={{ fontSize: 14, fontWeight: 400 }}>/100</span></div>
                 </div>
             </div>
 
-            <Tabs 
-                defaultActiveKey="value" 
-                items={tabItems} 
-                className="custom-tabs" 
-                style={{ marginBottom: 24 }}
+            {/* ===== VALUE INVESTING CONTENT ===== */}
+            <ValuationGrid />
+            <ProfitabilityGrid />
+            <TechTechnicalIndicators />
+            <SectorHealthCard />
+            <DividendsAndProfitTraj />
+            <ScoreBreakdown />
+            <AIAnalystPanel 
+                title="AI Value Investing Narrative" 
+                mode="value"
+                model={selectedValueModel}
+                setModel={setSelectedValueModel}
+                models={models}
+                onGenerateLocal={() => generateValueAI()}
+                localLoading={valueAiLoading}
+                localData={valueAiData}
+                onGenerateCloud={() => generateValueCloud()}
+                cloudLoading={valueCloudLoading}
+                cloudData={valueCloudData}
+                symbol={data.symbol}
             />
         </div>
     );

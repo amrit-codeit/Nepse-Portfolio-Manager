@@ -498,16 +498,16 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
             reserve_growth = ((reserve_vals[0] - reserve_vals[-1]) / abs(reserve_vals[-1])) * 100 if reserve_vals[-1] else 0
             capital_trend = "Growing" if reserve_growth > 5 else "Stable" if reserve_growth > -5 else "Declining"
 
-    # --- Final Action Logic ---
-    action = "Hold"
+    # --- Final Valuation Conclusion ---
+    action = "Fairly Priced"
     if score >= 80:
-        action = "Strong Buy"
+        action = "Deep Value"
     elif score <= 20 and ema_200_status == "Bearish":
-        action = "Strong Sell"
+        action = "Speculative Premium"
     elif score > 60 and ema_200_status == "Bullish":
-        action = "Accumulate"
+        action = "Undervalued"
     elif score < 40:
-        action = "Avoid/Reduce"
+        action = "Overvalued"
 
     return {
         "symbol": symbol,
@@ -673,53 +673,7 @@ async def get_trading_ai_verdict(summary_data: dict, model_name: str = None) -> 
     Builds a technical-only payload — no fundamental data.
     Focuses on price action, momentum, and actionable trade setups.
     """
-    input_data = {
-        "symbol": summary_data["symbol"],
-        "ltp": summary_data["ltp"],
-        # Price context
-        "high_52w": summary_data.get("high_52w"),
-        "low_52w": summary_data.get("low_52w"),
-        "placement_52w": summary_data.get("placement_52w"),
-        # Trend indicators
-        "ema_50": summary_data.get("ema_50"),
-        "ema_200": summary_data.get("ema_200"),
-        "ema_200_trend": summary_data.get("ema_200_status"),
-        "ema_50_trend": "Bullish" if summary_data.get("ltp") and summary_data.get("ema_50") and summary_data["ltp"] > summary_data["ema_50"] else "Bearish",
-        # Momentum
-        "rsi_14": summary_data.get("rsi_14"),
-        "macd_histogram": summary_data.get("macd_hist"),
-        "macd_status": summary_data.get("macd_status"),
-        # Volume
-        "volume_ratio": f"{summary_data.get('vol_ratio', 0)}x of 20-day average",
-        "obv_trend": summary_data.get("obv_status", "N/A"),
-        # Volatility & Bands
-        "bollinger_upper": summary_data.get("bb_upper"),
-        "bollinger_lower": summary_data.get("bb_lower"),
-        "bollinger_position": (
-            "Above Upper Band (overbought)" if summary_data.get("ltp") and summary_data.get("bb_upper") and summary_data["ltp"] > summary_data["bb_upper"]
-            else "Below Lower Band (oversold)" if summary_data.get("ltp") and summary_data.get("bb_lower") and summary_data["ltp"] < summary_data["bb_lower"]
-            else "Inside Bands"
-        ),
-        # NEPSE-specific
-        "circuit_distance_pct": summary_data.get("circuit_distance_pct"),
-        "turnover_120d": summary_data.get("turnover_120d"),
-        # Support/Resistance proxies
-        "support_levels": [
-            v for v in [
-                summary_data.get("bb_lower"),
-                summary_data.get("ema_50"),
-                summary_data.get("low_52w"),
-            ] if v is not None
-        ],
-        "resistance_levels": [
-            v for v in [
-                summary_data.get("bb_upper"),
-                summary_data.get("ema_200"),
-                summary_data.get("high_52w"),
-            ] if v is not None
-        ],
-    }
-
+    input_data = _build_trading_input(summary_data)
     return await AIService.get_trading_verdict(input_data, model_name)
 
 
@@ -817,6 +771,10 @@ def _build_trading_input(summary_data: dict) -> dict:
         "bollinger_squeeze": summary_data.get("ext_tech", {}).get("bb_squeeze", False),
         "rs_vs_nepse_trend": summary_data.get("ext_tech", {}).get("rs_trend", "N/A"),
         "adt_20_days": summary_data.get("ext_tech", {}).get("adt_20", 0),
+        "vsa_reversal": summary_data.get("ext_tech", {}).get("vsa_reversal", None),
+        "adx_14": summary_data.get("ext_tech", {}).get("adx_14", None),
+        "atr_14": summary_data.get("ext_tech", {}).get("atr_14", None),
+        "pivot_points": summary_data.get("ext_tech", {}).get("pivot_points", None),
         "circuit_distance_pct": summary_data.get("circuit_distance_pct"),
         "turnover_120d": summary_data.get("turnover_120d"),
         "support_levels": [
