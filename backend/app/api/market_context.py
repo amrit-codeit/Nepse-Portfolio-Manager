@@ -521,8 +521,8 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
 @router.get("/backtest/{symbol}")
 def run_backtest(symbol: str, strategy: str = "ema_cross", db: Session = Depends(get_db)):
     """
-    Runs a simple vectorized backtest for a given symbol and strategy.
-    Supported strategies: 'ema_cross' (50/200), 'rsi_bounce' (buy < 30, sell > 70).
+    Runs a vectorized backtest for a given symbol and strategy with realistic constraints.
+    Features: 2% Position Sizing, ATR Trailing Stop Loss, NEPSE Fees, CGT, Expectancy.
     """
     symbol = symbol.upper()
     prices = (
@@ -537,77 +537,136 @@ def run_backtest(symbol: str, strategy: str = "ema_cross", db: Session = Depends
     df = pd.DataFrame([{
         "date": p.date.isoformat() if hasattr(p.date, 'isoformat') else p.date,
         "close": float(p.close),
+        "high": float(p.high or p.close),
+        "low": float(p.low or p.close),
     } for p in prices])
     
-    initial_capital = 100000
-    capital = initial_capital
-    position = 0
-    trades = []
-    
+    # Calculate indicators
+    df.ta.atr(length=14, append=True)
     if strategy == "ema_cross":
         df.ta.ema(length=50, append=True)
         df.ta.ema(length=200, append=True)
-        df.dropna(inplace=True)
-        
-        for i in range(1, len(df)):
-            prev = df.iloc[i-1]
-            curr = df.iloc[i]
-            
-            # Cross up (Buy)
-            if prev['EMA_50'] <= prev['EMA_200'] and curr['EMA_50'] > curr['EMA_200']:
-                if position == 0:
-                    shares = int(capital // curr['close'])
-                    cost = shares * curr['close']
-                    capital -= cost
-                    position = shares
-                    trades.append({"type": "Buy", "date": curr['date'], "price": round(curr['close'], 2), "shares": shares})
-            
-            # Cross down (Sell)
-            elif prev['EMA_50'] >= prev['EMA_200'] and curr['EMA_50'] < curr['EMA_200']:
-                if position > 0:
-                    revenue = position * curr['close']
-                    capital += revenue
-                    buy_price = trades[-1]['price']
-                    profit = revenue - (position * buy_price)
-                    trades.append({"type": "Sell", "date": curr['date'], "price": round(curr['close'], 2), "shares": position, "profit": round(profit, 2)})
-                    position = 0
-                    
     elif strategy == "rsi_bounce":
         df.ta.rsi(length=14, append=True)
-        df.dropna(inplace=True)
+    df.dropna(inplace=True)
+    
+    initial_capital = 500000.0  # 5 Lakhs default capital
+    capital = initial_capital
+    position = 0
+    buy_price = 0
+    stop_loss = 0
+    highest_price_since_entry = 0
+    trades = []
+    
+    for i in range(1, len(df)):
+        prev = df.iloc[i-1]
+        curr = df.iloc[i]
         
-        for i in range(1, len(df)):
-            prev = df.iloc[i-1]
-            curr = df.iloc[i]
+        # 1. Check Stop Loss / Trailing Stop FIRST
+        if position > 0:
+            highest_price_since_entry = max(highest_price_since_entry, curr['high'])
+            current_atr = curr.get('ATRr_14', 0)
             
-            # Cross up 30 (Buy)
-            if prev['RSI_14'] <= 30 and curr['RSI_14'] > 30:
-                if position == 0:
-                    shares = int(capital // curr['close'])
-                    cost = shares * curr['close']
-                    capital -= cost
-                    position = shares
-                    trades.append({"type": "Buy", "date": curr['date'], "price": round(curr['close'], 2), "shares": shares})
-            
-            # Cross down 70 (Sell)
-            elif prev['RSI_14'] >= 70 and curr['RSI_14'] < 70:
-                if position > 0:
-                    revenue = position * curr['close']
-                    capital += revenue
-                    buy_price = trades[-1]['price']
-                    profit = revenue - (position * buy_price)
-                    trades.append({"type": "Sell", "date": curr['date'], "price": round(curr['close'], 2), "shares": position, "profit": round(profit, 2)})
-                    position = 0
+            if current_atr > 0:
+                # 2x ATR Trailing Stop
+                trailing_sl = highest_price_since_entry - (2 * current_atr)
+                stop_loss = max(stop_loss, trailing_sl)
+                
+            if curr['low'] < stop_loss:
+                # Sell at stop loss price (or open if gap down)
+                sell_p = min(curr['close'], stop_loss)
+                revenue = position * sell_p
+                fee = revenue * 0.00415 + 25  # Broker + SEBON + DP
+                net_revenue = revenue - fee
+                gross_profit = net_revenue - (position * buy_price)
+                cgt = gross_profit * 0.075 if gross_profit > 0 else 0
+                net_profit = gross_profit - cgt
+                
+                capital += (net_revenue - cgt)
+                trades.append({"type": "Sell (Stop Loss)", "date": curr['date'], "price": round(sell_p, 2), "shares": position, "profit": round(net_profit, 2)})
+                position = 0
+                continue
 
-    # Calculate final equity
-    final_equity = capital + (position * df.iloc[-1]['close'])
+        # 2. Strategy Logic
+        buy_signal = False
+        sell_signal = False
+        
+        if strategy == "ema_cross":
+            buy_signal = prev['EMA_50'] <= prev['EMA_200'] and curr['EMA_50'] > curr['EMA_200']
+            sell_signal = prev['EMA_50'] >= prev['EMA_200'] and curr['EMA_50'] < curr['EMA_200']
+        elif strategy == "rsi_bounce":
+            buy_signal = prev['RSI_14'] <= 30 and curr['RSI_14'] > 30
+            sell_signal = prev['RSI_14'] >= 70 and curr['RSI_14'] < 70
+
+        if buy_signal and position == 0:
+            current_atr = curr.get('ATRr_14', 0)
+            if current_atr > 0:
+                # Position Sizing: Risk exactly 2% of capital
+                risk_per_share = 2 * current_atr
+                max_risk = capital * 0.02
+                shares = int(max_risk // risk_per_share)
+                
+                # Cannot buy more than capital allows
+                max_shares_capital = int(capital // curr['close'])
+                shares = min(shares, max_shares_capital)
+                
+                if shares > 0:
+                    cost = shares * curr['close']
+                    fee = cost * 0.00415 + 25
+                    total_cost = cost + fee
+                    
+                    if capital >= total_cost:
+                        capital -= total_cost
+                        position = shares
+                        buy_price = total_cost / shares
+                        stop_loss = curr['close'] - risk_per_share
+                        highest_price_since_entry = curr['close']
+                        trades.append({"type": "Buy", "date": curr['date'], "price": round(curr['close'], 2), "shares": shares})
+                        
+        elif sell_signal and position > 0:
+            revenue = position * curr['close']
+            fee = revenue * 0.00415 + 25
+            net_revenue = revenue - fee
+            gross_profit = net_revenue - (position * buy_price)
+            cgt = gross_profit * 0.075 if gross_profit > 0 else 0
+            net_profit = gross_profit - cgt
+            
+            capital += (net_revenue - cgt)
+            trades.append({"type": "Sell (Signal)", "date": curr['date'], "price": round(curr['close'], 2), "shares": position, "profit": round(net_profit, 2)})
+            position = 0
+
+    # Force close position at the end of backtest
+    if position > 0:
+        curr = df.iloc[-1]
+        revenue = position * curr['close']
+        fee = revenue * 0.00415 + 25
+        net_revenue = revenue - fee
+        gross_profit = net_revenue - (position * buy_price)
+        cgt = gross_profit * 0.075 if gross_profit > 0 else 0
+        net_profit = gross_profit - cgt
+        
+        capital += (net_revenue - cgt)
+        trades.append({"type": "Sell (End)", "date": curr['date'], "price": round(curr['close'], 2), "shares": position, "profit": round(net_profit, 2)})
+        position = 0
+
+    final_equity = capital
     total_return = ((final_equity - initial_capital) / initial_capital) * 100
     
-    # Win rate
-    sell_trades = [t for t in trades if t['type'] == 'Sell']
+    sell_trades = [t for t in trades if t['type'].startswith('Sell')]
     winning_trades = len([t for t in sell_trades if t.get('profit', 0) > 0])
     win_rate = (winning_trades / len(sell_trades)) * 100 if sell_trades else 0
     
+    gross_winning = sum([t['profit'] for t in sell_trades if t.get('profit', 0) > 0])
+    gross_losing = abs(sum([t['profit'] for t in sell_trades if t.get('profit', 0) < 0]))
+    profit_factor = round(gross_winning / gross_losing, 2) if gross_losing > 0 else round(gross_winning, 2)
+    
+    expectancy = 0
+    if len(sell_trades) > 0:
+        avg_win = gross_winning / winning_trades if winning_trades > 0 else 0
+        avg_loss = gross_losing / (len(sell_trades) - winning_trades) if (len(sell_trades) - winning_trades) > 0 else 0
+        win_rate_frac = winning_trades / len(sell_trades)
+        expectancy = (win_rate_frac * avg_win) - ((1 - win_rate_frac) * avg_loss)
+
     return {
         "symbol": symbol,
         "strategy": strategy,
@@ -616,5 +675,7 @@ def run_backtest(symbol: str, strategy: str = "ema_cross", db: Session = Depends
         "total_return_pct": round(total_return, 2),
         "total_trades": len(sell_trades),
         "win_rate_pct": round(win_rate, 2),
-        "trades": trades[-20:] # Return last 20 for UI
+        "profit_factor": profit_factor,
+        "expectancy": round(expectancy, 2),
+        "trades": trades[-30:] # Return last 30 for UI
     }

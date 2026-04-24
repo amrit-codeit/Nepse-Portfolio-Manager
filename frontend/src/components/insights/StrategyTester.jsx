@@ -27,7 +27,7 @@ export default function StrategyTester({ symbol }) {
         {
             title: 'Type',
             dataIndex: 'type',
-            render: (v) => <Tag color={v === 'Buy' ? 'green' : 'red'}>{v}</Tag>
+            render: (v) => <Tag color={v === 'Buy' ? 'green' : v.includes('Stop Loss') ? 'orange' : 'red'}>{v}</Tag>
         },
         {
             title: 'Price',
@@ -54,8 +54,8 @@ export default function StrategyTester({ symbol }) {
     return (
         <div className="animate-in" style={{ padding: '4px 0' }}>
             <Alert
-                message={<span style={{ fontWeight: 600 }}><PlayCircleOutlined /> Vectorized Backtester</span>}
-                description={<span style={{ fontSize: 13 }}>Simulate the exact historical performance of quantitative trading strategies on {symbol}. Past performance does not guarantee future results.</span>}
+                message={<span style={{ fontWeight: 600 }}><PlayCircleOutlined /> Advanced Backtester</span>}
+                description={<span style={{ fontSize: 13 }}>Simulate the exact historical performance of quantitative trading strategies on {symbol}. Includes 2% position sizing, 2x ATR trailing stop-loss, NEPSE broker commissions, SEBON fees, DP charges, and 7.5% CGT deduction on profits.</span>}
                 type="info" showIcon
                 style={{ marginBottom: 20, background: 'var(--bg-glass)', border: '1px solid rgba(108, 92, 231, 0.3)' }}
             />
@@ -84,8 +84,8 @@ export default function StrategyTester({ symbol }) {
                 <Alert type="error" message="Simulation Failed" description={backtestData.error} showIcon />
             ) : backtestData ? (
                 <>
-                    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                        <Col xs={24} sm={12} md={6}>
+                    <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                        <Col xs={24} sm={12} md={8}>
                             <Card size="small" bordered={false} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
                                 <Statistic 
                                     title="Total Return" 
@@ -97,19 +97,31 @@ export default function StrategyTester({ symbol }) {
                                 />
                             </Card>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
+                        <Col xs={24} sm={12} md={8}>
                             <Card size="small" bordered={false} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
                                 <Statistic title="Win Rate" value={backtestData.win_rate_pct} precision={2} suffix="%" valueStyle={{ color: '#6c5ce7' }} />
                             </Card>
                         </Col>
-                        <Col xs={24} sm={12} md={6}>
-                            <Card size="small" bordered={false} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
-                                <Statistic title="Total Completed Trades" value={backtestData.total_trades} />
-                            </Card>
-                        </Col>
-                        <Col xs={24} sm={12} md={6}>
+                        <Col xs={24} sm={12} md={8}>
                             <Card size="small" bordered={false} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
                                 <Statistic title="Final Equity" value={backtestData.final_equity} formatter={val => formatNPR(val, 0)} />
+                            </Card>
+                        </Col>
+                    </Row>
+                    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                        <Col xs={24} sm={12} md={8}>
+                            <Card size="small" bordered={false} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                                <Statistic title="Profit Factor" value={backtestData.profit_factor} precision={2} valueStyle={{ color: backtestData.profit_factor > 1 ? '#10b981' : '#ef4444' }} />
+                            </Card>
+                        </Col>
+                        <Col xs={24} sm={12} md={8}>
+                            <Card size="small" bordered={false} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                                <Statistic title="Expectancy" value={backtestData.expectancy} precision={2} prefix="Rs." valueStyle={{ color: backtestData.expectancy > 0 ? '#10b981' : '#ef4444' }} />
+                            </Card>
+                        </Col>
+                        <Col xs={24} sm={12} md={8}>
+                            <Card size="small" bordered={false} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                                <Statistic title="Total Completed Trades" value={backtestData.total_trades} />
                             </Card>
                         </Col>
                     </Row>

@@ -203,6 +203,21 @@ async def trigger_insights_sync(symbol: str, db: Session = Depends(get_db)):
         return {"status": "failed", "error": str(e)}
 
 
+@router.post("/technicals/{symbol}")
+def trigger_technical_scrape(symbol: str, db: Session = Depends(get_db)):
+    """Scrape ONLY technical-relevant data (History + Live Prices)."""
+    try:
+        symbol = symbol.upper()
+        # 1. Scrape History (OHLCV prices needed for technicals)
+        scrape_historical_prices(db, target_symbol=symbol)
+        # 2. Scrape Live Prices
+        scrape_live_prices(db)
+        return {"status": "success", "message": f"Technical data refreshed for {symbol}"}
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": str(e)}
+
+
 @router.post("/fundamentals")
 async def trigger_total_fundamental_sync(db: Session = Depends(get_db)):
     """Scrape fundamental data for ALL symbols in the portfolio holdings."""

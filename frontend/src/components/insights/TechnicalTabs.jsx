@@ -1,8 +1,8 @@
 import React from 'react';
-import { Row, Col, Progress, Tag, Tooltip, Tabs } from 'antd';
+import { Row, Col, Progress, Tag, Tooltip } from 'antd';
 import { 
     BarChartOutlined, DashboardOutlined, SafetyCertificateOutlined,
-    RiseOutlined, FallOutlined, ThunderboltOutlined, FundOutlined
+    RiseOutlined, FallOutlined, ThunderboltOutlined, FundOutlined, AimOutlined
 } from '@ant-design/icons';
 import PriceHistoryCard from '../portfolio/PriceHistoryCard';
 
@@ -308,12 +308,12 @@ export default function TechnicalTabs({ symbol, tech, extTech, marketContext, tr
     );
 
 
-    const items = [
-        { key: 'indicators', label: 'Indicators & Signals', children: <IndicatorsTab /> },
-        { key: 'gates', label: 'Conjunction Gates', children: <GatesTab /> },
-    ];
-
     return (
-        <Tabs items={items} defaultActiveKey="indicators" className="custom-subtabs" />
+        <div>
+            <IndicatorsTab />
+            <div style={{ marginTop: 24 }}>
+                <GatesTab />
+            </div>
+        </div>
     );
 }

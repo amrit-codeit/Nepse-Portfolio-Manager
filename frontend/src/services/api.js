@@ -98,6 +98,7 @@ export const scrapeIndex = () => api.post('/scraper/all-indices');
 export const syncDividends = () => api.post('/scraper/dividends');
 export const scrapeFundamentals = (symbol) => api.post(`/scraper/fundamentals/${symbol}`);
 export const scrapeInsights = (symbol) => api.post(`/scraper/insights/${symbol}`);
+export const scrapeTechnicals = (symbol) => api.post(`/scraper/technicals/${symbol}`);
 export const scrapeCorporateActions = (symbol) => api.post(`/market/scrape-corporate-actions/${symbol}`);
 
 // --- Backtesting ---

@@ -298,6 +298,43 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
     # =========================================================
     score = 0
     score_breakdown = []
+    
+    # Helper for Percentile-based Sector Ranking
+    def get_sector_percentile(metric_extractor, is_lower_better=False):
+        try:
+            target_val = metric_extractor(latest_sector)
+            if target_val is None:
+                return None, None
+                
+            companies_in_sector = db.query(Company).filter(Company.sector == sector).all()
+            syms = [c.symbol for c in companies_in_sector]
+            reps = db.query(FundamentalReport).filter(FundamentalReport.symbol.in_(syms)).all()
+            
+            latest_reps = {}
+            for r in reps:
+                if r.symbol not in latest_reps or r.id > latest_reps[r.symbol].id:
+                    latest_reps[r.symbol] = r
+                    
+            vals = []
+            for s, r in latest_reps.items():
+                if r.sector_metrics:
+                    val = metric_extractor(r.sector_metrics)
+                    if val is not None:
+                        vals.append(val)
+            
+            if not vals:
+                return None, target_val
+                
+            vals.sort()
+            # Find index
+            # If there are duplicates, index() returns the first, which is fine
+            idx = vals.index(target_val)
+            pct = (idx / max(1, len(vals) - 1)) * 100
+            if is_lower_better:
+                pct = 100 - pct
+            return pct, target_val
+        except Exception:
+            return None, None
 
     # 1. DIVIDEND CAPACITY (25 pts) - The "NEPSE Fuel"
     if dividend_yield > 5 or (roe_ttm and roe_ttm > 0.12):
@@ -308,41 +345,56 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
 
     # 2. SECTOR QUALITY (20 pts)
     if any(x in sector_lower for x in ["bank", "finance", "microfinance"]):
-        npl_val = npl if npl is not None else 99
-        if npl_val < 3:
-            score += 20
-            score_breakdown.append({"label": f"NPL Quality ({npl_val}%)", "pts": 20, "met": True})
-        elif npl_val < 5:
-            score += 10
-            score_breakdown.append({"label": f"Moderate NPL ({npl_val}%)", "pts": 10, "met": True})
+        npl_pct, npl_val = get_sector_percentile(lambda m: _parse_metric(m.get("NPL"), None), is_lower_better=True)
+        if npl_pct is not None:
+            if npl_pct >= 80:
+                score += 20
+                score_breakdown.append({"label": f"Top 20% NPL ({npl_val}%)", "pts": 20, "met": True})
+            elif npl_pct >= 50:
+                score += 10
+                score_breakdown.append({"label": f"Above Avg NPL ({npl_val}%)", "pts": 10, "met": True})
+            else:
+                score_breakdown.append({"label": f"Below Avg NPL ({npl_val}%)", "pts": 0, "met": False})
         else:
-            score_breakdown.append({"label": f"High NPL Risk ({npl_val}%)", "pts": 0, "met": False})
+            score_breakdown.append({"label": "NPL Data Missing", "pts": 0, "met": False})
+            
     elif "hydro" in sector_lower:
-        # Hydro: Reserves + Debt-to-Equity
-        res_val = reserves if reserves is not None else -1
-        de_val = debt_to_equity
-        if res_val > 0 and (de_val is None or de_val < 2):
-            score += 20
-            score_breakdown.append({"label": "Positive Reserves & Low Debt (Hydro)", "pts": 20, "met": True})
-        elif res_val > 0:
-            score += 10
-            score_breakdown.append({"label": f"Positive Reserves, High D/E ({de_val}x)", "pts": 10, "met": True})
+        # Hydro: Reserves Percentile
+        res_pct, res_val = get_sector_percentile(
+            lambda m: _parse_metric(m.get("Reserves and Surplus") or m.get("Reserves") or m.get("Reserve and Surplus"), None),
+            is_lower_better=False
+        )
+        if res_pct is not None and res_val > 0:
+            if res_pct >= 70:
+                score += 20
+                score_breakdown.append({"label": "Top 30% Reserves (Hydro)", "pts": 20, "met": True})
+            else:
+                score += 10
+                score_breakdown.append({"label": "Positive Reserves (Hydro)", "pts": 10, "met": True})
         else:
-            score_breakdown.append({"label": "Negative Reserves (Hydro)", "pts": 0, "met": False})
+            score_breakdown.append({"label": "Negative/Missing Reserves", "pts": 0, "met": False})
+            
     elif "insurance" in sector_lower:
-        # Insurance: Solvency Ratio + Claim Ratio
-        sol_val = solvency_ratio
-        clm_val = claim_ratio
-        if sol_val is not None and sol_val > 1.5:
-            score += 12
-            score_breakdown.append({"label": f"Solvency Ratio OK ({sol_val}x)", "pts": 12, "met": True})
-        elif sol_val is not None:
-            score_breakdown.append({"label": f"Low Solvency ({sol_val}x)", "pts": 0, "met": False})
-        if clm_val is not None and clm_val < 80:
-            score += 8
-            score_breakdown.append({"label": f"Healthy Claim Ratio ({clm_val}%)", "pts": 8, "met": True})
-        elif clm_val is not None:
-            score_breakdown.append({"label": f"High Claim Ratio ({clm_val}%)", "pts": 0, "met": False})
+        # Insurance: Solvency Percentile
+        sol_pct, sol_val = get_sector_percentile(lambda m: _parse_metric(m.get("Solvency Ratio"), None), is_lower_better=False)
+        clm_pct, clm_val = get_sector_percentile(lambda m: round((_parse_metric(m.get("Net Claim Payment"), 0) / _parse_metric(m.get("Net Premium"), 1)) * 100, 2) if _parse_metric(m.get("Net Premium"), 0) > 0 else None, is_lower_better=True)
+        
+        if sol_pct is not None:
+            if sol_pct >= 70:
+                score += 12
+                score_breakdown.append({"label": f"Top 30% Solvency ({sol_val}x)", "pts": 12, "met": True})
+            elif sol_val > 1.5:
+                score += 6
+                score_breakdown.append({"label": f"Adequate Solvency ({sol_val}x)", "pts": 6, "met": True})
+            else:
+                score_breakdown.append({"label": f"Low Solvency ({sol_val}x)", "pts": 0, "met": False})
+                
+        if clm_pct is not None:
+            if clm_pct >= 50:
+                score += 8
+                score_breakdown.append({"label": f"Above Avg Claim Ratio ({clm_val}%)", "pts": 8, "met": True})
+            else:
+                score_breakdown.append({"label": f"Below Avg Claim Ratio ({clm_val}%)", "pts": 0, "met": False})
         # If neither metric available, use profit growth fallback
         if sol_val is None and clm_val is None:
             net_profit_yoy = growth_dict.get('netprofitqtrly_yoy_growth')
@@ -393,19 +445,30 @@ def calculate_executive_summary(db: Session, symbol: str) -> dict:
             score_breakdown.append({"label": "Stagnant/Declining Profit", "pts": 0, "met": False})
 
     # 3. VALUATION FIT (20 pts) - Sector Dependent
+    pbv = (ltp / bvps) if ltp and bvps else 5
     if any(x in sector_lower for x in ["bank", "finance", "microfinance"]):
+        # PBV vs ROE scatter approach
+        roe_val = roe_ttm if roe_ttm is not None else 0
+        if pbv < 1.5 and roe_val > 0.10:
+            score += 20
+            score_breakdown.append({"label": f"Strong PBV ({round(pbv, 2)}) vs ROE", "pts": 20, "met": True})
+        elif pbv < 2.5 and roe_val > 0.05:
+            score += 10
+            score_breakdown.append({"label": f"Fair PBV ({round(pbv, 2)}) vs ROE", "pts": 10, "met": True})
+        else:
+            score_breakdown.append({"label": f"Overvalued PBV ({round(pbv, 2)})", "pts": 0, "met": False})
+    elif "hydro" in sector_lower:
+        if pbv < 2:
+            score += 20
+            score_breakdown.append({"label": f"PBV < 2x ({round(pbv, 2)})", "pts": 20, "met": True})
+        else:
+            score_breakdown.append({"label": f"High PBV ({round(pbv, 2)})", "pts": 0, "met": False})
+    else:
         if graham_number and ltp and ltp < graham_number:
             score += 20
             score_breakdown.append({"label": "Below Graham Value", "pts": 20, "met": True})
         else:
             score_breakdown.append({"label": "Above Graham Value", "pts": 0, "met": False})
-    else:
-        pbv = (ltp / bvps) if ltp and bvps else 5
-        if pbv < 2.5:
-            score += 20
-            score_breakdown.append({"label": f"PBV Ratio < 2.5 ({round(pbv, 3)})", "pts": 20, "met": True})
-        else:
-            score_breakdown.append({"label": f"High PBV ({round(pbv, 3)})", "pts": 0, "met": False})
 
     # 4. TREND MASTERY (20 pts) - SMA (12) + MACD (8)
     if ltp and ema_200 and ltp > ema_200:

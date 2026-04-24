@@ -79,7 +79,7 @@ export default function PriceHistoryCard({ symbol, transactions }) {
                 <Empty description="No price data found for the selected period" />
             ) : (
                 <div style={{ padding: '10px 0' }}>
-                    <ResponsiveContainer width="100%" height={400}>
+                    <ResponsiveContainer width="100%" height={400} minWidth={1} minHeight={1}>
                         <ComposedChart data={chartData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
                             <defs>
                                 <linearGradient id="colorClose" x1="0" y1="0" x2="0" y2="1">
