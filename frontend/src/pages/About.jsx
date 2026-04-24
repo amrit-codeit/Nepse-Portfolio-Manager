@@ -20,7 +20,7 @@ export default function About() {
                     Nepse Portfolio Manager
                 </Title>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Tag color="blue" bordered={false} style={{ borderRadius: 4 }}>v1.3.0-Stable</Tag>
+                    <Tag color="blue" bordered={false} style={{ borderRadius: 4 }}>v1.4.0-Stable</Tag>
                     <Text type="secondary" style={{ fontSize: 13 }}>Enterprise-grade performance tracking for the Nepali Stock Market.</Text>
                 </div>
             </div>
@@ -46,8 +46,8 @@ export default function About() {
                         dataSource={[
                             { title: 'Multi-Member Governance', desc: 'Consolidated tracking for multiple family portfolios with isolated or group-level reporting.' },
                             { title: 'True WACC & Alpha Engine', desc: 'Cash-flow based XIRR calculation and performance benchmarking against the NEPSE Index.' },
-                            { title: 'Risk Intelligence Suite', desc: 'Real-time monitoring of NPL, CAR, and Graham Values with automated sector-specific flags.' },
-                            { title: 'MeroShare Automation', desc: 'Selenium-driven synchronization of transaction history and automated IPO application bot.' },
+                            { title: 'Technical 360° View', desc: 'Consolidated technical analysis with ADX, VSA, ATR, and live data injection for real-time decision making.' },
+                            { title: 'Structured AI Analyst', desc: 'Role-specific AI prompts (Value/Trading) with private local LLM integration for precision strategy verdicts.' },
                             { title: 'Data Sovereignty', desc: 'Privacy-focused local SQLite architecture with multi-layer credential encryption (Fernet).' },
                         ]}
                         renderItem={(item) => (
@@ -70,11 +70,11 @@ export default function About() {
                         <List
                             size="small"
                             dataSource={[
-                                { date: 'Apr 14, 2026', version: 'v1.3.0', msg: 'Integrated true 5% TDS logic for Dividends and AI Technical Insights (MACD/Bollinger).' },
+                                { date: 'Apr 24, 2026', version: 'v1.4.0', msg: 'Unified Technical 360° dashboard, ADX/VSA indicators, and role-specific AI Strategy Prompts.' },
+                                { date: 'Apr 20, 2026', version: 'v1.3.5', msg: 'Live LTP injection into Stock Explorer and enhanced position risk calculator.' },
+                                { date: 'Apr 14, 2026', version: 'v1.3.0', msg: 'Integrated true 5% TDS logic for Dividends and AI Technical Insights.' },
                                 { date: 'Apr 10, 2026', version: 'v1.2.0', msg: 'Added Buy/Sell Simulator & Scrip Detail Dashboard.' },
-                                { date: 'Apr 09, 2026', version: 'v1.1.0', msg: 'Performance overhaul and Sharesansar migration.' },
                                 { date: 'Apr 06, 2026', version: 'v1.0.0', msg: 'Production Stable Release. Integrated Value-Risk Matrix.' },
-                                { date: 'Apr 01, 2026', version: 'v0.9.5', msg: 'Complete data audit and credential security hardening.' },
                                 { date: 'Mar 25, 2026', version: 'v0.9.0', msg: 'Beta testing of MeroShare Selenium bridge.' },
                             ]}
                             renderItem={(item) => (

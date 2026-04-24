@@ -46,21 +46,23 @@
 **Nepal Portfolio Manager** is a personal-use, full-stack web application for tracking investments in the Nepali stock market (NEPSE). It supports:
 
 - **Advanced Risk Intelligence** — Automated Graham's Number valuation vs LTP gap analysis
-- **Technical Market Indicators** — Moving Averages (SMA 200), MACD, Volume surges, and Bollinger Bands with plain-english actionable signals
+- **Technical 360° Dashboard** — Consolidated Moving Averages (SMA 200), MACD, Volume Spread Analysis (VSA), ADX, and ATR with real-time live data injection.
 - **Sectoral Deep-Dive** — Risk flags based on industry-specific metrics (NPL/CAR for Banks, Reserve/Equity for Hydros)
 - **Live Price & Index feeds** — Real-time ShareSansar price scraping + Automated Live NEPSE Index extraction for consistent dashboard benchmarking.
-- **Local AI Analyst** — On-device LLM integration (Ollama: Qwen 2.5, DeepSeek-R1) for zero-latency, private investment strategy reviews, moving away from high-latency cloud overhead.
+- **Structured AI Analyst** — On-device LLM integration (Ollama) with role-specific personas (Value vs Trading Analyst) for precise strategy reviews.
 - **Multi-member portfolios** — track shares for multiple family members
 - **Dual WACC engine** — True WACC (cash basis) and Tax WACC (CDSC/MeroShare rules where bonus = Rs. 100)
-- **Dividend True-Tax Engine** — Advanced TDS tracking on both Cash and Bonus shares to dynamically identify out-of-pocket tax liabilities
+- **Dividend True-Tax Engine** — Advanced TDS tracking on both Cash and Bonus shares (5% flat)
 - **Automated MeroShare sync** — Selenium-based headless scraping of transaction history
 - **Mutual Fund NAV scraping** — ShareSansar mutual fund NAV scraping
 - **IPO automation** — Apply for IPOs via MeroShare for multiple members
 - **DP statement reconciliation** — Import SIP data from NMBSBFE (PDF), NIBLSF (CSV), and NI31 (XLSX)
 - **Computed portfolio history** — Historical performance charts with NEPSE index benchmarking
 - **Order Simulator** — Real-time Buy/Sell calculator with full SEBON fee breakdown and FIFO-based CGT estimation
-- **Scrip Intelligence Dashboard** — Individual stock sub-pages with historical price charts, valuation gauges, and dividend tax records
+- **Scrip Intelligence Dashboard** — Individual stock sub-pages with historical price charts, valuation gauges, and technical heatmaps
 - **About & Vision Panel** — Project transparency and technical stack overview
+- **Modernized Settings** — Intuitive interface for fee configuration and system maintenance.
+- **"Vibe-Coded" Philosophy** — Educational project intended for personal passion and learning.
 
 ---
 
@@ -368,7 +370,10 @@ Centralized logic for NEPSE sector-specific health evaluation.
 | POST | `/summary/{symbol}/ai-verdict` | Async AI verdict via local Ollama (DeepSeek-R1) |
 
 #### 3.7.3 AI Review — [ai_review.py](file:///d:/Projects/Portfolio/backend/app/api/ai_review.py)
-Bridge to local **Ollama** instance (DeepSeek-R1 1.5b) providing automated strategy reviews based on the joint fundamental/technical data.
+Bridge to local **Ollama** instance (DeepSeek-R1 / Qwen 2.5) providing automated strategy reviews.
+- **Role-Specific Personas**: Implements structured system prompts for "Value Investing Analyst" and "Short-Term Trading Analyst".
+- **Structured Outputs**: Enforces JSON-like markdown structure for consistency and easier UI parsing.
+- **Data Injection**: Feeds combined fundamental and live technical data into the LLM context.
 
 #### 3.7.2 Fee Calculator — [fee_calculator.py](file:///d:/Projects/Portfolio/backend/app/services/fee_calculator.py) (335 lines)
 

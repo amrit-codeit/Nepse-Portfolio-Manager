@@ -112,7 +112,7 @@ frontend/src/
   components/
     MemberSelector.jsx  # All / Individual / Custom Groups (localStorage)
     dashboard/          # OverviewTab, PerformanceTab, RiskTab, DividendTab
-    insights/           # ExecutiveSummary, TechnicalTabs, FundamentalTabs, StrategyTester
+    insights/           # ExecutiveSummary, TechnicalTabs (Unified 360°), FundamentalTabs, StrategyTester
     portfolio/          # PriceHistoryCard
 ```
 
@@ -146,6 +146,7 @@ frontend/src/
 - **Graham's Number**: `√(22.5 × EPS × BVPS)` — intrinsic value benchmark
 - **Dividend True TDS**: `Total Tax = ((Units × Cash% × Par) * 0.05) + ((Units × Bonus% × Par) * 0.05)`. User owes company if `Net Cash < 0`.
 - **Health Score (0-100)**: Multi-factorial weighting system including ROE, Sector Quality, Graham Undervaluation, 200-SMA, MACD Momentum, Bollinger Bounds, and RSI Actionable levels.
+- **Technical 360°**: Unified view of indicators including ADX (Trend Strength), VSA (Volume Spread Analysis), ATR (Volatility), and RSI/MACD with live data injection.
 - **Action Badges**: Strong Buy / Accumulate / Hold / Avoid — derived from Health Score and momentum metrics.
 - **XIRR**: Newton-Raphson via `scipy.optimize.newton` (backend). Segmented equity/SIP XIRR computed server-side
 - **HHI**: Herfindahl-Hirschman Index for portfolio concentration — sum of squared holding weights
@@ -258,4 +259,4 @@ npm run dev  # Vite dev server on :5173, proxies /api to :8000
 | ShareSansar | sharesansar.com | Live prices, NAV, issue prices, dividends |
 | MeroShare/CDSC | meroshare.cdsc.com.np | Portfolio sync, IPO apply, transaction CSV |
 | NepseAlpha | nepsealpha.com | Fundamental data, historical prices |
-| Ollama (local) | localhost:11434 | Qwen3:4b AI verdicts |
+| Ollama (local) | localhost:11434 | Qwen3:4b AI verdicts (Role-specific: Value vs Trading) |
