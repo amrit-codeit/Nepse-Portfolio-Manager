@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "Nepal Portfolio Manager"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False
 
     # Database
     DATABASE_URL: str = "sqlite:///./portfolio.db"
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     ENCRYPTION_KEY: str = ""
 
     # Password for protecting credential editing in the frontend
-    MASTER_PASSWORD: str = "admin123"
+    MASTER_PASSWORD: str
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     AVAILABLE_CLOUD_MODELS: list[str] = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]
+
+    # AI / Nvidia Cloud API
+    NVIDIA_API_KEY: str = ""  # Set in .env
+    NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
+    NVIDIA_MODEL: str = "deepseek-ai/deepseek-r1" # Usually we'll pass model from frontend, but a default is good
 
     model_config = SettingsConfigDict(
         env_file=env_path,

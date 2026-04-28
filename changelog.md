@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-04-28
+### Added
+- **AI Portfolio Context Awareness**: Upgraded the AI Analysts (both Value and Trading) to be fully portfolio-aware. The AI now evaluates stocks differently depending on whether they are new discoveries or existing holdings in a specific member's portfolio.
+- **Position-Aware Verdicts**: The Trading Copilot now utilizes active trade setup data (Entry Price, Target, Stop Loss, Quantity) to issue specific `EXIT`, `WAIT`, or `STOP_LOSS` commands for existing holdings, instead of generic advice.
+- **Trade Intel Integration**: Activated the Trade Intel dashboard within Stock 360 by registering backend epoch-generation and AI-review API routes, enabling retrospective trade analysis.
+- **Action Center Enhancements**: Enhanced the main Dashboard's Action Center to explicitly surface XIRR, Absolute Profit, and Dividend Yield for immediate performance visibility.
+
+### Changed
+- **Trading Desk UI**: Unified the Live Technicals and AI Copilot into a single `StockAnalysis` component with a shared stock and portfolio member selector.
+- **Value AI Prompts**: Enriched the Value Investing AI context with granular portfolio metrics, including XIRR, WACC, Unrealized PnL, and Concentration (HHI).
+
+## [1.5.0] - 2026-04-26
+### Added
+- **Nvidia AI Integration**: Integrated Nvidia's AI API (DeepSeek V4 Pro) across the web application, providing an alternative to local Ollama and Groq models for high-quality market analysis.
+- **Multi-Provider Cloud AI**: Refactored the AI service to support dynamic switching between Groq and Nvidia cloud providers in Executive Summary and Trading Copilot views.
+
+### Changed
+- **Backend Architecture**: Updated `AIService` to handle OpenAI-compatible Nvidia endpoints with specialized thinking-token suppression for DeepSeek models.
+- **Frontend UI**: Enhanced AI Analyst panels with provider selection dropdowns and improved loading states for cloud inference.
+
+### Fixed
+- **Authentication Resilience**: Resolved a critical backend startup crash related to missing `MASTER_PASSWORD` environment variables.
+- **Market Data Refresh**: Fixed a 422 Unprocessable Entity error on the scraping router, enabling seamless on-demand market data updates for all sessions.
+
+## [1.4.0] - 2026-04-25
+### Added
+- **Institutional Portfolio Metrics**: Integrated Sharpe Ratio, Maximum Drawdown, and Portfolio Beta tracking into the main dashboard for professional performance ranking.
+- **Volatility-Based Risk Management**: Added Average True Range (ATR) to the Technical Screener and implemented an automated 1.5x ATR trailing stop-loss suggestion in the Risk Calculator.
+- **DCF Scaffolding**: Prepared backend models for Discounted Cash Flow (DCF) valuation, laying the groundwork for multi-year fundamental ingestion.
+- **Security Hardening Phase 1-5**: Upgraded master password to `bcrypt` hashing, implemented `Fernet` encryption for MeroShare credentials (CRN/PIN), and added a 15-minute frontend inactivity auto-lock.
+
+### Changed
+- **WACC Engine**: Refined the portfolio engine to correctly apply face value rules for Mutual Funds (Rs. 10) vs Equities (Rs. 100) when calculating bonus WACC.
+- **XIRR Robustness**: Improved the XIRR Newton-Raphson solver to handle extreme market volatility using multiple convergence guesses.
+- **CGT Calculation**: Accurately computes holding days based on precise transaction timestamps rather than defaulting to zero days.
+
+### Fixed
+- **Upload Resilience**: Added strict 5MB size limits and structural try/except error boundaries on all file upload endpoints (MeroShare CSV, DP statements).
+- **Selenium Automation Risks**: Disabled insecure browser flags and enforced randomized debugging ports to prevent potential local DevTools exploits.
+
+
 ## [1.3.0] - 2026-04-19
 ### Added
 - **Dynamic Trade Executor**: Interactive position sizing tool with Capital and Risk sliders, calculating ATR-based Entry, Stop Loss, and Targets.

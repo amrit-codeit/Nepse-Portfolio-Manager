@@ -16,6 +16,7 @@ from app.scrapers.fundamental_scraper import scrape_fundamentals
 from app.scrapers.index_scraper import scrape_nepse_index, scrape_sector_indices, scrape_all_indices
 from app.models.holding import Holding
 import traceback
+from app.api.members import require_master_password
 
 router = APIRouter(prefix="/api/scraper", tags=["Scraping"])
 

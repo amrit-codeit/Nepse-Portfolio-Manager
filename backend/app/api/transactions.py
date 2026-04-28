@@ -9,6 +9,7 @@ from app.models.company import Company
 from app.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionResponse, TransactionListResponse
 from app.services.fee_calculator import calculate_buy_costs, calculate_sell_costs, get_fee_value
 from app.services.portfolio_engine import recalculate_holdings
+from app.api.members import require_master_password
 
 router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
 
@@ -91,11 +92,24 @@ def create_transaction(data: TransactionCreate, db: Session = Depends(get_db)):
 
     elif txn_type_up == TransactionType.SELL.value and amount:
         from app.models.holding import Holding
+        from app.models.transaction import TransactionType
         holding = db.query(Holding).filter(
             Holding.member_id == data.member_id, Holding.symbol == symbol).first()
         wacc = holding.wacc if holding else 0
+        
+        # MED-03: Calculate actual holding days
+        first_buy = db.query(Transaction.txn_date).filter(
+            Transaction.member_id == data.member_id,
+            Transaction.symbol == symbol,
+            Transaction.txn_type.in_([TransactionType.BUY.value, TransactionType.IPO.value, TransactionType.FPO.value, TransactionType.RIGHT.value, TransactionType.BONUS.value])
+        ).order_by(Transaction.txn_date.asc()).first()
+        
+        holding_days = 0
+        if first_buy and first_buy[0] and data.txn_date:
+            holding_days = (data.txn_date - first_buy[0]).days
+            
         fees = calculate_sell_costs(
-            db, amount, wacc, data.quantity, 0, instrument or "equity",
+            db, amount, wacc, data.quantity, holding_days, instrument or "equity",
             txn_date=data.txn_date, manual_dp=manual_dp, manual_cgt=data.cgt)
     else:
         # Defaults for IPO, RIGHT, BONUS, FPO, etc.
@@ -151,10 +165,15 @@ async def upload_history(
         raise HTTPException(status_code=400, detail="File must be a CSV")
 
     content = await file.read()
-    csv_content = content.decode("utf-8")
-
-    from app.services.history_parser import parse_meroshare_csv
-    result = parse_meroshare_csv(db, csv_content, member_id)
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+    
+    try:
+        csv_content = content.decode("utf-8")
+        from app.services.history_parser import parse_meroshare_csv
+        result = parse_meroshare_csv(db, csv_content, member_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {str(e)}")
 
     return {
         "message": f"Processed {result['created']} transactions, skipped {result['skipped']} duplicates",
@@ -172,10 +191,15 @@ async def import_native_portfolio(
         raise HTTPException(status_code=400, detail="File must be a CSV")
 
     content = await file.read()
-    csv_content = content.decode("utf-8")
-
-    from app.services.native_parser import parse_native_csv
-    result = parse_native_csv(db, csv_content)
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
+        
+    try:
+        csv_content = content.decode("utf-8")
+        from app.services.native_parser import parse_native_csv
+        result = parse_native_csv(db, csv_content)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse native CSV: {str(e)}")
 
     return {
         "message": f"Imported {result['created']} transactions, skipped {result['skipped']} duplicates",
@@ -193,26 +217,31 @@ async def upload_dp_statement(
 ):
     """Upload a DP statement (PDF or CSV) to reconcile SIP transactions."""
     content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 5MB)")
     
     from app.services.dp_parser import parse_nmbsbfe_pdf, parse_niblsf_csv, parse_NI31_excel, reconcile_dp_statement
     
-    if dp_format == "NMBSBFE":
-        if not file.filename.lower().endswith(".pdf"):
-             raise HTTPException(status_code=400, detail="NMBSBFE format requires a PDF file.")
-        records = parse_nmbsbfe_pdf(content)
-    elif dp_format == "NIBLSF":
-        if not file.filename.lower().endswith(".csv"):
-             raise HTTPException(status_code=400, detail="NIBLSF format requires a CSV file.")
-        csv_content = content.decode("utf-8", errors="ignore")
-        records = parse_niblsf_csv(csv_content)
-    elif dp_format == "NEW_NI31":
-        if not file.filename.lower().endswith(".xlsx"):
-             raise HTTPException(status_code=400, detail="NI31 format requires an XLSX file.")
-        records = parse_NI31_excel(content)
-    else:
-        raise HTTPException(status_code=400, detail=f"Unsupported format: {dp_format}")
-        
-    result = reconcile_dp_statement(db, member_id, symbol, records)
+    try:
+        if dp_format == "NMBSBFE":
+            if not file.filename.lower().endswith(".pdf"):
+                 raise HTTPException(status_code=400, detail="NMBSBFE format requires a PDF file.")
+            records = parse_nmbsbfe_pdf(content)
+        elif dp_format == "NIBLSF":
+            if not file.filename.lower().endswith(".csv"):
+                 raise HTTPException(status_code=400, detail="NIBLSF format requires a CSV file.")
+            csv_content = content.decode("utf-8", errors="ignore")
+            records = parse_niblsf_csv(csv_content)
+        elif dp_format == "NEW_NI31":
+            if not file.filename.lower().endswith(".xlsx"):
+                 raise HTTPException(status_code=400, detail="NI31 format requires an XLSX file.")
+            records = parse_NI31_excel(content)
+        else:
+            raise HTTPException(status_code=400, detail=f"Unsupported format: {dp_format}")
+            
+        result = reconcile_dp_statement(db, member_id, symbol, records)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse DP statement: {str(e)}")
     
     recalculate_holdings(db, member_id, symbol)
     
@@ -222,7 +251,7 @@ async def upload_dp_statement(
     }
 
 @router.put("/{txn_id}", response_model=TransactionResponse)
-def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depends(get_db)):
+def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Update a transaction and recalculate everything."""
     try:
         txn = db.query(Transaction).filter(Transaction.id == txn_id).first()
@@ -274,12 +303,25 @@ def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depen
             txn.total_cost = fees["total_cost"]
         elif txn.txn_type == TransactionType.SELL.value:
             from app.models.holding import Holding
+            from app.models.transaction import TransactionType
             holding = db.query(Holding).filter(
                 Holding.member_id == txn.member_id,
                 Holding.symbol == txn.symbol
             ).first()
             wacc = holding.wacc if holding else 0
-            fees = calculate_sell_costs(db, txn.amount, wacc, txn.quantity, 0, instrument,
+            
+            # MED-03: Calculate actual holding days
+            first_buy = db.query(Transaction.txn_date).filter(
+                Transaction.member_id == txn.member_id,
+                Transaction.symbol == txn.symbol,
+                Transaction.txn_type.in_([TransactionType.BUY.value, TransactionType.IPO.value, TransactionType.FPO.value, TransactionType.RIGHT.value, TransactionType.BONUS.value])
+            ).order_by(Transaction.txn_date.asc()).first()
+            
+            holding_days = 0
+            if first_buy and first_buy[0] and txn.txn_date:
+                holding_days = (txn.txn_date - first_buy[0]).days
+                
+            fees = calculate_sell_costs(db, txn.amount, wacc, txn.quantity, holding_days, instrument,
                                         txn_date=txn.txn_date, manual_dp=manual_dp, manual_cgt=data.cgt,
                                         manual_broker=data.broker_commission, manual_sebon=data.sebon_fee)
             txn.broker_commission = fees["broker_commission"]
@@ -317,11 +359,11 @@ def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depen
         return TransactionResponse.model_validate(txn)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred during update.")
 
 
 @router.delete("/{txn_id}", status_code=204)
-def delete_transaction(txn_id: int, db: Session = Depends(get_db)):
+def delete_transaction(txn_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Delete a transaction and recalculate holdings."""
     txn = db.query(Transaction).filter(Transaction.id == txn_id).first()
     if not txn:

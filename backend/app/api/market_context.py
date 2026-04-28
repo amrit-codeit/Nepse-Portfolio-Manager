@@ -9,19 +9,21 @@ Computes technicals (RSI, SMA, trend) for:
 This powers the 3-layer conjunction check: Market → Sector → Stock.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
 from app.models.price import IndexHistory, PriceHistory, LivePrice, NavValue
 from app.models.company import Company
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from app.models.fundamental import FundamentalReport
 from app.scrapers.index_scraper import SECTOR_INDICES, INDEX_TO_SECTOR
+from app.services.fee_calculator import calculate_buy_costs, calculate_sell_costs
 import pandas as pd
 import pandas_ta as ta
 
 router = APIRouter(prefix="/api/market", tags=["Market Context"])
+STALE_PRICE_HOURS = 12
 
 
 def _compute_index_technicals(rows):
@@ -405,8 +407,14 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
         rs_trend = "Outperforming" if rs_alpha > 0.05 else "Underperforming" if rs_alpha < -0.05 else "Market Performer"
 
     # ------- TRADING GATE VERDICTS -------
+    stale_price = True
+    if updated_at:
+        updated_dt = updated_at if updated_at.tzinfo else updated_at.replace(tzinfo=timezone.utc)
+        stale_price = updated_dt < datetime.now(timezone.utc) - timedelta(hours=STALE_PRICE_HOURS)
+
     # GATE 1: Liquidity (ADT > Rs. 50 Lakhs = 5,000,000)
     gate1_liquidity = "PASS" if adt_20 and adt_20 > 5_000_000 else "FAIL"
+    liquidity_grade = "A" if adt_20 and adt_20 >= 50_000_000 else "B" if adt_20 and adt_20 >= 20_000_000 else "C" if adt_20 and adt_20 >= 5_000_000 else "D"
 
     # GATE 5: Technical Trigger
     bullish_count = sum([
@@ -433,6 +441,7 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
         risk = close - atr_stop
         reward = atr_target_1 - close
         risk_reward = round(reward / risk, 2) if risk > 0 else None
+    volatility_risk_tag = "HIGH" if atr_14 and close and atr_14 / close >= 0.08 else "MEDIUM" if atr_14 and close and atr_14 / close >= 0.04 else "LOW"
 
     # Look up this stock's sector for sector context
     company = db.query(Company).filter(Company.symbol == symbol).first()
@@ -507,6 +516,8 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
         "gate1_liquidity": gate1_liquidity,
         "gate4_fundamental": gate4_fundamental,
         "gate5_technical": gate5_technical,
+        "liquidity_grade": liquidity_grade,
+        "volatility_risk_tag": volatility_risk_tag,
         "npl": npl,
         "car": car,
         "eps_reported": eps,
@@ -516,15 +527,32 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
         "target_2": atr_target_2,
         "risk_reward": risk_reward,
         "data_points": len(df),
+        "price_timestamp": updated_at.isoformat() if updated_at else None,
+        "stale_price": stale_price,
     }
 
 @router.get("/backtest/{symbol}")
-def run_backtest(symbol: str, strategy: str = "ema_cross", db: Session = Depends(get_db)):
-    """
-    Runs a vectorized backtest for a given symbol and strategy with realistic constraints.
-    Features: 2% Position Sizing, ATR Trailing Stop Loss, NEPSE Fees, CGT, Expectancy.
-    """
+def run_backtest(
+    symbol: str,
+    strategy: str = Query("ema_cross"),
+    initial_capital: float = Query(500000.0, gt=0),
+    risk_pct: float = Query(2.0, gt=0, le=10),
+    stop_model: str = Query("atr_trailing"),
+    atr_multiple: float = Query(2.0, gt=0),
+    db: Session = Depends(get_db),
+):
+    """Run a constrained NEPSE swing-trade backtest with explicit assumptions."""
     symbol = symbol.upper()
+    strategy = strategy.lower()
+    stop_model = stop_model.lower()
+    supported_strategies = {"ema_cross", "rsi_bounce"}
+    supported_stops = {"atr_trailing", "fixed_atr"}
+
+    if strategy not in supported_strategies:
+        return {"error": f"Unsupported strategy '{strategy}'. Supported: {sorted(supported_strategies)}"}
+    if stop_model not in supported_stops:
+        return {"error": f"Unsupported stop model '{stop_model}'. Supported: {sorted(supported_stops)}"}
+
     prices = (
         db.query(PriceHistory)
         .filter(PriceHistory.symbol == symbol)
@@ -533,149 +561,232 @@ def run_backtest(symbol: str, strategy: str = "ema_cross", db: Session = Depends
     )
     if not prices or len(prices) < 200:
         return {"error": "Insufficient price history for backtesting"}
-        
-    df = pd.DataFrame([{
-        "date": p.date.isoformat() if hasattr(p.date, 'isoformat') else p.date,
-        "close": float(p.close),
-        "high": float(p.high or p.close),
-        "low": float(p.low or p.close),
-    } for p in prices])
-    
-    # Calculate indicators
+
+    df = pd.DataFrame(
+        [
+            {
+                "date": p.date,
+                "open": float(p.open or p.close),
+                "close": float(p.close),
+                "high": float(p.high or p.close),
+                "low": float(p.low or p.close),
+                "volume": float(p.volume or 0),
+            }
+            for p in prices
+        ]
+    )
     df.ta.atr(length=14, append=True)
+    df.ta.sma(close="volume", length=20, append=True, prefix="VOL")
     if strategy == "ema_cross":
         df.ta.ema(length=50, append=True)
         df.ta.ema(length=200, append=True)
-    elif strategy == "rsi_bounce":
+    else:
         df.ta.rsi(length=14, append=True)
+        df.ta.ema(length=50, append=True)
     df.dropna(inplace=True)
-    
-    initial_capital = 500000.0  # 5 Lakhs default capital
-    capital = initial_capital
-    position = 0
-    buy_price = 0
-    stop_loss = 0
-    highest_price_since_entry = 0
+
+    if len(df) < 120:
+        return {"error": "Not enough clean technical history after indicator warmup"}
+
+    adt_20 = (df["close"] * df["volume"]).tail(20).mean()
+    if not adt_20 or adt_20 < 5_000_000:
+        return {"error": "Symbol appears too illiquid for a meaningful swing-trade backtest"}
+    if df["ATRr_14"].tail(60).isna().any():
+        return {"error": "ATR history is incomplete; cannot evaluate stop model reliably"}
+
+    cash = initial_capital
+    equity_curve = []
     trades = []
-    
+    completed_trades = []
+    position = None
+
+    def mark_equity(curr_row):
+        current_equity = cash
+        if position:
+            current_equity += position["qty"] * float(curr_row["close"])
+        equity_curve.append(
+            {
+                "date": curr_row["date"].isoformat() if hasattr(curr_row["date"], "isoformat") else str(curr_row["date"]),
+                "equity": round(current_equity, 2),
+            }
+        )
+
+    def close_position(curr_row, exit_price: float, exit_type: str, reason: str):
+        nonlocal cash, position
+        if not position:
+            return
+        sell_amount = position["qty"] * exit_price
+        sell_result = calculate_sell_costs(
+            db=db,
+            sell_amount=sell_amount,
+            buy_cost_per_unit=position["cost_basis_per_share"],
+            quantity=position["qty"],
+            holding_days=max((curr_row["date"] - position["entry_date"]).days, 0),
+            instrument="equity",
+            txn_date=curr_row["date"],
+        )
+        cash += sell_result["net_received"]
+        realized_pnl = round(sell_result["net_received"] - position["total_cost"], 2)
+        risk_amount = position["risk_amount"]
+        realized_r = round(realized_pnl / risk_amount, 3) if risk_amount > 0 else None
+        hold_days = max((curr_row["date"] - position["entry_date"]).days, 0)
+        trade_log = {
+            "type": exit_type,
+            "date": curr_row["date"].isoformat(),
+            "price": round(exit_price, 2),
+            "shares": position["qty"],
+            "profit": realized_pnl,
+            "hold_days": hold_days,
+            "reason": reason,
+            "realized_r": realized_r,
+        }
+        trades.append(trade_log)
+        completed_trades.append(trade_log)
+        position = None
+
     for i in range(1, len(df)):
-        prev = df.iloc[i-1]
+        prev = df.iloc[i - 1]
         curr = df.iloc[i]
-        
-        # 1. Check Stop Loss / Trailing Stop FIRST
-        if position > 0:
-            highest_price_since_entry = max(highest_price_since_entry, curr['high'])
-            current_atr = curr.get('ATRr_14', 0)
-            
-            if current_atr > 0:
-                # 2x ATR Trailing Stop
-                trailing_sl = highest_price_since_entry - (2 * current_atr)
-                stop_loss = max(stop_loss, trailing_sl)
-                
-            if curr['low'] < stop_loss:
-                # Sell at stop loss price (or open if gap down)
-                sell_p = min(curr['close'], stop_loss)
-                revenue = position * sell_p
-                fee = revenue * 0.00415 + 25  # Broker + SEBON + DP
-                net_revenue = revenue - fee
-                gross_profit = net_revenue - (position * buy_price)
-                cgt = gross_profit * 0.075 if gross_profit > 0 else 0
-                net_profit = gross_profit - cgt
-                
-                capital += (net_revenue - cgt)
-                trades.append({"type": "Sell (Stop Loss)", "date": curr['date'], "price": round(sell_p, 2), "shares": position, "profit": round(net_profit, 2)})
-                position = 0
+        current_atr = float(curr.get("ATRr_14") or 0)
+        if current_atr <= 0:
+            continue
+
+        if position:
+            position["highest_price"] = max(position["highest_price"], float(curr["high"]))
+            if stop_model == "atr_trailing":
+                trailing_stop = position["highest_price"] - (atr_multiple * current_atr)
+                position["stop_loss"] = max(position["stop_loss"], trailing_stop)
+            if float(curr["low"]) <= position["stop_loss"]:
+                exit_price = min(float(curr["close"]), position["stop_loss"])
+                close_position(curr, exit_price, "Sell (Stop Loss)", "Stop level breached")
+                mark_equity(curr)
                 continue
 
-        # 2. Strategy Logic
         buy_signal = False
         sell_signal = False
-        
         if strategy == "ema_cross":
-            buy_signal = prev['EMA_50'] <= prev['EMA_200'] and curr['EMA_50'] > curr['EMA_200']
-            sell_signal = prev['EMA_50'] >= prev['EMA_200'] and curr['EMA_50'] < curr['EMA_200']
+            buy_signal = prev["EMA_50"] <= prev["EMA_200"] and curr["EMA_50"] > curr["EMA_200"]
+            sell_signal = prev["EMA_50"] >= prev["EMA_200"] and curr["EMA_50"] < curr["EMA_200"]
         elif strategy == "rsi_bounce":
-            buy_signal = prev['RSI_14'] <= 30 and curr['RSI_14'] > 30
-            sell_signal = prev['RSI_14'] >= 70 and curr['RSI_14'] < 70
+            buy_signal = prev["RSI_14"] <= 35 and curr["RSI_14"] > 35 and curr["close"] > curr["EMA_50"]
+            sell_signal = prev["RSI_14"] >= 68 and curr["RSI_14"] < 68
 
-        if buy_signal and position == 0:
-            current_atr = curr.get('ATRr_14', 0)
-            if current_atr > 0:
-                # Position Sizing: Risk exactly 2% of capital
-                risk_per_share = 2 * current_atr
-                max_risk = capital * 0.02
-                shares = int(max_risk // risk_per_share)
-                
-                # Cannot buy more than capital allows
-                max_shares_capital = int(capital // curr['close'])
-                shares = min(shares, max_shares_capital)
-                
-                if shares > 0:
-                    cost = shares * curr['close']
-                    fee = cost * 0.00415 + 25
-                    total_cost = cost + fee
-                    
-                    if capital >= total_cost:
-                        capital -= total_cost
-                        position = shares
-                        buy_price = total_cost / shares
-                        stop_loss = curr['close'] - risk_per_share
-                        highest_price_since_entry = curr['close']
-                        trades.append({"type": "Buy", "date": curr['date'], "price": round(curr['close'], 2), "shares": shares})
-                        
-        elif sell_signal and position > 0:
-            revenue = position * curr['close']
-            fee = revenue * 0.00415 + 25
-            net_revenue = revenue - fee
-            gross_profit = net_revenue - (position * buy_price)
-            cgt = gross_profit * 0.075 if gross_profit > 0 else 0
-            net_profit = gross_profit - cgt
-            
-            capital += (net_revenue - cgt)
-            trades.append({"type": "Sell (Signal)", "date": curr['date'], "price": round(curr['close'], 2), "shares": position, "profit": round(net_profit, 2)})
-            position = 0
+        if buy_signal and not position:
+            stop_distance = atr_multiple * current_atr
+            stop_loss = float(curr["close"]) - stop_distance
+            if stop_loss <= 0:
+                mark_equity(curr)
+                continue
 
-    # Force close position at the end of backtest
-    if position > 0:
-        curr = df.iloc[-1]
-        revenue = position * curr['close']
-        fee = revenue * 0.00415 + 25
-        net_revenue = revenue - fee
-        gross_profit = net_revenue - (position * buy_price)
-        cgt = gross_profit * 0.075 if gross_profit > 0 else 0
-        net_profit = gross_profit - cgt
-        
-        capital += (net_revenue - cgt)
-        trades.append({"type": "Sell (End)", "date": curr['date'], "price": round(curr['close'], 2), "shares": position, "profit": round(net_profit, 2)})
-        position = 0
+            max_risk_amount = cash * (risk_pct / 100.0)
+            qty_from_risk = int(max_risk_amount // stop_distance)
+            if qty_from_risk <= 0:
+                mark_equity(curr)
+                continue
 
-    final_equity = capital
-    total_return = ((final_equity - initial_capital) / initial_capital) * 100
-    
-    sell_trades = [t for t in trades if t['type'].startswith('Sell')]
-    winning_trades = len([t for t in sell_trades if t.get('profit', 0) > 0])
-    win_rate = (winning_trades / len(sell_trades)) * 100 if sell_trades else 0
-    
-    gross_winning = sum([t['profit'] for t in sell_trades if t.get('profit', 0) > 0])
-    gross_losing = abs(sum([t['profit'] for t in sell_trades if t.get('profit', 0) < 0]))
-    profit_factor = round(gross_winning / gross_losing, 2) if gross_losing > 0 else round(gross_winning, 2)
-    
-    expectancy = 0
-    if len(sell_trades) > 0:
-        avg_win = gross_winning / winning_trades if winning_trades > 0 else 0
-        avg_loss = gross_losing / (len(sell_trades) - winning_trades) if (len(sell_trades) - winning_trades) > 0 else 0
-        win_rate_frac = winning_trades / len(sell_trades)
-        expectancy = (win_rate_frac * avg_win) - ((1 - win_rate_frac) * avg_loss)
+            max_shares_by_cash = int(cash // max(float(curr["close"]), 1))
+            qty = min(qty_from_risk, max_shares_by_cash)
+            if qty <= 0:
+                mark_equity(curr)
+                continue
+
+            while qty > 0:
+                buy_amount = qty * float(curr["close"])
+                buy_result = calculate_buy_costs(db, buy_amount, "equity", curr["date"])
+                total_cost = buy_result["total_cost"]
+                if total_cost <= cash:
+                    risk_amount = total_cost - calculate_sell_costs(
+                        db=db,
+                        sell_amount=qty * stop_loss,
+                        buy_cost_per_unit=total_cost / qty,
+                        quantity=qty,
+                        holding_days=0,
+                        instrument="equity",
+                        txn_date=curr["date"],
+                        manual_cgt=0,
+                    )["net_received"]
+                    if risk_amount <= max_risk_amount:
+                        cash -= total_cost
+                        position = {
+                            "qty": qty,
+                            "entry_price": float(curr["close"]),
+                            "entry_date": curr["date"],
+                            "stop_loss": stop_loss,
+                            "highest_price": float(curr["high"]),
+                            "total_cost": total_cost,
+                            "cost_basis_per_share": total_cost / qty,
+                            "risk_amount": max(risk_amount, 0),
+                        }
+                        trades.append(
+                            {
+                                "type": "Buy",
+                                "date": curr["date"].isoformat(),
+                                "price": round(float(curr["close"]), 2),
+                                "shares": qty,
+                            }
+                        )
+                        break
+                qty -= 1
+
+        elif sell_signal and position:
+            close_position(curr, float(curr["close"]), "Sell (Signal)", "Strategy exit signal")
+
+        mark_equity(curr)
+
+    if position:
+        close_position(df.iloc[-1], float(df.iloc[-1]["close"]), "Sell (End)", "Forced end-of-test close")
+        mark_equity(df.iloc[-1])
+
+    if len(completed_trades) < 3:
+        return {"error": "Too few completed trades to compare this strategy meaningfully"}
+
+    final_equity = equity_curve[-1]["equity"] if equity_curve else cash
+    total_return_pct = ((final_equity - initial_capital) / initial_capital) * 100
+    pnls = [trade["profit"] for trade in completed_trades]
+    winners = [p for p in pnls if p > 0]
+    losers = [p for p in pnls if p < 0]
+    win_rate_pct = (len(winners) / len(completed_trades)) * 100
+    avg_win = sum(winners) / len(winners) if winners else 0
+    avg_loss = abs(sum(losers) / len(losers)) if losers else 0
+    profit_factor = (sum(winners) / abs(sum(losers))) if losers else float(sum(winners) if winners else 0)
+    expectancy = (win_rate_pct / 100.0 * avg_win) - ((1 - win_rate_pct / 100.0) * avg_loss)
+    avg_hold_days = sum(t["hold_days"] for t in completed_trades) / len(completed_trades)
+
+    running_peak = 0.0
+    max_drawdown_pct = 0.0
+    for point in equity_curve:
+        running_peak = max(running_peak, point["equity"])
+        if running_peak > 0:
+            drawdown = ((running_peak - point["equity"]) / running_peak) * 100
+            max_drawdown_pct = max(max_drawdown_pct, drawdown)
 
     return {
         "symbol": symbol,
         "strategy": strategy,
-        "initial_capital": initial_capital,
+        "initial_capital": round(initial_capital, 2),
+        "risk_pct": risk_pct,
+        "stop_model": stop_model,
+        "atr_multiple": atr_multiple,
         "final_equity": round(final_equity, 2),
-        "total_return_pct": round(total_return, 2),
-        "total_trades": len(sell_trades),
-        "win_rate_pct": round(win_rate, 2),
-        "profit_factor": profit_factor,
+        "total_return_pct": round(total_return_pct, 2),
+        "total_trades": len(completed_trades),
+        "win_rate_pct": round(win_rate_pct, 2),
+        "profit_factor": round(profit_factor, 2) if profit_factor != float("inf") else None,
         "expectancy": round(expectancy, 2),
-        "trades": trades[-30:] # Return last 30 for UI
+        "avg_win": round(avg_win, 2),
+        "avg_loss": round(avg_loss, 2),
+        "avg_hold_days": round(avg_hold_days, 2),
+        "best_trade": round(max(pnls), 2),
+        "worst_trade": round(min(pnls), 2),
+        "max_drawdown_pct": round(max_drawdown_pct, 2),
+        "equity_curve": equity_curve[-120:],
+        "assumptions": {
+            "market": "NEPSE long-only swing trading",
+            "fees_included": True,
+            "cgt_included": True,
+            "entry_execution": "close of signal day",
+            "exit_execution": "signal close or stop level",
+            "liquidity_floor_adt20": 5000000,
+        },
+        "trades": trades[-30:],
     }

@@ -42,6 +42,14 @@ async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     # Startup
     print(f"[START] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    
+    # CRIT-01/02 Startup Check: Ensure MASTER_PASSWORD is a bcrypt hash
+    if not settings.MASTER_PASSWORD or not settings.MASTER_PASSWORD.startswith("$2b$"):
+        print("[ERROR] MASTER_PASSWORD in .env must be a valid bcrypt hash!")
+        print("[ERROR] Please run 'setup.bat' in the project root to configure it automatically.")
+        print("[ERROR] Alternatively, generate one manually using: python -c \"import bcrypt; print(bcrypt.hashpw(b'your_password', bcrypt.gensalt()).decode())\"")
+        os._exit(1)
+
     init_db()
 
     # Seed default fee configuration

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Tabs, Spin, Card, Row, Col } from 'antd';
+import { Tabs, Spin, Card, Row, Col, Tooltip, Tag } from 'antd';
 import {
     AppstoreOutlined,
     LineChartOutlined,
@@ -9,14 +9,16 @@ import {
     RiseOutlined,
     FallOutlined,
     DollarOutlined,
+    AimOutlined,
+    QuestionCircleOutlined
 } from '@ant-design/icons';
-import { Tag } from 'antd';
 import { getPortfolioSummary, getMembers, getMergedPrices, getLatestNepseIndex } from '../services/api';
 import MemberSelector from '../components/MemberSelector';
 import OverviewTab from '../components/dashboard/OverviewTab';
 import PerformanceTab from '../components/dashboard/PerformanceTab';
 import RiskTab from '../components/dashboard/RiskTab';
 import DividendTab from '../components/dashboard/DividendTab';
+import ActionCenterTab from '../components/dashboard/ActionCenterTab';
 
 function Dashboard() {
     const [selectedContext, setSelectedContext] = useState({ type: 'all', id: null, memberIds: [] });
@@ -177,6 +179,13 @@ function Dashboard() {
                 children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
                     <DividendTab summary={displaySummary} context={selectedContext} isSipMode={topLevelTab === 'sips'} pricesData={pricesData} />
                 ),
+            },
+            {
+                key: 'action-center',
+                label: <span><AimOutlined /> Action Center</span>,
+                children: isLoading ? <Spin size="large" style={{ display: 'block', margin: '60px auto' }} /> : (
+                    <ActionCenterTab summary={displaySummary} context={selectedContext} isSipMode={topLevelTab === 'sips'} />
+                ),
             }
         );
 
@@ -238,28 +247,36 @@ function Dashboard() {
                 {displaySummary && (
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 24, padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: 12 }}>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Portfolio XIRR</div>
+                            <Tooltip title="Annualized return accounting for the timing of investments">
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', cursor: 'help' }}>Portfolio XIRR <QuestionCircleOutlined /></div>
+                            </Tooltip>
                             <div style={{ fontSize: 18, fontWeight: 600, color: displaySummary.portfolio_xirr >= 0 ? '#00b894' : '#d63031' }}>
                                 {displaySummary.portfolio_xirr?.toFixed(3)}%
                             </div>
                         </div>
                         <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Dividend Yield</div>
+                            <Tooltip title="Annualized income from dividends relative to investment cost">
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', cursor: 'help' }}>Dividend Yield <QuestionCircleOutlined /></div>
+                            </Tooltip>
                             <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--accent-blue)' }}>
                                 {displaySummary.dividend_yield?.toFixed(3)}%
                             </div>
                         </div>
                         <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>NEPSE XIRR</div>
+                            <Tooltip title="Theoretical annualized return of the NEPSE index over the same period">
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', cursor: 'help' }}>NEPSE XIRR <QuestionCircleOutlined /></div>
+                            </Tooltip>
                             <div style={{ fontSize: 18, fontWeight: 600 }}>
                                 {displaySummary.nepse_xirr?.toFixed(3)}%
                             </div>
                         </div>
                         <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Market Alpha</div>
+                            <Tooltip title="Excess return vs NEPSE benchmark">
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4, cursor: 'help' }}>Market Alpha <QuestionCircleOutlined /></div>
+                            </Tooltip>
                             <Tag 
                                 color={displaySummary.market_alpha >= 0 ? 'success' : 'error'} 
                                 icon={displaySummary.market_alpha >= 0 ? <RiseOutlined /> : <FallOutlined />}
@@ -267,6 +284,34 @@ function Dashboard() {
                             >
                                 {displaySummary.market_alpha > 0 ? '+' : ''}{displaySummary.market_alpha?.toFixed(3)}%
                             </Tag>
+                        </div>
+                        
+                        <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
+                        <div style={{ textAlign: 'center' }}>
+                            <Tooltip title="Risk-adjusted return; higher is better">
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', cursor: 'help' }}>Sharpe Ratio <QuestionCircleOutlined /></div>
+                            </Tooltip>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: displaySummary.sharpe_ratio >= 1 ? '#00b894' : (displaySummary.sharpe_ratio > 0 ? '#fdcb6e' : '#d63031') }}>
+                                {displaySummary.sharpe_ratio?.toFixed(2) || '—'}
+                            </div>
+                        </div>
+                        <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
+                        <div style={{ textAlign: 'center' }}>
+                            <Tooltip title="Largest peak-to-trough drop in portfolio value">
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', cursor: 'help' }}>Max Drawdown <QuestionCircleOutlined /></div>
+                            </Tooltip>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: '#d63031' }}>
+                                -{displaySummary.max_drawdown?.toFixed(2) || '0'}%
+                            </div>
+                        </div>
+                        <div style={{ width: 1, background: 'var(--border-color)', height: 40 }} />
+                        <div style={{ textAlign: 'center' }}>
+                            <Tooltip title="Volatility relative to NEPSE; >1 is more volatile">
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', cursor: 'help' }}>Beta <QuestionCircleOutlined /></div>
+                            </Tooltip>
+                            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {displaySummary.portfolio_beta?.toFixed(2) || '—'}
+                            </div>
                         </div>
                     </div>
                 )}

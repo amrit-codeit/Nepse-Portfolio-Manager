@@ -278,6 +278,8 @@ def calculate_sell_costs(
         "dp_charge": dp,
         "name_transfer_fee": 0,
         "cgt": cgt,
+        # MED-04: Semantics - For SELL transactions, 'total_cost' acts as 'net_received'
+        # This is used as the positive cashflow for XIRR calculations.
         "total_cost": round(net_received, 3),
         "net_received": round(net_received, 3),
         "gross_profit": round(gross_profit if manual_cgt is None else 0, 3),

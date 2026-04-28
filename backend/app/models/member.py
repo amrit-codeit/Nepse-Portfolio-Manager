@@ -51,8 +51,8 @@ class MeroshareCredential(Base):
     dp = Column(String(200), nullable=False)
     username = Column(String(50), nullable=False)       # DMAT number
     password_encrypted = Column(Text, nullable=False)   # Fernet encrypted
-    crn = Column(String(50), nullable=True)
-    txn_pin = Column(String(20), nullable=True)
+    crn = Column(Text, nullable=True)
+    txn_pin = Column(Text, nullable=True)
     apply_unit = Column(Integer, default=10)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(

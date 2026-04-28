@@ -69,14 +69,46 @@ if not exist .env (
     
     :: Generate a random key using Python
     echo Generating secure encryption key...
-    for /f "tokens=*" %%a in ('python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"') do set NEW_KEY=%%a
+    for /f "tokens=*" %%a in ('venv\Scripts\python.exe -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"') do set NEW_KEY=%%a
+    
+    :: Prompt for Master Password
+    echo.
+    echo -------------------------------------------------------------
+    echo SECURITY SETUP: Master Password
+    echo This password protects your MeroShare credentials and sensitive actions.
+    set /p "USER_MASTER_PASS=Enter a strong master password (default: admin123): "
+    if "!USER_MASTER_PASS!"=="" set USER_MASTER_PASS=admin123
+    
+    echo Generating secure password hash...
+    for /f "tokens=*" %%b in ('venv\Scripts\python.exe -c "import bcrypt; print(bcrypt.hashpw('!USER_MASTER_PASS!'.encode('utf-8'), bcrypt.gensalt()).decode())"') do set HASHED_PASS=%%b
     
     :: Replace placeholder in .env
-    :: We use a temporary file for replacement because batch is bad at string replacement in files
     powershell -Command "(gc .env) -replace 'your_encryption_key_here', '!NEW_KEY!' | Out-File -encoding ASCII .env"
-    echo [OK] .env created with fresh ENCRYPTION_KEY.
+    
+    :: Append MASTER_PASSWORD to .env
+    echo.>> .env
+    echo MASTER_PASSWORD=!HASHED_PASS!>> .env
+    
+    echo [OK] .env created with fresh ENCRYPTION_KEY and hashed MASTER_PASSWORD.
 ) else (
     echo [SKIP] .env already exists.
+    :: Verify existing .env has MASTER_PASSWORD
+    findstr /C:"MASTER_PASSWORD" .env >nul
+    if !errorlevel! neq 0 (
+        echo [INFO] Updating existing .env with MASTER_PASSWORD...
+        echo.
+        echo -------------------------------------------------------------
+        echo SECURITY UPDATE: Master Password Required
+        echo This password protects your MeroShare credentials and sensitive actions.
+        set /p "USER_MASTER_PASS=Enter a strong master password: "
+        if "!USER_MASTER_PASS!"=="" set USER_MASTER_PASS=admin123
+        
+        echo Generating secure password hash...
+        for /f "tokens=*" %%b in ('venv\Scripts\python.exe -c "import bcrypt; print(bcrypt.hashpw('!USER_MASTER_PASS!'.encode('utf-8'), bcrypt.gensalt()).decode())"') do set HASHED_PASS=%%b
+        echo.>> .env
+        echo MASTER_PASSWORD=!HASHED_PASS!>> .env
+        echo [OK] Added hashed MASTER_PASSWORD to .env.
+    )
 )
 
 :: 5. Setup Frontend

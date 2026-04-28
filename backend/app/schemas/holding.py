@@ -20,6 +20,7 @@ class HoldingResponse(BaseModel):
     # Latest traded price (joined from live_prices)
     ltp: Optional[float] = None
     current_value: Optional[float] = None   # current_qty * ltp
+    target_weight: Optional[float] = None   # Target portfolio weight %
     # True P&L (Current Value - True Investment)
     unrealized_pnl: Optional[float] = None
     # unrealized_pnl / total_investment * 100
@@ -37,9 +38,11 @@ class HoldingResponse(BaseModel):
     is_fundamental_risk: bool = False
     graham_number: Optional[float] = None
     price_to_graham_ratio: Optional[float] = None
+    dcf_value: Optional[float] = None  # DCF valuation (when 10-yr data available)
     
     # Performance
     xirr: Optional[float] = None
+    atr_14: Optional[float] = None     # Average True Range for Stop Loss
 
     # Dividend
     dividend_income: Optional[float] = None      # Total cash dividend received
@@ -61,7 +64,14 @@ class PortfolioSummary(BaseModel):
     portfolio_xirr: float = 0
     nepse_xirr: float = 0
     market_alpha: float = 0
+    # Portfolio Ranking & Risk Metrics
+    sharpe_ratio: float = 0
+    max_drawdown: float = 0
+    portfolio_beta: float = 0
+    dividend_yield: float = 0
+    
     # Segmented XIRR (so frontend doesn't need to fetch 10K transactions)
+
     equity_xirr: float = 0
     sip_xirr: float = 0
     equity_dividend_income: float = 0

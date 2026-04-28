@@ -24,4 +24,8 @@ def encrypt_value(plain_text: str) -> str:
 def decrypt_value(encrypted_text: str) -> str:
     """Decrypt an encrypted string value."""
     f = get_fernet()
-    return f.decrypt(encrypted_text.encode()).decode()
+    try:
+        return f.decrypt(encrypted_text.encode()).decode()
+    except Exception:
+        # Fallback for old plaintext records (e.g. CRN and TXN PIN migration)
+        return encrypted_text

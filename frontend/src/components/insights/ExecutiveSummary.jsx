@@ -236,7 +236,7 @@ function FormattedAnalysis({ text, isCloud }) {
     );
 }
 
-function AIAnalystPanel({ title, mode, model, setModel, models, onGenerateLocal, localLoading, localData, onGenerateCloud, cloudLoading, cloudData, symbol }) {
+function AIAnalystPanel({ title, mode, model, setModel, models, cloudModel, setCloudModel, onGenerateLocal, localLoading, localData, onGenerateCloud, cloudLoading, cloudData, symbol, memberId }) {
     const [aiSource, setAiSource] = useState('cloud');
     const [promptText, setPromptText] = useState('');
     const [promptLoading, setPromptLoading] = useState(false);
@@ -246,7 +246,7 @@ function AIAnalystPanel({ title, mode, model, setModel, models, onGenerateLocal,
         setPromptLoading(true);
         setCopied(false);
         try {
-            const res = await getFrontierPrompt(symbol, mode);
+            const res = await getFrontierPrompt(symbol, mode, memberId);
             setPromptText(res.data.prompt);
         } catch (e) {
             setPromptText('Failed to generate prompt. Ensure the stock has sufficient data.');
@@ -311,6 +311,18 @@ function AIAnalystPanel({ title, mode, model, setModel, models, onGenerateLocal,
                                     {m.split(':')[0].toUpperCase()} ({m.split(':')[1] || 'latest'})
                                 </Select.Option>
                             ))}
+                        </Select>
+                    )}
+                    {aiSource === 'cloud' && (
+                        <Select
+                            size="small"
+                            value={cloudModel}
+                            onChange={setCloudModel}
+                            style={{ width: 200 }}
+                            dropdownStyle={{ borderRadius: 8 }}
+                        >
+                            <Select.Option value="groq">Groq Cloud</Select.Option>
+                            <Select.Option value="nvidia">Nvidia DeepSeek</Select.Option>
                         </Select>
                     )}
                     <Button
@@ -440,8 +452,9 @@ function AIAnalystPanel({ title, mode, model, setModel, models, onGenerateLocal,
     );
 }
 
-export default function ExecutiveSummary({ symbol }) {
+export default function ExecutiveSummary({ symbol, memberId }) {
     const [selectedValueModel, setSelectedValueModel] = useState("qwen2.5:3b-instruct-q4_0");
+    const [cloudModel, setCloudModel] = useState("groq");
 
     const { data: modelData } = useQuery({
         queryKey: ['ai-models'],
@@ -451,8 +464,8 @@ export default function ExecutiveSummary({ symbol }) {
     const models = modelData?.models || ["qwen2.5:3b-instruct-q4_0", "gemma4:e2b"];
 
     const { data, isLoading } = useQuery({
-        queryKey: ['executive-summary', symbol],
-        queryFn: () => getExecutiveSummary(symbol).then(r => r.data),
+        queryKey: ['executive-summary', symbol, memberId],
+        queryFn: () => getExecutiveSummary(symbol, memberId).then(r => r.data),
         enabled: !!symbol,
     });
 
@@ -461,20 +474,20 @@ export default function ExecutiveSummary({ symbol }) {
         isFetching: valueAiLoading,
         refetch: generateValueAI
     } = useQuery({
-        queryKey: ['ai-verdict-value', symbol, selectedValueModel],
-        queryFn: () => getAIVerdict(symbol, selectedValueModel).then(r => r.data),
+        queryKey: ['ai-verdict-value', symbol, selectedValueModel, memberId],
+        queryFn: () => getAIVerdict(symbol, selectedValueModel, memberId).then(r => r.data),
         enabled: false,
         staleTime: Infinity,
     });
 
-    // Cloud AI queries (Groq)
+    // Cloud AI queries
     const {
         data: valueCloudData,
         isFetching: valueCloudLoading,
         refetch: generateValueCloud
     } = useQuery({
-        queryKey: ['ai-verdict-value-cloud', symbol],
-        queryFn: () => getAIVerdictCloud(symbol).then(r => r.data),
+        queryKey: ['ai-verdict-value-cloud', symbol, cloudModel, memberId],
+        queryFn: () => getAIVerdictCloud(symbol, cloudModel, memberId).then(r => r.data),
         enabled: false,
         staleTime: Infinity,
     });
@@ -906,6 +919,21 @@ export default function ExecutiveSummary({ symbol }) {
         </div>
     );
 
+    const getVerdictConfig = (verdict) => {
+        switch (verdict) {
+            case 'BUY': return { color: '#00b894', bg: 'rgba(0,184,148,0.10)', icon: <ThunderboltOutlined />, glow: '0 0 24px rgba(0,184,148,0.25)', label: 'BUY' };
+            case 'ACCUMULATE': return { color: '#0984e3', bg: 'rgba(9,132,227,0.10)', icon: <RiseOutlined />, glow: '0 0 24px rgba(9,132,227,0.25)', label: 'ACCUMULATE' };
+            case 'HOLD': return { color: '#fdcb6e', bg: 'rgba(253,203,110,0.10)', icon: <SafetyOutlined />, glow: '0 0 24px rgba(253,203,110,0.18)', label: 'HOLD' };
+            case 'REDUCE': return { color: '#e17055', bg: 'rgba(225,112,85,0.10)', icon: <FallOutlined />, glow: '0 0 24px rgba(225,112,85,0.25)', label: 'REDUCE' };
+            case 'EXIT': return { color: '#d63031', bg: 'rgba(214,48,49,0.12)', icon: <CloseCircleOutlined />, glow: '0 0 24px rgba(214,48,49,0.3)', label: 'EXIT' };
+            case 'AVOID': return { color: '#636e72', bg: 'rgba(99,110,114,0.08)', icon: <WarningOutlined />, glow: 'none', label: 'AVOID' };
+            default: return { color: 'var(--text-secondary)', bg: 'rgba(255,255,255,0.05)', icon: <InfoCircleOutlined />, glow: 'none', label: verdict || '—' };
+        }
+    };
+
+    const verdictCfg = getVerdictConfig(data?.action_verdict);
+    const pCtx = data?.portfolio_context;
+
     return (
         <div className="animate-in">
             {/* ===== METHODOLOGY BANNER ===== */}
@@ -921,41 +949,103 @@ export default function ExecutiveSummary({ symbol }) {
                 style={{ marginBottom: 20, background: 'var(--bg-glass)', border: '1px solid rgba(9, 132, 227, 0.3)' }}
             />
 
-            {/* ===== VALUATION BADGE + SCORE ===== */}
+            {/* ===== POSITION ACTION VERDICT ===== */}
             <div className="stat-card" style={{
                 marginBottom: 20,
                 padding: '20px 24px',
+                background: verdictCfg.bg,
+                border: `1px solid ${verdictCfg.color}33`,
+                boxShadow: verdictCfg.glow,
+                borderRadius: 14
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{
+                            width: 50, height: 50, borderRadius: 12,
+                            background: verdictCfg.color, display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                            fontSize: 24, color: 'white',
+                        }}>
+                            {verdictCfg.icon}
+                        </div>
+                        <div>
+                            <div style={{ fontSize: 22, fontWeight: 800, color: verdictCfg.color, letterSpacing: '0.5px' }}>
+                                {verdictCfg.label}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                {pCtx ? 'Portfolio Action' : 'Discovery Signal'}
+                            </div>
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Health Score</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor }}>{data.health_score}<span style={{ fontSize: 14, fontWeight: 400 }}>/100</span></div>
+                    </div>
+                </div>
+
+                {/* Reasoning bullets */}
+                {data?.action_reasoning?.length > 0 && (
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${verdictCfg.color}22` }}>
+                        {data.action_reasoning.map((r, i) => (
+                            <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '3px 0', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                <span style={{ color: verdictCfg.color, flexShrink: 0, marginTop: 2 }}>•</span>
+                                <span>{r}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Portfolio context mini-stats */}
+                {pCtx && (
+                    <div style={{ display: 'flex', gap: 24, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${verdictCfg.color}15`, flexWrap: 'wrap' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Qty</div>
+                            <div style={{ fontSize: 16, fontWeight: 700 }}>{pCtx.current_qty?.toLocaleString()}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>WACC</div>
+                            <div style={{ fontSize: 16, fontWeight: 700 }}>{formatNPR(pCtx.wacc)}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Invested</div>
+                            <div style={{ fontSize: 16, fontWeight: 700 }}>{formatNPR(pCtx.total_investment)}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Unrealized P&L</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: pCtx.pnl_pct >= 0 ? '#00b894' : '#d63031' }}>
+                                {pCtx.pnl_pct >= 0 ? '+' : ''}{pCtx.pnl_pct?.toFixed(1)}%
+                            </div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Concentration</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: pCtx.concentration_pct > 15 ? '#e17055' : 'var(--text-primary)' }}>
+                                {pCtx.concentration_pct?.toFixed(1)}%
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* ===== LEGACY VALUE BADGE (subtle) ===== */}
+            <div className="stat-card" style={{
+                marginBottom: 20,
+                padding: '12px 20px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: 16,
+                gap: 12,
                 background: actionCfg.bg,
-                border: `1px solid ${actionCfg.color}33`,
-                boxShadow: actionCfg.glow,
-                borderRadius: 14
+                border: `1px solid ${actionCfg.color}22`,
+                borderRadius: 10,
+                opacity: 0.85,
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{
-                        width: 50, height: 50, borderRadius: 12,
-                        background: actionCfg.color, display: 'flex',
-                        alignItems: 'center', justifyContent: 'center',
-                        fontSize: 24, color: 'white',
-                    }}>
-                        {actionCfg.icon}
-                    </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 18, color: actionCfg.color }}>{actionCfg.icon}</span>
                     <div>
-                        <div style={{ fontSize: 22, fontWeight: 800, color: actionCfg.color, letterSpacing: '0.5px' }}>
-                            {data.action?.toUpperCase()}
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
-                            Value Assessment
-                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: actionCfg.color }}>{data.action?.toUpperCase()}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Fundamental Valuation Band</div>
                     </div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Value Score</div>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor }}>{data.health_score}<span style={{ fontSize: 14, fontWeight: 400 }}>/100</span></div>
                 </div>
             </div>
 
@@ -972,6 +1062,8 @@ export default function ExecutiveSummary({ symbol }) {
                 model={selectedValueModel}
                 setModel={setSelectedValueModel}
                 models={models}
+                cloudModel={cloudModel}
+                setCloudModel={setCloudModel}
                 onGenerateLocal={() => generateValueAI()}
                 localLoading={valueAiLoading}
                 localData={valueAiData}
@@ -979,6 +1071,7 @@ export default function ExecutiveSummary({ symbol }) {
                 cloudLoading={valueCloudLoading}
                 cloudData={valueCloudData}
                 symbol={data.symbol}
+                memberId={memberId}
             />
         </div>
     );

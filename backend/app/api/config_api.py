@@ -9,6 +9,8 @@ from app.services.fee_calculator import clear_fee_cache
 from pydantic import BaseModel
 from datetime import date
 
+from app.api.members import require_master_password
+
 router = APIRouter(prefix="/api/config", tags=["Configuration"])
 
 
@@ -76,7 +78,7 @@ def get_fee_config_history(key: str, db: Session = Depends(get_db)):
 
 
 @router.put("/fees/{key}")
-def update_fee_config(key: str, data: FeeConfigUpdate, db: Session = Depends(get_db)):
+def update_fee_config(key: str, data: FeeConfigUpdate, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """
     Update the current (latest) value of a fee config.
     This modifies the existing row — use POST /fees/version to add a new effective-date version.
@@ -95,7 +97,7 @@ def update_fee_config(key: str, data: FeeConfigUpdate, db: Session = Depends(get
 
 
 @router.post("/fees/version")
-def add_fee_config_version(data: FeeConfigVersionCreate, db: Session = Depends(get_db)):
+def add_fee_config_version(data: FeeConfigVersionCreate, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """
     Add a new version of a fee config with an effective_from date.
     Old versions are preserved so historical transactions use the correct rates.

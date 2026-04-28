@@ -2,13 +2,14 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Spin, Alert, Select, Button, Typography, Tag, Row, Col, Input, message } from 'antd';
 import { RobotOutlined, ThunderboltOutlined, CopyOutlined } from '@ant-design/icons';
-import { getCompanies, getAITradingVerdict, getAITradingVerdictCloud, getAIModels, getFrontierPrompt } from '../../services/api';
+import { getCompanies, getAITradingVerdict, getAITradingVerdictCloud, getAIModels, getFrontierPrompt, getMembers } from '../../services/api';
 
 
 const { Title, Text, Paragraph } = Typography;
 
 export default function AITradingCopilot() {
     const [symbol, setSymbol] = useState(null);
+    const [memberId, setMemberId] = useState(null);
     const [mode, setMode] = useState('verdict'); // 'verdict' or 'prompt'
     const [model, setModel] = useState('llama3.2');
 
@@ -29,18 +30,24 @@ export default function AITradingCopilot() {
     const availableModels = useMemo(() => {
         const models = (modelsData?.models || []).map(m => ({ value: m, label: `Local: ${m}` }));
         models.push({ value: 'groq', label: 'Cloud: Groq Llama 3 (Fast)' });
+        models.push({ value: 'nvidia', label: 'Cloud: Nvidia DeepSeek V4 Pro' });
         return models;
     }, [modelsData]);
+
+    const { data: members } = useQuery({
+        queryKey: ['members'],
+        queryFn: () => getMembers().then(r => r.data),
+    });
 
     const verdictMut = useMutation({
         mutationFn: async () => {
             if (mode === 'prompt') {
-                return getFrontierPrompt(symbol, 'trading').then(r => ({ status: 'success', prompt: r.data.prompt }));
+                return getFrontierPrompt(symbol, 'trading', memberId).then(r => ({ status: 'success', prompt: r.data.prompt }));
             }
-            if (model === 'groq') {
-                return getAITradingVerdictCloud(symbol).then(r => r.data);
+            if (model === 'groq' || model === 'nvidia') {
+                return getAITradingVerdictCloud(symbol, model, memberId).then(r => r.data);
             }
-            return getAITradingVerdict(symbol, model).then(r => r.data);
+            return getAITradingVerdict(symbol, model, memberId).then(r => r.data);
         }
     });
 
@@ -60,6 +67,20 @@ export default function AITradingCopilot() {
                     style={{ width: 300 }}
                     size="large"
                 />
+                <Select
+                    showSearch
+                    optionFilterProp="children"
+                    allowClear
+                    style={{ width: 200 }}
+                    placeholder="Portfolio Member"
+                    onChange={setMemberId}
+                    value={memberId}
+                    size="large"
+                >
+                    {members?.map(m => (
+                        <Select.Option key={m.id} value={m.id}>{m.name}</Select.Option>
+                    ))}
+                </Select>
                 <div style={{ fontSize: 14, fontWeight: 500, marginLeft: 8 }}>Action:</div>
                 <Select
                     value={mode}
@@ -139,7 +160,9 @@ export default function AITradingCopilot() {
                                             <ThunderboltOutlined style={{ marginRight: 8 }} />
                                             Trading Verdict: {result.verdict}
                                         </h2>
-                                        <Tag color="purple" style={{ fontSize: 14, padding: '4px 12px' }}>{model === 'groq' ? 'Groq Cloud' : `Local: ${model}`}</Tag>
+                                        <Tag color="purple" style={{ fontSize: 14, padding: '4px 12px' }}>
+                                            {model === 'groq' ? 'Groq Cloud' : model === 'nvidia' ? 'Nvidia DeepSeek' : `Local: ${model}`}
+                                        </Tag>
                                     </div>
                                     <div className="markdown-body" style={{ color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
                                         {result.analysis}

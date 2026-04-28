@@ -65,6 +65,7 @@ export const deleteTransaction = (id) => api.delete(`/transactions/${id}`);
 // --- Portfolio ---
 export const getPortfolioSummary = (params) => api.get('/portfolio/summary', { params });
 export const getHoldings = (params) => api.get('/portfolio/holdings', { params });
+export const updateTargetWeight = (holdingId, targetWeight) => api.put(`/portfolio/holdings/${holdingId}/target-weight`, { target_weight: targetWeight });
 export const getPortfolioHistory = (params) => api.get('/portfolio/history', { params });
 export const getComputedHistory = (params) => api.get('/portfolio/computed-history', { params });
 export const getClosedPositions = (params) => api.get('/portfolio/closed-positions', { params });
@@ -102,7 +103,7 @@ export const scrapeTechnicals = (symbol) => api.post(`/scraper/technicals/${symb
 export const scrapeCorporateActions = (symbol) => api.post(`/market/scrape-corporate-actions/${symbol}`);
 
 // --- Backtesting ---
-export const runBacktest = (symbol, strategy) => api.get(`/market/backtest/${symbol}`, { params: { strategy } });
+export const runBacktest = (symbol, params = {}) => api.get(`/market/backtest/${symbol}`, { params });
 
 // --- Dividends ---
 export const getDividends = (params) => api.get('/dividends', { params });
@@ -120,16 +121,27 @@ export const deleteGroup = (id) => api.delete(`/groups/${id}`);
 
 // --- Executive Summary ---
 export const getAIModels = () => api.get('/analysis/models');
-export const getExecutiveSummary = (symbol) => api.get(`/analysis/summary/${symbol}`);
-export const getAIVerdict = (symbol, model) => api.post(`/analysis/summary/${symbol}/ai-verdict`, null, { params: { model } });
-export const getAITradingVerdict = (symbol, model) => api.post(`/analysis/summary/${symbol}/ai-trading-verdict`, null, { params: { model } });
+export const getExecutiveSummary = (symbol, memberId) => api.get(`/analysis/summary/${symbol}`, { params: { member_id: memberId || undefined } });
+export const getAIVerdict = (symbol, model, memberId) => api.post(`/analysis/summary/${symbol}/ai-verdict`, null, { params: { model, member_id: memberId || undefined } });
+export const getAITradingVerdict = (symbol, model, memberId) => api.post(`/analysis/summary/${symbol}/ai-trading-verdict`, null, { params: { model, member_id: memberId || undefined } });
 
-// --- Cloud AI (Groq) ---
-export const getAIVerdictCloud = (symbol) => api.post(`/analysis/summary/${symbol}/ai-verdict-cloud`);
-export const getAITradingVerdictCloud = (symbol) => api.post(`/analysis/summary/${symbol}/ai-trading-verdict-cloud`);
+// --- Cloud AI (Groq & Nvidia) ---
+export const getAIVerdictCloud = (symbol, provider = 'groq', memberId) => api.post(`/analysis/summary/${symbol}/ai-verdict-cloud`, null, { params: { provider, member_id: memberId || undefined } });
+export const getAITradingVerdictCloud = (symbol, provider = 'groq', memberId) => api.post(`/analysis/summary/${symbol}/ai-trading-verdict-cloud`, null, { params: { provider, member_id: memberId || undefined } });
 
 // --- Frontier Prompt (Copy/Paste) ---
-export const getFrontierPrompt = (symbol, mode) => api.get(`/analysis/summary/${symbol}/frontier-prompt`, { params: { mode } });
+export const getFrontierPrompt = (symbol, mode, memberId) => api.get(`/analysis/summary/${symbol}/frontier-prompt`, { params: { mode, member_id: memberId || undefined } });
+
+// --- Trade Intel ---
+export const getTradeIntelEpochs = (symbol, memberId) => api.get(`/portfolio/trade-intel/${symbol}`, { params: { member_id: memberId } });
+export const getTradeIntelAILocal = (symbol, memberId, model) => api.post(`/portfolio/trade-intel/${symbol}/ai-review-local`, null, { params: { member_id: memberId, model } });
+export const getTradeIntelAICloud = (symbol, memberId, provider = 'groq') => api.post(`/portfolio/trade-intel/${symbol}/ai-review-cloud`, null, { params: { member_id: memberId, provider } });
+export const getTradeIntelFrontierPrompt = (symbol, memberId) => api.get(`/portfolio/trade-intel/${symbol}/frontier-prompt`, { params: { member_id: memberId } });
+
+// --- Portfolio AI Analyst ---
+export const analyzePortfolioLocal = (params) => api.post('/portfolio/analyze-local', null, { params });
+export const analyzePortfolioCloud = (params) => api.post('/portfolio/analyze-cloud', null, { params });
+export const getPortfolioFrontierPrompt = (params) => api.get('/portfolio/analyze-frontier-prompt', { params });
 
 // --- Stock Detail ---
 export const getStockDetail = (symbol, params = {}) => api.get(`/stock-detail/${symbol}`, { params });
@@ -143,6 +155,8 @@ export const getIPOJobStatus = (job_id) => api.get(`/ipo/status/${job_id}`);
 // --- Calculator ---
 export const simulateBuy = (data) => api.post('/calculator/buy', data);
 export const simulateSell = (data) => api.post('/calculator/sell', data);
+export const simulateHypotheticalSell = (data) => api.post('/calculator/sell-hypothetical', data);
+export const calculateTradePlan = (data) => api.post('/calculator/trade-plan', data);
 
 // --- Screener ---
 export const getScreenerData = () => api.get('/screener');
@@ -160,6 +174,7 @@ export const scrapeAllIndices = () => api.post('/scraper/all-indices');
 export const getTradeSetups = (status) => api.get('/trading/setups', { params: status ? { status } : {} });
 export const createTradeSetup = (data) => api.post('/trading/setups', data);
 export const updateTradeSetup = (id, data) => api.put(`/trading/setups/${id}`, data);
+export const closeTradeSetup = (id, data) => api.post(`/trading/setups/${id}/close`, data);
 export const deleteTradeSetup = (id) => api.delete(`/trading/setups/${id}`);
 export const getTradeSignals = () => api.get('/trading/setups/signals');
 export const getTradeJournal = () => api.get('/trading/journal');

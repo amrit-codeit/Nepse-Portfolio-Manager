@@ -650,7 +650,7 @@ function Calculator() {
                     Buy / Sell Calculator
                 </h1>
                 <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                    Simulate buy &amp; sell orders with exact SEBON fee breakdown, broker commission, DP charges, and FIFO-based CGT calculation.
+                    Simulate buy &amp; sell orders with exact SEBON fee breakdown, broker commission, DP charges, and FIFO-based CGT calculation. Portfolio sell mode only works against real holdings; hypothetical swing planning lives in the Trading Desk Risk Calculator.
                 </p>
             </div>
 

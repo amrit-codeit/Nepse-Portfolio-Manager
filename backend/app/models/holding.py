@@ -24,6 +24,7 @@ class Holding(Base):
     tax_wacc = Column(Float, nullable=False, default=0)
     total_investment = Column(Float, nullable=False,
                               default=0)  # Total cost basis
+    target_weight = Column(Float, nullable=True)  # Target portfolio weight %
 
     updated_at = Column(DateTime, default=lambda: datetime.now(
         timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

@@ -406,8 +406,21 @@ class AIService:
         Combines fundamental analysis with technical timing for long-term value assessment.
         """
         model          = model_name or settings.DEFAULT_OLLAMA_MODEL
-        scoring_action = input_data.get("scoring_action", "HOLD")
+        scoring_action = input_data.get("action_verdict", "HOLD")
         scoring_score  = input_data.get("health_score", 50)
+        portfolio_ctx  = input_data.get("portfolio_context")
+        
+        if portfolio_ctx:
+            allowed_actions = "ACCUMULATE, HOLD, REDUCE, or EXIT"
+            portfolio_rules = (
+                f"- User holds {portfolio_ctx.get('current_qty')} shares at WACC {portfolio_ctx.get('wacc')}.\n"
+                f"- Unrealized PnL: {portfolio_ctx.get('pnl_pct')}% (Rs. {portfolio_ctx.get('unrealized_pnl')}). Portfolio Concentration: {portfolio_ctx.get('concentration_pct')}%.\n"
+                f"- XIRR: {portfolio_ctx.get('xirr')}%. Dividends Received: Rs. {portfolio_ctx.get('dividend_income')}.\n"
+                "- Contextualize your advice based on this portfolio reality (e.g. averaging down, taking profits, managing risk).\n"
+            )
+        else:
+            allowed_actions = "BUY or AVOID"
+            portfolio_rules = "- User currently does not hold this stock. Provide a pure entry/avoid assessment.\n"
 
         system_prompt = (
             "You are a professional NEPSE (Nepal Stock Exchange) value investing analyst writing a brief for two audiences "
@@ -417,7 +430,8 @@ class AIService:
             "- Cash market only. Investments take time.\n"
             "- Promoter vs Ordinary differences in liquidity.\n"
             "- Focus on compounding, dividend capacity, and intrinsic value.\n"
-            "- The scoring engine rated this stock: {scoring_action} ({scoring_score}/100).\n"
+            f"- The scoring engine rated this stock's health: {scoring_score}/100 and recommends: {scoring_action}.\n"
+            f"{portfolio_rules}"
             "═══════════════════════════════════════\n\n"
             "You MUST structure your thoughts inside <think>...</think> tags first.\n"
             "After the </think> tag, output a raw JSON object matching this exact format:\n"
@@ -427,7 +441,7 @@ class AIService:
             "}\n\n"
             "STRICT ANALYSIS STRUCTURE (Use EXACTLY these headers):\n\n"
             "━━━ VERDICT ━━━\n"
-            "[One word: ACCUMULATE, HOLD, or AVOID]\n"
+            f"[One word: {allowed_actions}]\n"
             "[One sentence explaining the single most important fundamental reason for this signal.]\n"
             "[Margin of Safety: HIGH / MEDIUM / LOW — and one clause explaining why.]\n\n"
             "━━━ VALUATION ━━━\n"
@@ -464,59 +478,12 @@ class AIService:
         """
         model = model_name or settings.DEFAULT_OLLAMA_MODEL
 
-        system_prompt = (
-            "You are a professional NEPSE trading analyst writing a brief for two audiences "
-            "simultaneously: an experienced trader who wants the numbers fast, and a beginner "
-            "who needs to understand what to do and why.\n\n"
-            "═══════════════════════════════════════\n"
-            "NEPSE RULES (hard constraints — never violate):\n"
-            "- Long positions only. No short selling.\n"
-            "- T+2 settlement. Plan exits before next session if intraday.\n"
-            "- 10% daily circuit breaker. Stop loss must be within 9% of LTP.\n"
-            "- Minimum meaningful trade: consider turnover_120d for liquidity risk.\n"
-            "═══════════════════════════════════════\n\n"
-            "You MUST structure your thoughts inside <think>...</think> tags first.\n"
-            "After the </think> tag, output a raw JSON object matching this exact format:\n"
-            "{\n"
-            '  "verdict": "One direct sentence stating the trade setup.",\n'
-            '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
-            "}\n\n"
-            "WRITE EXACTLY THE FOLLOWING SECTIONS IN ORDER:\n\n"
-            "━━━ SIGNAL ━━━\n"
-            "[One word: BUY or WAIT or AVOID]\n"
-            "[One sentence explaining the single most important reason for this signal.]\n"
-            "[Confidence: HIGH / MEDIUM / LOW — and one clause explaining why.]\n\n"
-            "━━━ TRADE NUMBERS ━━━\n"
-            "[Write this block only if signal is BUY. If WAIT or AVOID, write 'No trade setup.' and skip to next section.]\n"
-            "Entry zone:    Rs. [lower] – Rs. [upper]\n"
-            "Target:        Rs. [price] (+[%])\n"
-            "Stop loss:     Rs. [price] (-[%])\n\n"
-            "RISK:REWARD CALCULATION RULES (MANDATORY):\n"
-            "- Gross Profit = (Target - Entry)\n"
-            "- Net Reward = Gross Profit - (7.5% CGT on Profit) - (0.8% Total Commissions on transaction value)\n"
-            "- Risk = (Entry - Stop Loss)\n"
-            "- R:R ratio = Risk : Net Reward (Expressed as 1 : [X])\n"
-            "R:R ratio:     1 : [X]\n"
-            "Timeframe:     [1-3 days / swing 3-7 days]\n"
-            "Position size: [FULL / HALF / QUARTER]\n"
-            "               Beginner tip: [one sentence on risk]\n\n"
-            "━━━ WHY THIS SIGNAL ━━━\n"
-            "[Maximum 5 bullet points naming ONE indicator and ending with a plain-English verdict.]\n"
-            "- [Indicator]: [value] → [plain English meaning]\n\n"
-            "━━━ KEY LEVELS ━━━\n"
-            "Resistance:  Rs. [price] ([source]) ← [target / ceiling]\n"
-            "Support:     Rs. [price] ([source]) ← [stop / floor]\n"
-            "Beginner note: [One sentence explaining support/resistance in this context]\n\n"
-            "━━━ WHAT WOULD CHANGE IT ━━━\n"
-            "[Two conditions that would flip this signal written as IF → THEN statements.]\n\n"
-            "━━━ BEGINNER CHECKLIST ━━━\n"
-            "☐ [Specific action or check relevant to this stock/signal]\n"
-            "☐ [Specific action or check relevant to this stock/signal]\n"
-            "☐ [Specific action or check relevant to this stock/signal]\n\n"
-            "MANDATORY CHECKS: \n"
-            "- DO NOT output R:R lower than 1.5 after taxes.\n"
-            "- Ensure the percentage distance to Target is mathematically LARGER than the percentage distance to Stop Loss.\n"
-            "- DO NOT hallucinate support levels outside data."
+        active_setup = input_data.get("active_trade_setup")
+        portfolio_ctx = input_data.get("portfolio_context")
+        system_prompt = cls._build_trading_system_prompt(
+            active_trade_setup=active_setup,
+            portfolio_context=portfolio_ctx,
+            is_local=True,
         )
 
         user_prompt = f"Technical data:\n{json.dumps(input_data, default=str)}"
@@ -598,8 +565,68 @@ class AIService:
 
         except httpx.ReadTimeout:
             return cls._error("Cloud API timed out after 30s. Try again later.")
+    @classmethod
+    async def _call_nvidia_api(
+        cls,
+        system_prompt: str,
+        user_prompt: str,
+    ) -> Dict[str, Any]:
+        """
+        Calls Nvidia API for DeepSeek or other models.
+        """
+        api_key  = settings.NVIDIA_API_KEY
+        base_url = settings.NVIDIA_BASE_URL
+        model    = "deepseek-ai/deepseek-v4-pro"
+
+        if not api_key:
+            return cls._error(
+                "Nvidia API key not configured. "
+                "Add NVIDIA_API_KEY to your .env file."
+            )
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type":  "application/json",
+        }
+        payload = {
+            "model":    model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user",   "content": user_prompt},
+            ],
+            "temperature":     0.3,
+            "max_tokens": 4096,
+            "chat_template_kwargs": {"thinking": False}, # Disable thinking tokens if applicable
+        }
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{base_url}/chat/completions",
+                    json=payload,
+                    headers=headers,
+                    timeout=180.0,
+                )
+
+            if response.status_code != 200:
+                return cls._error(f"Nvidia API HTTP {response.status_code}: {response.text[:200]}")
+
+            data    = response.json()
+            content = data["choices"][0]["message"]["content"]
+            
+            # Since Nvidia/Deepseek might return JSON embedded in markdown, strip thinking just in case
+            clean = cls._strip_thinking(content)
+            parsed  = cls._parse_robust_json(clean)
+
+            if parsed:
+                return cls._normalize_parsed(parsed, f"{model} (Nvidia)")
+
+            return cls._error("Nvidia API returned unparseable response.")
+
+        except httpx.ReadTimeout:
+            return cls._error("Nvidia API timed out after 180s. Try again later.")
         except Exception as e:
-            return cls._error(f"Cloud API error: {e}")
+            return cls._error(f"Nvidia API error: {e}")
 
     # ------------------------------------------------------------------
     # Cloud-specific system prompts (no <think> tags — frontier models
@@ -607,7 +634,19 @@ class AIService:
     # ------------------------------------------------------------------
 
     @classmethod
-    def _cloud_value_system_prompt(cls, scoring_action: str, scoring_score: int) -> str:
+    def _cloud_value_system_prompt(cls, scoring_action: str, scoring_score: int, portfolio_ctx: dict | None = None) -> str:
+        if portfolio_ctx:
+            allowed_actions = "ACCUMULATE, HOLD, REDUCE, or EXIT"
+            portfolio_rules = (
+                f"- User holds {portfolio_ctx.get('current_qty')} shares at WACC {portfolio_ctx.get('wacc')}.\n"
+                f"- Unrealized PnL: {portfolio_ctx.get('pnl_pct')}% (Rs. {portfolio_ctx.get('unrealized_pnl')}). Portfolio Concentration: {portfolio_ctx.get('concentration_pct')}%.\n"
+                f"- XIRR: {portfolio_ctx.get('xirr')}%. Dividends Received: Rs. {portfolio_ctx.get('dividend_income')}.\n"
+                "- Contextualize your advice based on this portfolio reality (e.g. averaging down, taking profits, managing risk).\n"
+            )
+        else:
+            allowed_actions = "BUY or AVOID"
+            portfolio_rules = "- User currently does not hold this stock. Provide a pure entry/avoid assessment.\n"
+            
         return (
             "You are a professional NEPSE (Nepal Stock Exchange) value investing analyst writing a brief for two audiences "
             "simultaneously: an experienced value investor who wants the numbers fast, and a beginner who needs to understand what to do and why.\n\n"
@@ -616,7 +655,8 @@ class AIService:
             "- Cash market only. Investments take time.\n"
             "- Promoter vs Ordinary differences in liquidity.\n"
             "- Focus on compounding, dividend capacity, and intrinsic value.\n"
-            "- The scoring engine rated this stock: {scoring_action} ({scoring_score}/100).\n"
+            f"- The scoring engine rated this stock's health: {scoring_score}/100 and recommends: {scoring_action}.\n"
+            f"{portfolio_rules}"
             "═══════════════════════════════════════\n\n"
             "OUTPUT FORMAT — respond with a JSON object only:\n"
             "{\n"
@@ -625,7 +665,7 @@ class AIService:
             "}\n\n"
             "STRICT ANALYSIS STRUCTURE (Use EXACTLY these headers):\n\n"
             "━━━ VERDICT ━━━\n"
-            "[One word: ACCUMULATE, HOLD, or AVOID]\n"
+            f"[One word: {allowed_actions}]\n"
             "[One sentence explaining the single most important fundamental reason for this signal.]\n"
             "[Margin of Safety: HIGH / MEDIUM / LOW — and one clause explaining why.]\n\n"
             "━━━ VALUATION ━━━\n"
@@ -648,7 +688,59 @@ class AIService:
         )
 
     @classmethod
-    def _cloud_trading_system_prompt(cls) -> str:
+    def _build_trading_system_prompt(
+        cls,
+        active_trade_setup: Optional[Dict] = None,
+        portfolio_context: Optional[Dict] = None,
+        is_local: bool = False,
+    ) -> str:
+        has_position = bool(active_trade_setup or (portfolio_context and portfolio_context.get("current_qty", 0) > 0))
+        allowed_signals = "EXIT or WAIT or STOP_LOSS" if has_position else "BUY or WAIT or AVOID"
+        
+        context_str = ""
+        if has_position:
+            qty = active_trade_setup.get('allocated_qty', 0) if active_trade_setup else portfolio_context.get("current_qty", 0)
+            context_str = (
+                f"**ACTIVE TRADE CONTEXT**: The user already holds a live position in this stock.\n"
+            )
+            if active_trade_setup:
+                context_str += (
+                    f"- Entry Price: Rs. {active_trade_setup.get('entry_price')}\n"
+                    f"- Initial Target: Rs. {active_trade_setup.get('target_price')}\n"
+                    f"- Stop Loss: Rs. {active_trade_setup.get('stop_loss')}\n"
+                )
+                if active_trade_setup.get("trailing_stop") is not None:
+                    context_str += f"- Trailing Stop: Rs. {active_trade_setup.get('trailing_stop')}\n"
+            if portfolio_context:
+                context_str += (
+                    f"- Quantity Held: {qty} shares\n"
+                    f"- Portfolio WACC: Rs. {portfolio_context.get('wacc')}\n"
+                    f"- Unrealized PnL: {portfolio_context.get('pnl_pct')}% (Rs. {portfolio_context.get('unrealized_pnl')})\n"
+                )
+            else:
+                context_str += f"- Quantity Held: {qty} shares\n"
+            context_str += (
+                "Your allowed verdicts are ONLY: EXIT (take profit / book profit / close), WAIT (hold position unchanged), or STOP_LOSS (cut losses immediately).\n"
+                "Evaluate based on current LTP vs entry, proximity to target/stop, and technical momentum.\n\n"
+            )
+
+        format_str = (
+            "OUTPUT FORMAT — respond with a JSON object only:\n"
+            "{\n"
+            '  "verdict": "One direct sentence stating the trade setup.",\n'
+            '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
+            "}\n\n"
+        )
+        if is_local:
+            format_str = (
+                "You MUST structure your thoughts inside <think>...</think> tags first.\n"
+                "After the </think> tag, output a raw JSON object matching this exact format:\n"
+                "{\n"
+                '  "verdict": "One direct sentence stating the trade setup.",\n'
+                '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
+                "}\n\n"
+            )
+
         return (
             "You are a professional NEPSE trading analyst writing a brief for two audiences "
             "simultaneously: an experienced trader who wants the numbers fast, and a beginner "
@@ -660,18 +752,15 @@ class AIService:
             "- 10% daily circuit breaker. Stop loss must be within 9% of LTP.\n"
             "- Minimum meaningful trade: consider turnover_120d for liquidity risk.\n"
             "═══════════════════════════════════════\n\n"
-            "OUTPUT FORMAT — respond with a JSON object only:\n"
-            "{\n"
-            '  "verdict": "One direct sentence stating the trade setup.",\n'
-            '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
-            "}\n\n"
+            f"{context_str}"
+            f"{format_str}"
             "WRITE EXACTLY THE FOLLOWING SECTIONS IN ORDER:\n\n"
             "━━━ SIGNAL ━━━\n"
-            "[One word: BUY or WAIT or AVOID]\n"
+            f"[One word: {allowed_signals}]\n"
             "[One sentence explaining the single most important reason for this signal.]\n"
             "[Confidence: HIGH / MEDIUM / LOW — and one clause explaining why.]\n\n"
             "━━━ TRADE NUMBERS ━━━\n"
-            "[Write this block only if signal is BUY. If WAIT or AVOID, write 'No trade setup.' and skip to next section.]\n"
+            "[Write this block evaluating current target vs LTP. If no setup exists, write 'No trade setup.' and skip to next section.]\n"
             "Entry zone:    Rs. [lower] – Rs. [upper]\n"
             "Target:        Rs. [price] (+[%])\n"
             "Stop loss:     Rs. [price] (-[%])\n\n"
@@ -711,22 +800,37 @@ class AIService:
     async def get_value_verdict_cloud(
         cls,
         input_data: Dict[str, Any],
+        provider: str = "groq"
     ) -> Dict[str, Any]:
-        """Value Investing analysis via Groq Cloud API."""
-        scoring_action = input_data.get("scoring_action", "HOLD")
+        """Value Investing analysis via Cloud API."""
+        scoring_action = input_data.get("action_verdict", "HOLD")
         scoring_score  = input_data.get("health_score", 50)
-        system_prompt  = cls._cloud_value_system_prompt(scoring_action, scoring_score)
+        portfolio_ctx  = input_data.get("portfolio_context")
+        system_prompt  = cls._cloud_value_system_prompt(scoring_action, scoring_score, portfolio_ctx)
         user_prompt    = f"Stock data:\n{json.dumps(input_data, default=str)}"
+        
+        if provider == "nvidia":
+            return await cls._call_nvidia_api(system_prompt, user_prompt)
         return await cls._call_cloud_api(system_prompt, user_prompt)
 
     @classmethod
     async def get_trading_verdict_cloud(
         cls,
         input_data: Dict[str, Any],
+        provider: str = "groq"
     ) -> Dict[str, Any]:
-        """Pure Trading analysis via Groq Cloud API."""
-        system_prompt = cls._cloud_trading_system_prompt()
+        """Pure Trading analysis via Cloud API."""
+        active_setup = input_data.get("active_trade_setup")
+        portfolio_ctx = input_data.get("portfolio_context")
+        system_prompt = cls._build_trading_system_prompt(
+            active_trade_setup=active_setup,
+            portfolio_context=portfolio_ctx,
+            is_local=False,
+        )
         user_prompt   = f"Technical data:\n{json.dumps(input_data, default=str)}"
+        
+        if provider == "nvidia":
+            return await cls._call_nvidia_api(system_prompt, user_prompt)
         return await cls._call_cloud_api(system_prompt, user_prompt)
 
     # ------------------------------------------------------------------
@@ -740,14 +844,23 @@ class AIService:
         The user copies this into ChatGPT, DeepSeek, Gemini, or Claude.
         """
         if mode.lower() == "trading":
-            role = cls._cloud_trading_system_prompt()
+            active_setup = input_data.get("active_trade_setup")
+            portfolio_ctx = input_data.get("portfolio_context")
+            role = cls._build_trading_system_prompt(
+                active_trade_setup=active_setup,
+                portfolio_context=portfolio_ctx,
+                is_local=False,
+            )
             # Remove JSON formatting instructions for human readability in Chat UIs
             json_block_pattern = r"OUTPUT FORMAT — respond with a JSON object only:.*?\}\n\n"
             role = re.sub(json_block_pattern, "", role, flags=re.DOTALL)
             # Remove specific JSON field references
             role = role.replace('"analysis": "Your entire text response written EXACTLY per the following structure."', "Structure your response as follows:")
         else:
-            role = cls._cloud_value_system_prompt("N/A", 50)
+            action = input_data.get("action_verdict", "HOLD")
+            score  = input_data.get("health_score", 50)
+            portfolio_ctx = input_data.get("portfolio_context")
+            role = cls._cloud_value_system_prompt(action, score, portfolio_ctx)
             json_block_pattern = r"OUTPUT FORMAT — respond with a JSON object only:.*?\}\n\n"
             role = re.sub(json_block_pattern, "", role, flags=re.DOTALL)
             role = role.replace('"analysis": "Your entire text response written EXACTLY per the following structure."', "Structure your response as follows:")
@@ -758,4 +871,190 @@ class AIService:
             f"{json.dumps(input_data, indent=2, default=str)}\n"
             f"--- END DATA ---\n\n"
             f"Please provide your analysis based on the data above in the requested structure."
+        )
+
+    # ------------------------------------------------------------------
+    # Trade Intel — Retrospective Investment Analysis
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _trade_intel_system_prompt(cls) -> str:
+        """System prompt for retrospective trade analysis / post-mortem."""
+        return (
+            "You are a NEPSE investment mentor performing a retrospective analysis of a user's trading history for a specific stock. "
+            "You are grading their decision-making, not recommending future actions.\n\n"
+            "═══════════════════════════════════════\n"
+            "NEPSE CONTEXT (hard constraints):\n"
+            "- Cash-only market, no short selling, T+2 settlement.\n"
+            "- 7.5% CGT on short-term gains (<365 days), 5% on long-term.\n"
+            "- 0.4% broker commission + SEBON fees on each transaction.\n"
+            "- Bonus shares are common — they dilute WACC to Rs. 100 per share.\n"
+            "═══════════════════════════════════════\n\n"
+            "OUTPUT FORMAT — respond with a JSON object only:\n"
+            "{\n"
+            '  "verdict": "One sentence grading the overall investment decision.",\n'
+            '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
+            "}\n\n"
+            "STRICT ANALYSIS STRUCTURE (Use EXACTLY these headers):\n\n"
+            "━━━ GRADE ━━━\n"
+            "[One letter: A / B / C / D / F]\n"
+            "[One sentence summarizing whether this was a good investment decision and why.]\n\n"
+            "━━━ ENTRY TIMING ━━━\n"
+            "[Evaluate whether the user bought at good prices relative to the stock's fundamentals at the time.]\n"
+            "- Average buy price vs current Graham Number\n"
+            "- Was the entry at a discount or premium?\n\n"
+            "━━━ POSITION MANAGEMENT ━━━\n"
+            "[Evaluate how they managed the position — did they average down sensibly? Hold too long? Sell too early?]\n"
+            "- Number of transactions and pattern (DCA, lump sum, panic selling)\n"
+            "- WACC trajectory through the epoch\n\n"
+            "━━━ OUTCOME ━━━\n"
+            "[Concrete numbers: realized PnL, unrealized PnL, holding duration, effective return rate.]\n"
+            "- Total P&L (realized + unrealized): Rs. [amount]\n"
+            "- Holding period: [days] days\n"
+            "- Annualized return: [%]\n\n"
+            "━━━ WHAT COULD HAVE BEEN BETTER ━━━\n"
+            "[Two to three specific, actionable improvements — not generic advice.]\n"
+            "- If [specific action] → [estimated better outcome]\n\n"
+            "━━━ KEY TAKEAWAY ━━━\n"
+            "[One paragraph the user should remember for future NEPSE investing.]\n"
+        )
+
+    @classmethod
+    async def get_trade_intel_verdict(
+        cls,
+        input_data: Dict[str, Any],
+        model_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Trade Intel retrospective analysis via Local Ollama."""
+        model = model_name or settings.DEFAULT_OLLAMA_MODEL
+        system_prompt = cls._trade_intel_system_prompt()
+        user_prompt = f"Trade history data:\n{json.dumps(input_data, default=str)}"
+        return await cls._call_ollama(system_prompt, user_prompt, model)
+
+    @classmethod
+    async def get_trade_intel_verdict_cloud(
+        cls,
+        input_data: Dict[str, Any],
+        provider: str = "groq",
+    ) -> Dict[str, Any]:
+        """Trade Intel retrospective analysis via Cloud API."""
+        system_prompt = cls._trade_intel_system_prompt()
+        user_prompt = f"Trade history data:\n{json.dumps(input_data, default=str)}"
+
+        if provider == "nvidia":
+            return await cls._call_nvidia_api(system_prompt, user_prompt)
+        return await cls._call_cloud_api(system_prompt, user_prompt)
+
+    @classmethod
+    def generate_trade_intel_frontier_prompt(cls, input_data: Dict[str, Any]) -> str:
+        """Generate a copy/paste prompt for Trade Intel retrospective analysis."""
+        role = cls._trade_intel_system_prompt()
+        # Strip JSON formatting for human-readable pasting
+        json_block_pattern = r"OUTPUT FORMAT — respond with a JSON object only:.*?\}\n\n"
+        role = re.sub(json_block_pattern, "", role, flags=re.DOTALL)
+
+        return (
+            f"{role}\n\n"
+            f"--- TRADE HISTORY DATA ---\n"
+            f"{json.dumps(input_data, indent=2, default=str)}\n"
+            f"--- END DATA ---\n\n"
+            f"Please provide your retrospective analysis based on the data above in the requested structure."
+        )
+
+    # ------------------------------------------------------------------
+    # Portfolio Analyst — Holistic Portfolio Review
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def _portfolio_system_prompt(cls) -> str:
+        """System prompt for whole portfolio analysis."""
+        return (
+            "You are a NEPSE portfolio management expert. Your job is to analyze the overall health, "
+            "efficiency, and risk exposure of a retail investor's stock portfolio based on core financial metrics.\n\n"
+            "═══════════════════════════════════════\n"
+            "NEPSE CONTEXT (hard constraints):\n"
+            "- Risk-free rate proxy is around 7-8% (fixed deposits).\n"
+            "- NEPSE is highly volatile and sentiment-driven.\n"
+            "- Dividends (bonus shares/cash) are key for long-term compounding.\n"
+            "═══════════════════════════════════════\n\n"
+            "OUTPUT FORMAT — respond with a JSON object only:\n"
+            "{\n"
+            '  "verdict": "One sentence summarizing the overall portfolio health.",\n'
+            '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
+            "}\n\n"
+            "STRICT ANALYSIS STRUCTURE (Use EXACTLY these headers):\n\n"
+            "━━━ PORTFOLIO HEALTH ━━━\n"
+            "[Grade: Excellent / Good / Needs Work / High Risk]\n"
+            "[Two sentences explaining the primary driver of this portfolio's performance (e.g., strong XIRR, poor dividend yield, high concentration).]\n\n"
+            "━━━ PERFORMANCE vs MARKET ━━━\n"
+            "[Evaluate XIRR vs NEPSE XIRR and explain the Alpha.]\n"
+            "- Is the portfolio beating the market? Explain why the Alpha is positive or negative.\n"
+            "- Explain the Dividend Yield in the context of NEPSE expectations.\n\n"
+            "━━━ RISK & VOLATILITY ━━━\n"
+            "[Evaluate Sharpe Ratio, Beta, and Max Drawdown.]\n"
+            "- Are they taking too much risk for the returns (Sharpe)?\n"
+            "- Is the portfolio more or less volatile than NEPSE (Beta)?\n"
+            "- How painful was the biggest drop (Max Drawdown)?\n\n"
+            "━━━ ACTIONABLE ADVICE ━━━\n"
+            "[Provide 3 bullet points with direct, Nepal-specific advice (e.g., 'Increase banking exposure for dividends', 'Cut losses on high-beta hydro').]\n"
+            "- [Advice 1]\n"
+            "- [Advice 2]\n"
+            "- [Advice 3]\n"
+        )
+
+    @classmethod
+    async def get_portfolio_verdict(
+        cls,
+        input_data: Dict[str, Any],
+        model_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Holistic portfolio analysis via Local Ollama."""
+        model = model_name or settings.DEFAULT_OLLAMA_MODEL
+        system_prompt = cls._portfolio_system_prompt()
+        user_prompt = f"Portfolio Metrics:\n{json.dumps(input_data, default=str)}"
+        return await cls._call_ollama(system_prompt, user_prompt, model)
+
+    @classmethod
+    async def get_portfolio_verdict_cloud(
+        cls,
+        input_data: Dict[str, Any],
+        provider: str = "groq",
+    ) -> Dict[str, Any]:
+        """Holistic portfolio analysis via Cloud API."""
+        system_prompt = cls._portfolio_system_prompt()
+        user_prompt = f"Portfolio Metrics:\n{json.dumps(input_data, default=str)}"
+
+        if provider == "nvidia":
+            return await cls._call_nvidia_api(system_prompt, user_prompt)
+        return await cls._call_cloud_api(system_prompt, user_prompt)
+
+    @classmethod
+    def generate_portfolio_frontier_prompt(cls, input_data: Dict[str, Any]) -> str:
+        """Generate a copy/paste prompt for Portfolio Analyst."""
+        role = cls._portfolio_system_prompt()
+        # Strip JSON formatting for human-readable pasting
+        json_block_pattern = r"OUTPUT FORMAT — respond with a JSON object only:.*?\}\n\n"
+        role = re.sub(json_block_pattern, "", role, flags=re.DOTALL)
+
+        # Simplify holdings for prompt to focus on key metrics
+        holdings = input_data.get("holdings", [])
+        input_data["holdings_summary"] = [
+            {
+                "symbol": h.get("symbol"),
+                "value": h.get("current_value"),
+                "pnl_pct": h.get("pnl_pct"),
+                "sector": h.get("sector")
+            }
+            for h in holdings
+        ]
+        # Remove raw holdings to save tokens
+        if "holdings" in input_data:
+            del input_data["holdings"]
+
+        return (
+            f"{role}\n\n"
+            f"--- PORTFOLIO METRICS ---\n"
+            f"{json.dumps(input_data, indent=2, default=str)}\n"
+            f"--- END DATA ---\n\n"
+            f"Please provide your portfolio analysis based on the data above in the requested structure. Ensure the advice is actionable and NEPSE-specific."
         )

@@ -13,6 +13,8 @@ from app.models.member import MeroshareCredential
 from app.services.ipo_bot import IpoBot
 from app.utils.encryption import decrypt_value
 
+from app.api.members import require_master_password
+
 router = APIRouter(prefix="/api/ipo", tags=["IPO"])
 
 # In-memory store for active IPO jobs (HIGH-03: bounded with TTL)
@@ -120,7 +122,10 @@ def run_ipo_job(job_id: str, member_ids: List[int], ipo_indices: List[int], over
                 member_results = []
                 for index in ipo_indices:
                     res = bot.apply_for_issue(
-                        index=index, crn=cred.crn, txn_pin=cred.txn_pin, units=apply_unit)
+                        index=index, 
+                        crn=decrypt_value(cred.crn) if cred.crn else None, 
+                        txn_pin=decrypt_value(cred.txn_pin) if cred.txn_pin else None, 
+                        units=apply_unit)
                     # Add IPO mapping index to result
                     res["index"] = index
                     member_results.append(res)
@@ -150,7 +155,7 @@ def run_ipo_job(job_id: str, member_ids: List[int], ipo_indices: List[int], over
 
 
 @router.post("/apply")
-def apply_ipos(request: IpoApplyRequest):
+def apply_ipos(request: IpoApplyRequest, _auth=Depends(require_master_password)):
     """Starts a background job to apply for selected IPOs."""
     if not request.member_ids or not request.ipo_indices:
         raise HTTPException(

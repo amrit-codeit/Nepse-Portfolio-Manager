@@ -22,6 +22,7 @@ import ExecutiveSummary from '../components/insights/ExecutiveSummary';
 import StockScreener from '../components/insights/StockScreener';
 import TechnicalTabs from '../components/insights/TechnicalTabs';
 import FundamentalTabs from '../components/insights/FundamentalTabs';
+import TradeIntelTab from '../components/insights/TradeIntelTab';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
     CartesianGrid, Legend, PieChart, Pie, Cell, ComposedChart, Line, Area,
@@ -221,7 +222,7 @@ function Stock360View({ selectedSymbol, companies, selectedMember, memberName })
         {
             key: 'summary',
             label: <span><ExperimentOutlined /> Executive Summary</span>,
-            children: <ExecutiveSummary symbol={selectedSymbol} />,
+            children: <ExecutiveSummary symbol={selectedSymbol} memberId={selectedMember} />,
         },
         {
             key: 'technical',
@@ -284,6 +285,15 @@ function Stock360View({ selectedSymbol, companies, selectedMember, memberName })
         });
     }
 
+    // Trade Intel tab — visible when a member is selected
+    if (selectedMember) {
+        innerTabItems.push({
+            key: 'trade-intel',
+            label: <span><DashboardOutlined /> Trade Intel</span>,
+            children: <TradeIntelTab symbol={selectedSymbol} memberId={selectedMember} />,
+        });
+    }
+
     return (
         <div className="animate-in">
             {/* Symbol Header Bar */}
@@ -324,6 +334,7 @@ function Stock360View({ selectedSymbol, companies, selectedMember, memberName })
                         <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Qty Held</div><div style={{ fontSize: 16, fontWeight: 700 }}>{QTY(detail.current_qty)}</div></div>
                         <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>True WACC</div><div style={{ fontSize: 16, fontWeight: 700 }}>{formatNPR(detail.wacc)}</div></div>
                         <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Tax WACC</div><div style={{ fontSize: 16, fontWeight: 700 }}>{formatNPR(detail.tax_wacc)}</div></div>
+                        <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Invested</div><div style={{ fontSize: 16, fontWeight: 700 }}>{formatNPR(detail.total_investment)}</div></div>
                         <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Unrealized P&L</div><div style={{ fontSize: 16, fontWeight: 700, color: pnlColor(detail.unrealized_pnl) }}>{formatNPR(detail.unrealized_pnl)} ({PCT(detail.pnl_pct)})</div></div>
                         <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>XIRR</div><div style={{ fontSize: 16, fontWeight: 700, color: pnlColor(detail.xirr) }}>{PCT(detail.xirr)}</div></div>
                         <div><div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Days Held</div><div style={{ fontSize: 16, fontWeight: 700 }}>{detail.holding_days}</div></div>

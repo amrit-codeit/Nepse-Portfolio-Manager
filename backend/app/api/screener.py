@@ -1,5 +1,6 @@
-"""Stock Screener API — returns all companies with cached fundamentals + technicals for frontend filtering."""
+"""Stock Screener API: cached fundamentals plus strategy-aware trading filters."""
 
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -10,6 +11,8 @@ import pandas as pd
 import pandas_ta as ta
 
 router = APIRouter(prefix="/api/screener", tags=["Screener"])
+
+STALE_TECHNICAL_HOURS = 12
 
 
 @router.get("")
@@ -74,6 +77,7 @@ def get_screener_data(db: Session = Depends(get_db)):
             df.ta.macd(fast=12, slow=26, signal=9, append=True)
             df.ta.bbands(length=20, std=2, append=True)
             df.ta.sma(close='volume', length=20, append=True, prefix='VOL')
+            df.ta.atr(length=14, append=True)
         except Exception:
             continue
 
@@ -101,6 +105,7 @@ def get_screener_data(db: Session = Depends(get_db)):
         vol_sma_20 = safe_float(latest.get("VOL_SMA_20"))
         volume = safe_float(latest.get("volume"))
         vol_ratio = (volume / vol_sma_20) if volume and vol_sma_20 and vol_sma_20 > 0 else None
+        atr_14 = safe_float(latest.get("ATRr_14"))
 
         vsa_reversal = None
         open_p = safe_float(latest.get("open"))
@@ -127,6 +132,21 @@ def get_screener_data(db: Session = Depends(get_db)):
                     elif close_p < open_p and prev_close > prev_open and close_p < prev_open and open_p > prev_close:
                         vsa_reversal = "Bearish Engulfing (High Vol)"
 
+        adt_20 = float((df["close"] * df["volume"]).tail(20).mean()) if len(df) >= 20 else None
+        liquidity_grade = "A" if adt_20 and adt_20 >= 50_000_000 else "B" if adt_20 and adt_20 >= 20_000_000 else "C" if adt_20 and adt_20 >= 5_000_000 else "D"
+        volatility_risk_tag = "HIGH" if atr_14 and ltp and atr_14 / ltp >= 0.08 else "MEDIUM" if atr_14 and ltp and atr_14 / ltp >= 0.04 else "LOW"
+        setup_type_tags = []
+        if macd_hist and macd_hist > 0 and rsi_14 and 50 <= rsi_14 <= 68 and (ema_50 and ltp > ema_50):
+            setup_type_tags.append("Momentum continuation")
+        if vol_ratio and vol_ratio >= 1.5 and placement_52w >= 75:
+            setup_type_tags.append("Breakout candidate")
+        if ema_50 and ltp > ema_50 and rsi_14 and 40 <= rsi_14 <= 55:
+            setup_type_tags.append("Pullback in bullish trend")
+        if rsi_14 and rsi_14 <= 35 and vsa_reversal and "Bullish" in vsa_reversal:
+            setup_type_tags.append("Mean-reversion bounce")
+        if not setup_type_tags:
+            setup_type_tags.append("Avoid / weak structure")
+
         technicals_map[symbol] = {
             "ltp": ltp,
             "high_52w": high_52w,
@@ -145,7 +165,14 @@ def get_screener_data(db: Session = Depends(get_db)):
             "volume": volume,
             "vol_sma_20": vol_sma_20,
             "vol_ratio": round(vol_ratio, 2) if vol_ratio else None,
+            "atr_14": round(atr_14, 2) if atr_14 else None,
             "vsa_reversal": vsa_reversal,
+            "adt_20": round(adt_20, 2) if adt_20 else None,
+            "liquidity_grade": liquidity_grade,
+            "setup_type_tags": setup_type_tags,
+            "volatility_risk_tag": volatility_risk_tag,
+            "suggested_stop_loss": round(ltp - 1.5 * atr_14, 2) if atr_14 else None,
+            "suggested_target_1": round(ltp + 2.0 * atr_14, 2) if atr_14 else None,
             "data_points": len(prices),
         }
 
@@ -157,10 +184,16 @@ def get_screener_data(db: Session = Depends(get_db)):
         tech = technicals_map.get(c.symbol)
 
         ltp = None
+        stale_technical_data = True
         if lp and lp.ltp:
             ltp = lp.ltp
+            updated_at = lp.updated_at
+            if updated_at:
+                updated_dt = updated_at if updated_at.tzinfo else updated_at.replace(tzinfo=timezone.utc)
+                stale_technical_data = updated_dt < datetime.now(timezone.utc) - timedelta(hours=STALE_TECHNICAL_HOURS)
         elif tech:
             ltp = tech.get("ltp")
+            stale_technical_data = False
 
         results.append({
             "symbol": c.symbol,
@@ -190,10 +223,18 @@ def get_screener_data(db: Session = Depends(get_db)):
             "volume": tech["volume"] if tech else None,
             "vol_sma_20": tech["vol_sma_20"] if tech else None,
             "vol_ratio": tech["vol_ratio"] if tech else None,
+            "atr_14": tech["atr_14"] if tech else None,
             "vsa_reversal": tech["vsa_reversal"] if tech else None,
+            "adt_20": tech["adt_20"] if tech else None,
+            "liquidity_grade": tech["liquidity_grade"] if tech else None,
+            "setup_type_tags": tech["setup_type_tags"] if tech else [],
+            "volatility_risk_tag": tech["volatility_risk_tag"] if tech else None,
+            "suggested_stop_loss": tech["suggested_stop_loss"] if tech else None,
+            "suggested_target_1": tech["suggested_target_1"] if tech else None,
             "high_52w": tech["high_52w"] if tech else None,
             "low_52w": tech["low_52w"] if tech else None,
             "placement_52w": tech["placement_52w"] if tech else None,
+            "stale_technical_data": stale_technical_data,
             "has_technicals": tech is not None,
             "has_fundamentals": ov is not None,
         })

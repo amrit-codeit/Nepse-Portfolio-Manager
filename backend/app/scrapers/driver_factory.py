@@ -25,7 +25,8 @@ def create_headless_driver(download_dir: str = None) -> webdriver.Chrome:
     """
     options = Options()
     options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
+    # HIGH-07: Use randomized DevTools port and remove --no-sandbox (unsafe)
+    options.add_argument("--remote-debugging-port=0")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")

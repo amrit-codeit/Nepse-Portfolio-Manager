@@ -15,7 +15,7 @@ import {
 import {
     getCompanies, getExtendedTechnicals, getInsights,
     getAITradingVerdict, getAITradingVerdictCloud, getAIModels, getFrontierPrompt,
-    getMarketContext, scrapeTechnicals
+    getMarketContext, scrapeTechnicals, getMembers
 } from '../../services/api';
 import TechnicalTabs from '../insights/TechnicalTabs';
 
@@ -28,7 +28,7 @@ function formatNPR(value, decimals = 2) {
 
 
 // ── AI Copilot Panel ──
-function AICopilotPanel({ symbol, companyOptions }) {
+function AICopilotPanel({ symbol, memberId, stalePrice }) {
     const [mode, setMode] = useState('verdict');
     const [model, setModel] = useState('llama3.2');
 
@@ -40,18 +40,19 @@ function AICopilotPanel({ symbol, companyOptions }) {
     const availableModels = useMemo(() => {
         const models = (modelsData?.models || []).map(m => ({ value: m, label: `Local: ${m}` }));
         models.push({ value: 'groq', label: 'Cloud: Groq Llama 3 (Fast)' });
+        models.push({ value: 'nvidia', label: 'Cloud: Nvidia DeepSeek V4 Pro' });
         return models;
     }, [modelsData]);
 
     const verdictMut = useMutation({
         mutationFn: async () => {
             if (mode === 'prompt') {
-                return getFrontierPrompt(symbol, 'trading').then(r => ({ status: 'success', prompt: r.data.prompt }));
+                return getFrontierPrompt(symbol, 'trading', memberId).then(r => ({ status: 'success', prompt: r.data.prompt }));
             }
-            if (model === 'groq') {
-                return getAITradingVerdictCloud(symbol).then(r => r.data);
+            if (model === 'groq' || model === 'nvidia') {
+                return getAITradingVerdictCloud(symbol, model, memberId).then(r => r.data);
             }
-            return getAITradingVerdict(symbol, model).then(r => r.data);
+            return getAITradingVerdict(symbol, model, memberId).then(r => r.data);
         }
     });
 
@@ -136,12 +137,23 @@ function AICopilotPanel({ symbol, companyOptions }) {
                         </div>
                     ) : (
                         <div className="stat-card" style={{ padding: '20px 24px', background: 'linear-gradient(135deg, rgba(108, 92, 231, 0.05) 0%, rgba(167, 139, 250, 0.1) 100%)', borderLeft: '4px solid #6c5ce7' }}>
+                            {stalePrice ? (
+                                <Alert
+                                    type="warning"
+                                    showIcon
+                                    style={{ marginBottom: 16 }}
+                                    message="Technical data is stale"
+                                    description="Treat the verdict as low confidence until live price data is refreshed."
+                                />
+                            ) : null}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: 'var(--accent-primary)' }}>
                                     <ThunderboltOutlined style={{ marginRight: 8 }} />
                                     Trading Verdict: {result.verdict}
                                 </h3>
-                                <Tag color="purple" style={{ fontSize: 13, padding: '4px 12px' }}>{model === 'groq' ? 'Groq Cloud' : `Local: ${model}`}</Tag>
+                                <Tag color="purple" style={{ fontSize: 13, padding: '4px 12px' }}>
+                                    {model === 'groq' ? 'Groq Cloud' : model === 'nvidia' ? 'Nvidia DeepSeek' : `Local: ${model}`}
+                                </Tag>
                             </div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
                                 {result.analysis}
@@ -158,6 +170,7 @@ function AICopilotPanel({ symbol, companyOptions }) {
 // ── Merged Stock Analysis Component ──
 export default function StockAnalysis() {
     const [symbol, setSymbol] = useState(null);
+    const [memberId, setMemberId] = useState(null);
     const queryClient = useQueryClient();
 
     const { data: companiesRaw } = useQuery({
@@ -168,6 +181,11 @@ export default function StockAnalysis() {
         (companiesRaw || []).map(c => ({ value: c.symbol, label: `${c.symbol} — ${c.name || ''}` })),
         [companiesRaw]
     );
+
+    const { data: members } = useQuery({
+        queryKey: ['members'],
+        queryFn: () => getMembers().then(r => r.data),
+    });
 
     // Insights API provides tech data (RSI, EMA, MACD, Bollinger, Volume, OBV)
     const { data: insightsData, isLoading: insightsLoading, isFetching } = useQuery({
@@ -211,20 +229,33 @@ export default function StockAnalysis() {
             children: isLoading
                 ? <div style={{ textAlign: 'center', padding: '40px 0' }}><Spin size="large" /></div>
                 : symbol
-                    ? <TechnicalTabs symbol={symbol} tech={tech} extTech={extTech} marketContext={marketContext} />
+                    ? (
+                        <div>
+                            {(tech?.stale_price || extTech?.stale_price) ? (
+                                <Alert
+                                    type="warning"
+                                    showIcon
+                                    style={{ marginBottom: 16 }}
+                                    message="Technical snapshot may be stale"
+                                    description="Signals and AI advice are safest after refreshing live technical data."
+                                />
+                            ) : null}
+                            <TechnicalTabs symbol={symbol} tech={tech} extTech={extTech} marketContext={marketContext} />
+                        </div>
+                    )
                     : <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Select a stock above.</div>,
         },
         {
             key: 'copilot',
             label: <span><RobotOutlined /> AI Copilot</span>,
-            children: <AICopilotPanel symbol={symbol} companyOptions={companyOptions} />,
+            children: <AICopilotPanel symbol={symbol} memberId={memberId} stalePrice={tech?.stale_price || extTech?.stale_price} />,
         },
     ];
 
     return (
         <div className="animate-in">
             {/* Shared stock selector */}
-            <div className="stat-card" style={{ padding: '16px 20px', marginBottom: 20, display: 'flex', gap: 16, alignItems: 'center' }}>
+            <div className="stat-card" style={{ padding: '16px 20px', marginBottom: 20, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ fontSize: 14, fontWeight: 500 }}>Analyze Stock:</div>
                 <Select
                     showSearch
@@ -237,6 +268,20 @@ export default function StockAnalysis() {
                     size="large"
                     allowClear
                 />
+                <Select
+                    showSearch
+                    optionFilterProp="children"
+                    allowClear
+                    style={{ width: 200 }}
+                    placeholder="Portfolio Member"
+                    onChange={setMemberId}
+                    value={memberId}
+                    size="large"
+                >
+                    {members?.map(m => (
+                        <Select.Option key={m.id} value={m.id}>{m.name}</Select.Option>
+                    ))}
+                </Select>
                 {symbol && (
                     <Button 
                         icon={<SyncOutlined spin={scrapeMut.isPending} />} 

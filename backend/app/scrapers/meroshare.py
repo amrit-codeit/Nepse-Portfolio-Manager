@@ -137,12 +137,7 @@ def sync_meroshare_for_member(db: Session, member: Member) -> dict:
         un_field.send_keys(username)
         pw_field.send_keys(password)
 
-        log_diag(f"  Actual UN: {un_field.get_attribute('value')}")
-        log_diag(
-            f"  Input Classes: UN={un_field.get_attribute('class')}, PW={pw_field.get_attribute('class')}")
-
         # Click login button
-        driver.save_screenshot("meroshare_before_login.png")
         login_btn = wait.until(EC.element_to_be_clickable(
             (By.CSS_SELECTOR, "button[type='submit']")))
 
@@ -154,7 +149,6 @@ def sync_meroshare_for_member(db: Session, member: Member) -> dict:
             driver.execute_script("arguments[0].click();", login_btn)
 
         log_diag(f"  Login submitted. Waiting for navigation...")
-        driver.save_screenshot("meroshare_after_login.png")
 
         # ── Navigate to Transaction History ───────────────────────────
         # Wait for successful login (URL should change)
@@ -162,7 +156,6 @@ def sync_meroshare_for_member(db: Session, member: Member) -> dict:
 
         if "/login" in driver.current_url:
             log_diag("  Still on login page. Checking for errors...")
-            driver.save_screenshot("meroshare_login_stuck.png")
 
         try:
             transaction_tab = wait.until(
@@ -259,7 +252,7 @@ def sync_meroshare_for_member(db: Session, member: Member) -> dict:
             "id": member.id,
             "name": member.name,
             "status": "failed",
-            "reason": err_msg,
+            "reason": f"An internal error occurred: {str(e)}",
         }
     finally:
         driver.quit()

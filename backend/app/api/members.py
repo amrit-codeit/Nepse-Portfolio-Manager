@@ -13,14 +13,18 @@ from app.schemas.member import (
 )
 from app.scrapers.meroshare import sync_meroshare_for_member
 from fastapi import BackgroundTasks
+import bcrypt
 
 router = APIRouter(prefix="/api/members", tags=["Members"])
 
 
 def require_master_password(x_master_password: str = Header(..., alias="X-Master-Password")):
     """FastAPI dependency that enforces master password on sensitive endpoints."""
-    if x_master_password != settings.MASTER_PASSWORD:
-        raise HTTPException(status_code=401, detail="Invalid master password")
+    try:
+        if not bcrypt.checkpw(x_master_password.encode('utf-8'), settings.MASTER_PASSWORD.encode('utf-8')):
+            raise HTTPException(status_code=401, detail="Invalid master password")
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid master password format")
     return True
 
 
@@ -83,7 +87,7 @@ def update_member(member_id: int, data: MemberUpdate, db: Session = Depends(get_
 
 
 @router.delete("/{member_id}", status_code=204)
-def delete_member(member_id: int, db: Session = Depends(get_db)):
+def delete_member(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Delete a member and all associated data."""
     member = db.query(Member).filter(Member.id == member_id).first()
     if not member:
@@ -96,8 +100,11 @@ def delete_member(member_id: int, db: Session = Depends(get_db)):
 def verify_password(data: VerifyPasswordRequest):
     """Verify master password before allowing credential edits.
     Returns a confirmation so the frontend can store the password for subsequent header-based auth."""
-    if data.password == settings.MASTER_PASSWORD:
-        return {"status": "success", "message": "Password verified"}
+    try:
+        if bcrypt.checkpw(data.password.encode('utf-8'), settings.MASTER_PASSWORD.encode('utf-8')):
+            return {"status": "success", "message": "Password verified"}
+    except ValueError:
+        pass
     raise HTTPException(status_code=401, detail="Invalid master password")
 
 
@@ -114,8 +121,8 @@ def export_credentials(db: Session = Depends(get_db), _auth=Depends(require_mast
                 dp=c.dp,
                 username=c.username,
                 password=decrypt_value(c.password_encrypted),
-                crn=c.crn,
-                txn_pin=c.txn_pin,
+                crn=decrypt_value(c.crn) if c.crn else None,
+                txn_pin=decrypt_value(c.txn_pin) if c.txn_pin else None,
                 apply_unit=c.apply_unit
             ))
     return result
@@ -139,8 +146,8 @@ def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTask
             existing_cred.dp = item.dp
             existing_cred.username = item.username
             existing_cred.password_encrypted = encrypt_value(item.password)
-            existing_cred.crn = item.crn
-            existing_cred.txn_pin = item.txn_pin
+            existing_cred.crn = encrypt_value(item.crn) if item.crn else None
+            existing_cred.txn_pin = encrypt_value(item.txn_pin) if item.txn_pin else None
             existing_cred.apply_unit = item.apply_unit
         else:
             new_cred = MeroshareCredential(
@@ -148,8 +155,8 @@ def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTask
                 dp=item.dp,
                 username=item.username,
                 password_encrypted=encrypt_value(item.password),
-                crn=item.crn,
-                txn_pin=item.txn_pin,
+                crn=encrypt_value(item.crn) if item.crn else None,
+                txn_pin=encrypt_value(item.txn_pin) if item.txn_pin else None,
                 apply_unit=item.apply_unit
             )
             db.add(new_cred)
@@ -188,8 +195,8 @@ def set_credentials(member_id: int, data: CredentialCreate, background_tasks: Ba
         dp=data.dp,
         username=data.username,
         password_encrypted=encrypt_value(data.password),
-        crn=data.crn,
-        txn_pin=data.txn_pin,
+        crn=encrypt_value(data.crn) if data.crn else None,
+        txn_pin=encrypt_value(data.txn_pin) if data.txn_pin else None,
         apply_unit=data.apply_unit,
     )
     db.add(cred)
@@ -203,7 +210,7 @@ def set_credentials(member_id: int, data: CredentialCreate, background_tasks: Ba
 
 
 @router.get("/{member_id}/credentials", response_model=CredentialResponse)
-def get_credentials(member_id: int, db: Session = Depends(get_db)):
+def get_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Get credentials for a member."""
     cred = db.query(MeroshareCredential).filter(MeroshareCredential.member_id == member_id).first()
     if not cred:
@@ -227,8 +234,8 @@ def get_decrypted_credentials(member_id: int, db: Session = Depends(get_db), _au
         "dp": cred.dp,
         "username": cred.username,
         "password": decrypt_value(cred.password_encrypted),
-        "crn": cred.crn,
-        "txn_pin": cred.txn_pin,
+        "crn": decrypt_value(cred.crn) if cred.crn else None,
+        "txn_pin": decrypt_value(cred.txn_pin) if cred.txn_pin else None,
         "apply_unit": cred.apply_unit
     }
 

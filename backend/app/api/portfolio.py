@@ -101,6 +101,7 @@ def list_holdings(
             wacc=h.wacc,
             tax_wacc=h.tax_wacc,
             total_investment=h.total_investment,
+            target_weight=h.target_weight,
             ltp=ltp,
             current_value=round(
                 current_value, 3) if current_value is not None else None,
@@ -424,3 +425,155 @@ def get_dividends(
             "bonus_shares": round(qty * bonus_pct, 4)
         })
     return res
+
+
+# ---------------------------------------------------------------------------
+# Trade Intel — Retrospective epoch analysis
+# ---------------------------------------------------------------------------
+
+@router.get("/trade-intel/{symbol}")
+def get_trade_intel_epochs(
+    symbol: str,
+    member_id: int = Query(..., description="Member ID"),
+    db: Session = Depends(get_db),
+):
+    """Build holding epochs for a specific (symbol, member) pair."""
+    from app.services.trade_intel import build_holding_epochs
+    return build_holding_epochs(db, symbol.upper(), member_id)
+
+
+@router.post("/trade-intel/{symbol}/ai-review-local")
+async def trade_intel_ai_local(
+    symbol: str,
+    member_id: int = Query(...),
+    model: str = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Retrospective AI trade review via local Ollama."""
+    from app.services.trade_intel import build_holding_epochs
+    from app.services.analysis.ai_service import AIService
+
+    try:
+        data = build_holding_epochs(db, symbol.upper(), member_id)
+        if not data.get("epochs"):
+            return {"status": "error", "verdict": "No trade history", "analysis": "No transaction history found for this symbol."}
+
+        result = await AIService.get_trade_intel_verdict(data, model_name=model)
+        if "status" not in result:
+            result["status"] = "success"
+        return result
+    except Exception as e:
+        return {"status": "error", "verdict": "Analysis failed", "analysis": str(e)}
+
+
+@router.post("/trade-intel/{symbol}/ai-review-cloud")
+async def trade_intel_ai_cloud(
+    symbol: str,
+    member_id: int = Query(...),
+    provider: str = Query("groq"),
+    db: Session = Depends(get_db),
+):
+    """Retrospective AI trade review via Cloud API."""
+    from app.services.trade_intel import build_holding_epochs
+    from app.services.analysis.ai_service import AIService
+
+    try:
+        data = build_holding_epochs(db, symbol.upper(), member_id)
+        if not data.get("epochs"):
+            return {"status": "error", "verdict": "No trade history", "analysis": "No transaction history found for this symbol."}
+
+        result = await AIService.get_trade_intel_verdict_cloud(data, provider=provider)
+        if "status" not in result:
+            result["status"] = "success"
+        return result
+    except Exception as e:
+        return {"status": "error", "verdict": "Cloud analysis failed", "analysis": str(e)}
+
+
+@router.get("/trade-intel/{symbol}/frontier-prompt")
+def trade_intel_frontier_prompt(
+    symbol: str,
+    member_id: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Generate a copy/paste prompt for frontier AI trade review."""
+    from app.services.trade_intel import build_holding_epochs
+    from app.services.analysis.ai_service import AIService
+
+    data = build_holding_epochs(db, symbol.upper(), member_id)
+    if not data.get("epochs"):
+        return {"status": "error", "prompt": "No transaction history found for this symbol."}
+
+    prompt = AIService.generate_trade_intel_frontier_prompt(data)
+    return {"status": "success", "prompt": prompt, "symbol": symbol.upper()}
+
+# ---------------------------------------------------------------------------
+# Portfolio AI Analyst
+# ---------------------------------------------------------------------------
+
+@router.post("/analyze-local")
+async def analyze_portfolio_local(
+    member_id: Optional[int] = Query(None),
+    member_ids: Optional[str] = Query(None),
+    model: str = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Holistic portfolio review via local Ollama."""
+    from app.services.analysis.ai_service import AIService
+    
+    ids_list = None
+    if member_ids:
+        ids_list = [int(x.strip()) for x in member_ids.split(',') if x.strip()]
+    summary = get_portfolio_summary(db, member_id, member_ids=ids_list)
+    
+    try:
+        input_data = summary.dict()
+        result = await AIService.get_portfolio_verdict(input_data, model_name=model)
+        if "status" not in result:
+            result["status"] = "success"
+        return result
+    except Exception as e:
+        return {"status": "error", "verdict": "Analysis failed", "analysis": str(e)}
+
+
+@router.post("/analyze-cloud")
+async def analyze_portfolio_cloud(
+    member_id: Optional[int] = Query(None),
+    member_ids: Optional[str] = Query(None),
+    provider: str = Query("groq"),
+    db: Session = Depends(get_db),
+):
+    """Holistic portfolio review via Cloud API."""
+    from app.services.analysis.ai_service import AIService
+    
+    ids_list = None
+    if member_ids:
+        ids_list = [int(x.strip()) for x in member_ids.split(',') if x.strip()]
+    summary = get_portfolio_summary(db, member_id, member_ids=ids_list)
+    
+    try:
+        input_data = summary.dict()
+        result = await AIService.get_portfolio_verdict_cloud(input_data, provider=provider)
+        if "status" not in result:
+            result["status"] = "success"
+        return result
+    except Exception as e:
+        return {"status": "error", "verdict": "Cloud analysis failed", "analysis": str(e)}
+
+
+@router.get("/analyze-frontier-prompt")
+def analyze_portfolio_frontier_prompt(
+    member_id: Optional[int] = Query(None),
+    member_ids: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Generate a copy/paste prompt for frontier AI portfolio review."""
+    from app.services.analysis.ai_service import AIService
+    
+    ids_list = None
+    if member_ids:
+        ids_list = [int(x.strip()) for x in member_ids.split(',') if x.strip()]
+    summary = get_portfolio_summary(db, member_id, member_ids=ids_list)
+    
+    prompt = AIService.generate_portfolio_frontier_prompt(summary.dict())
+    return {"status": "success", "prompt": prompt}

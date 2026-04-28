@@ -14,18 +14,39 @@ const { Text } = Typography;
 const PIE_COLORS = ['#818cf8', '#34d399', '#fbbf24', '#f87171', '#38bdf8', '#a78bfa'];
 
 const GROWTH_METRIC_LABELS = {
-    'net_profit_growth': 'Net Profit Growth',
-    'eps_growth': 'EPS Growth',
-    'revenue_growth': 'Revenue Growth',
-    'operating_profit_growth': 'Operating Profit Growth',
-    'deposit_growth': 'Deposit Growth',
-    'loan_growth': 'Loan Growth',
+    'roe_ttm': 'Return on Equity (TTM)',
+    'roa_ttm': 'Return on Assets (TTM)',
+    'eps_ttm': 'EPS (TTM)',
+    'eps_yoy_growth': 'EPS YoY Growth',
+    'bvps': 'Book Value Per Share',
+    'bvps_yoy_growth': 'BVPS YoY Growth',
+    'net_profit_ttm': 'Net Profit (TTM)',
+    'net_profit_till_qtr': 'Net Profit (This Qtr)',
+    'netprofitttmqtrl_yoy_growth': 'Net Profit (TTM) YoY Growth',
+    'netprofitqtrly_yoy_growth': 'Net Profit (Qtr) YoY Growth',
+    'revenue_ttm': 'Revenue (TTM)',
+    'revenue_till_qtr': 'Revenue (This Qtr)',
+    'revenuettm_yoy_growth': 'Revenue (TTM) YoY Growth',
+    'revenuetillqtr_yoy_growth': 'Revenue (Qtr) YoY Growth',
+    'net_margin_ttm': 'Net Margin (TTM)',
+    'asset_turnover_ttm': 'Asset Turnover (TTM)',
     'npl': 'NPL Ratio',
-    'car': 'CAR Ratio',
-    'roe': 'Return on Equity',
-    'roa': 'Return on Assets',
+    'car': 'Capital Adequacy Ratio (CAR)',
     'net_interest_margin': 'Net Interest Margin',
     'credit_to_deposit': 'CD Ratio',
+    'deposit_growth': 'Deposit Growth',
+    'loan_growth': 'Loan Growth',
+};
+
+const formatMetricName = (name) => {
+    if (GROWTH_METRIC_LABELS[name]) return GROWTH_METRIC_LABELS[name];
+    return name
+        .replace(/_yoy_growth/g, ' YoY Growth')
+        .replace(/_growth/g, ' Growth')
+        .replace(/_ttm/g, ' (TTM)')
+        .replace(/_/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/\b\w/g, c => c.toUpperCase());
 };
 
 function formatNPR(value, decimals = 2) {
@@ -145,10 +166,11 @@ export default function FundamentalTabs({
                             <tbody>
                                 {processedGrowths.metrics.map((metric, idx) => (
                                     <tr key={metric} style={{ borderBottom: '1px solid var(--border-color)', background: idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                                        <td style={{ padding: '8px 12px', fontWeight: 500 }}>{GROWTH_METRIC_LABELS[metric] || metric}</td>
+                                        <td style={{ padding: '8px 12px', fontWeight: 500 }}>{formatMetricName(metric)}</td>
                                         {processedGrowths.periods.map(p => {
                                             const val = processedGrowths.values[metric][p];
-                                            const isPercent = metric.includes('growth') || metric.includes('roe') || metric.includes('roa') || metric.includes('margin');
+                                            const lowerMetric = metric.toLowerCase();
+                                            const isPercent = lowerMetric.includes('growth') || lowerMetric.includes('roe') || lowerMetric.includes('roa') || lowerMetric.includes('margin') || lowerMetric.includes('ratio');
                                             return (<td key={p} style={{ textAlign: 'right', padding: '8px 12px' }}>{val != null ? (isPercent ? `${val.toFixed(2)}%` : val.toLocaleString(undefined, { minimumFractionDigits: 2 })) : '—'}</td>);
                                         })}
                                     </tr>

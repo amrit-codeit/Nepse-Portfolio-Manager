@@ -6,9 +6,11 @@ from app.models.company import Company
 from app.models.fundamental import StockOverview, FundamentalReport, QuarterlyGrowth
 import pandas as pd
 import pandas_ta as ta
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/api/insights", tags=["Insights"])
+
+STALE_PRICE_HOURS = 12
 
 @router.get("/{symbol}")
 def get_insights(symbol: str, db: Session = Depends(get_db)):
@@ -41,9 +43,10 @@ def get_insights(symbol: str, db: Session = Depends(get_db)):
     
     # 1.5 Inject Live Price / NAV
     company = db.query(Company).filter(Company.symbol == symbol).first()
+    updated_at = None
     if company:
         live = db.query(LivePrice).filter(LivePrice.company_id == company.id).first()
-        live_price, live_vol, live_open, live_high, live_low, updated_at = None, 0, None, None, None, None
+        live_price, live_vol, live_open, live_high, live_low = None, 0, None, None, None
         
         if live and live.ltp and live.ltp > 0:
             live_price = live.ltp
@@ -146,6 +149,11 @@ def get_insights(symbol: str, db: Session = Depends(get_db)):
     if high_52w > low_52w:
         placement_52w = ((ltp - low_52w) / (high_52w - low_52w)) * 100
         
+    stale_price = True
+    if updated_at:
+        updated_dt = updated_at if updated_at.tzinfo else updated_at.replace(tzinfo=timezone.utc)
+        stale_price = updated_dt < datetime.now(timezone.utc) - timedelta(hours=STALE_PRICE_HOURS)
+
     technicals = {
         "ltp": float(ltp),
         "high_52w": float(high_52w),
@@ -167,7 +175,9 @@ def get_insights(symbol: str, db: Session = Depends(get_db)):
         "macd_hist": float(macd_hist) if macd_hist else None,
         "macd_status": macd_status,
         "bb_upper": float(bb_upper) if bb_upper else None,
-        "bb_lower": float(bb_lower) if bb_lower else None
+        "bb_lower": float(bb_lower) if bb_lower else None,
+        "price_timestamp": updated_at.isoformat() if updated_at else None,
+        "stale_price": stale_price,
     }
     
     # 2. Fetch fundamental data from scraped tables

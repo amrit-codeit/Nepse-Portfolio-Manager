@@ -11,6 +11,14 @@ def create_database_backup():
     Retains the 1st of every month indefinitely for monthly backups.
     """
     db_path = settings.DATABASE_URL.replace("sqlite:///", "")
+    
+    # MED-08: Path traversal prevention
+    db_path = os.path.abspath(db_path)
+    base_dir = os.path.abspath(os.getcwd())
+    if not db_path.startswith(base_dir):
+        print(f"[Backup Error] Path traversal prevented: {db_path}")
+        return
+        
     if not os.path.exists(db_path):
         print(f"[Backup] Database file not found at {db_path}")
         return

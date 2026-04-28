@@ -18,6 +18,7 @@ import {
     PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer,
     BarChart, Bar, XAxis, CartesianGrid, ReferenceLine, LabelList,
 } from 'recharts';
+import AIPortfolioAnalyst from './AIPortfolioAnalyst';
 
 const COLORS = [
     '#6c5ce7', '#00b894', '#fdcb6e', '#e17055', '#0984e3',
@@ -310,6 +311,11 @@ export default function OverviewTab({ summary, context, members, onTabChange, is
 
     return (
         <div className="animate-in">
+            {/* AI Analyst */}
+            {!isSipMode && (
+                <AIPortfolioAnalyst summary={summary} context={context} />
+            )}
+
             {/* Stat Cards */}
             <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
                 {stats.map((stat, i) => (

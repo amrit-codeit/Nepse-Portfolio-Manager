@@ -1,5 +1,6 @@
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Typography } from 'antd';
+import { useEffect } from 'react';
+import { Layout, Menu, message } from 'antd';
 import {
   DashboardOutlined,
   FundOutlined,
@@ -41,6 +42,32 @@ const menuItems = [
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // MED-09 Fix: Implement inactivity timeout for Master Password
+  useEffect(() => {
+    let timeoutId;
+    
+    const lockSession = () => {
+      if (sessionStorage.getItem('masterAuth')) {
+        sessionStorage.removeItem('masterAuth');
+        message.info('Admin session locked due to inactivity.');
+      }
+    };
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(lockSession, 15 * 60 * 1000); // 15 minutes
+    };
+
+    const events = ['mousemove', 'keydown', 'scroll', 'click'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+    resetTimer();
+
+    return () => {
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   return (
     <Layout className="app-layout" style={{ minHeight: '100vh' }}>

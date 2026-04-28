@@ -33,6 +33,11 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
         .all()
     )
 
+    company = db.query(Company).filter(Company.symbol == symbol).first()
+    company_id = company.id if company else None
+    instrument = company.instrument if company else "Equity"
+    face_value = 10.0 if instrument and "Mutual Fund" in instrument else 100.0
+
     current_qty = 0.0
     total_cost = 0.0          # Actual cash flow (True Cost)
     tax_total_cost = 0.0      # MeroShare logic (Accounting Cost)
@@ -57,7 +62,7 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
 
         elif txn.txn_type == TransactionType.BONUS.value:
             current_qty += float(txn.quantity)
-            tax_total_cost += (float(txn.quantity) * 100.0)
+            tax_total_cost += (float(txn.quantity) * face_value)
 
         elif txn.txn_type in (
             TransactionType.SELL.value,
@@ -93,8 +98,8 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
     wacc = round(total_cost / current_qty, 3) if current_qty > 0 else 0.0
     tax_wacc = round(tax_total_cost / current_qty, 3) if current_qty > 0 else 0.0
 
-    company = db.query(Company).filter(Company.symbol == symbol).first()
-    company_id = company.id if company else None
+    wacc = round(total_cost / current_qty, 3) if current_qty > 0 else 0.0
+    tax_wacc = round(tax_total_cost / current_qty, 3) if current_qty > 0 else 0.0
 
     holding = (
         db.query(Holding)
@@ -156,14 +161,15 @@ def calculate_xirr(cashflows: list[tuple[date, float]]) -> float:
             total += a / (1 + r)**((d - d0).days / 365.25)
         return total
 
-    try:
-        # Newton-Raphson solver. Guessing 10% annual return.
-        result = newton(npv, 0.1, maxiter=100)
-        # Convert decimal rate to percent and round
-        return round(float(result) * 100, 3)
-    except Exception:
-        # If it fails to converge, return 0 (could be extreme losses/gains)
-        return 0.0
+    guesses = [0.1, 0.5, -0.1, 1.0, -0.5, 2.0]
+    for guess in guesses:
+        try:
+            result = newton(npv, guess, maxiter=200)
+            return round(float(result) * 100, 3)
+        except Exception:
+            continue
+            
+    return None
 
 
 def get_xirr_for_holding(db: Session, member_id: int, symbol: str, current_value: float) -> float:
@@ -473,6 +479,7 @@ def get_portfolio_summary(
                     overview_map.get(h.symbol).eps_ttm if overview_map.get(h.symbol) else None,
                     overview_map.get(h.symbol).book_value if overview_map.get(h.symbol) else None
                 ) else None,
+                dcf_value=None, # Note: DCF Valuation requires 10-year historical Free Cash Flow data which is currently not scraped.
                 
                 is_fundamental_risk=analyze_sector_risk(
                     sector,
@@ -630,6 +637,53 @@ def get_portfolio_summary(
         
         computed_market_alpha = round(computed_portfolio_xirr - computed_nepse_xirr, 3)
 
+    # --- Advanced Risk & Ranking Metrics ---
+    sharpe_ratio = 0.0
+    max_drawdown = 0.0
+    portfolio_beta = 0.0
+    
+    try:
+        from app.services.portfolio_history import PortfolioHistoryService
+        hist_service = PortfolioHistoryService(db)
+        history_data = hist_service.get_computed_history(member_id=member_id, member_ids=member_ids, days=365)
+        
+        if len(history_data) > 30:
+            import numpy as np
+            port_vals = [h['portfolio_value'] for h in history_data if h['portfolio_value'] > 0]
+            nepse_vals = [h['nepse_index'] for h in history_data if h['nepse_index'] is not None and h['nepse_index'] > 0]
+            
+            # Max Drawdown
+            if port_vals:
+                peak = port_vals[0]
+                mdd = 0.0
+                for val in port_vals:
+                    if val > peak:
+                        peak = val
+                    drawdown = (peak - val) / peak
+                    if drawdown > mdd:
+                        mdd = drawdown
+                max_drawdown = round(mdd * 100, 2)
+                
+            # Sharpe Ratio and Beta (daily returns)
+            if len(port_vals) == len(nepse_vals) and len(port_vals) > 30:
+                port_rets = np.diff(port_vals) / port_vals[:-1]
+                nepse_rets = np.diff(nepse_vals) / nepse_vals[:-1]
+                
+                daily_rf = 0.05 / 252
+                port_mean_ret = np.mean(port_rets)
+                port_std_dev = np.std(port_rets)
+                
+                if port_std_dev > 0:
+                    sharpe_ratio = round(((port_mean_ret - daily_rf) / port_std_dev) * np.sqrt(252), 2)
+                    
+                covar = np.cov(port_rets, nepse_rets)[0, 1]
+                var_nepse = np.var(nepse_rets)
+                if var_nepse > 0:
+                    portfolio_beta = round(covar / var_nepse, 2)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to calculate advanced risk metrics: {e}")
+
     summary = PortfolioSummary(
         member_id=member_id,
         member_name=summary_member_name,
@@ -643,7 +697,12 @@ def get_portfolio_summary(
         portfolio_xirr=computed_portfolio_xirr,
         nepse_xirr=computed_nepse_xirr,
         market_alpha=computed_market_alpha,
+        sharpe_ratio=sharpe_ratio,
+        max_drawdown=max_drawdown,
+        portfolio_beta=portfolio_beta,
+        dividend_yield=round((dividend_income / total_investment * 100), 2) if total_investment > 0 else 0,
         equity_xirr=computed_equity_xirr,
+
         sip_xirr=computed_sip_xirr,
         equity_dividend_income=round(eq_div_income, 3),
         sip_dividend_income=round(sip_div_income, 3),
