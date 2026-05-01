@@ -108,6 +108,7 @@ class PortfolioHistoryService:
         BUY_TYPES = {
             TransactionType.BUY.value, TransactionType.IPO.value, 
             TransactionType.FPO.value, TransactionType.RIGHT.value, 
+            TransactionType.RIGHTS_SUBSCRIPTION.value,
             TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value
         }
         SELL_TYPES = {TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value}

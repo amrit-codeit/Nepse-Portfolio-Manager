@@ -299,6 +299,15 @@ def scrape_live_prices(db: Session) -> dict:
         "updated": updated,
     }
     print(f"Prices done — scraped: {len(data)}, created: {created}, updated: {updated}")
+    
+    # ── Check price alerts ──────────────────────────────────────────
+    try:
+        from app.services.alert_service import check_price_alerts
+        check_price_alerts(db)
+        print("Checked price alerts successfully.")
+    except Exception as e:
+        print(f"Error checking price alerts: {e}")
+
     return result
 
 def _parse_float(val: str):

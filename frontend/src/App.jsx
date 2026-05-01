@@ -23,6 +23,9 @@ import ApplyIPO from './pages/ApplyIPO';
 import Insights from './pages/Insights';
 import TradingDesk from './pages/TradingDesk';
 import About from './pages/About';
+import Members from './pages/Members';
+import ScripDetail from './pages/ScripDetail';
+import NotificationBell from './components/NotificationBell';
 
 const { Sider, Content } = Layout;
 
@@ -111,7 +114,11 @@ function App() {
       </Sider>
 
       <Layout>
-        <Content className="animate-in">
+        {/* Simple Header for Notifications */}
+        <div style={{ height: 48, background: 'var(--bg-tertiary)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', paddingRight: 24 }}>
+            <NotificationBell />
+        </div>
+        <Content className="animate-in" style={{ padding: 16 }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/holdings" element={<Holdings />} />
@@ -123,6 +130,8 @@ function App() {
             <Route path="/upload" element={<Upload />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/about" element={<About />} />
+            <Route path="/members" element={<Members />} />
+            <Route path="/scrip/:symbol" element={<ScripDetail />} />
           </Routes>
         </Content>
       </Layout>

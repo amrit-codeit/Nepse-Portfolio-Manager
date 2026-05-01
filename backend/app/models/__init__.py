@@ -7,6 +7,8 @@ from app.models.portfolio_snapshot import PortfolioSnapshot
 from app.models.dividend import DividendIncome
 from app.models.fundamental import StockOverview, FundamentalReport
 from app.models.trading import TradeSetup, TradeJournal
+from app.models.scraper import ScraperRun
+from app.models.notification import Notification
 
 __all__ = [
     "Member",
@@ -27,4 +29,6 @@ __all__ = [
     "MemberGroup",
     "TradeSetup",
     "TradeJournal",
+    "ScraperRun",
+    "Notification",
 ]

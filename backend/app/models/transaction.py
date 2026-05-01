@@ -12,6 +12,7 @@ class TransactionType(str, enum.Enum):
     IPO = "IPO"
     FPO = "FPO"
     RIGHT = "RIGHT"
+    RIGHTS_SUBSCRIPTION = "RIGHTS_SUBSCRIPTION"
     BONUS = "BONUS"
     AUCTION = "AUCTION"
     BUY = "BUY"

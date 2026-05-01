@@ -249,6 +249,7 @@ def closed_positions(
     BUY_TYPES = {
         TransactionType.BUY.value, TransactionType.IPO.value,
         TransactionType.FPO.value, TransactionType.RIGHT.value,
+        TransactionType.RIGHTS_SUBSCRIPTION.value,
         TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value,
     }
     SELL_TYPES = {TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value}
@@ -577,3 +578,62 @@ def analyze_portfolio_frontier_prompt(
     
     prompt = AIService.generate_portfolio_frontier_prompt(summary.dict())
     return {"status": "success", "prompt": prompt}
+
+
+# ---------------------------------------------------------------------------
+# Sector Allocation
+# ---------------------------------------------------------------------------
+
+@router.get("/sector-allocation")
+def sector_allocation(
+    member_id: Optional[int] = Query(None),
+    member_ids: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Get portfolio allocation by NEPSE sector."""
+    from app.models.company import Company
+    from app.models.price import LivePrice, NavValue
+    from app.models.holding import Holding
+
+    query = db.query(Holding)
+    if member_ids:
+        ids_list = [int(x.strip()) for x in member_ids.split(',') if x.strip()]
+        query = query.filter(Holding.member_id.in_(ids_list))
+    elif member_id:
+        query = query.filter(Holding.member_id == member_id)
+
+    holdings = query.all()
+    if not holdings:
+        return []
+
+    all_symbols = list(set(h.symbol for h in holdings))
+
+    prices_map = {p.symbol: p.ltp for p in db.query(
+        LivePrice).filter(LivePrice.symbol.in_(all_symbols)).all()}
+    navs_map = {p.symbol: p.nav for p in db.query(
+        NavValue).filter(NavValue.symbol.in_(all_symbols)).all()}
+    for sym, nav in navs_map.items():
+        if sym not in prices_map or prices_map[sym] is None:
+            prices_map[sym] = nav
+
+    companies_map = {c.symbol: c.sector for c in db.query(
+        Company).filter(Company.symbol.in_(all_symbols)).all()}
+
+    sector_totals = {}
+    for h in holdings:
+        ltp = prices_map.get(h.symbol)
+        value = h.current_qty * ltp if ltp is not None else 0
+        sector = companies_map.get(h.symbol, "Unknown") or "Unknown"
+        sector_totals[sector] = sector_totals.get(sector, 0) + value
+
+    total_value = sum(sector_totals.values())
+    result = []
+    for sector, value in sorted(sector_totals.items(), key=lambda x: -x[1]):
+        pct = (value / total_value * 100) if total_value > 0 else 0
+        result.append({
+            "sector": sector,
+            "value": round(value, 3),
+            "percentage": round(pct, 2),
+        })
+
+    return result

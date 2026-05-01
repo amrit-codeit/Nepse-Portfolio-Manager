@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, Table, InputNumber, Button, message, Divider, Alert, Space, Modal, Form, DatePicker, Input, Tag, Tabs, Row, Col, Typography } from 'antd';
-import { SettingOutlined, SaveOutlined, HistoryOutlined, PlusOutlined } from '@ant-design/icons';
-import { getFeeConfig, updateFeeConfig, getFeeConfigHistory, addFeeConfigVersion } from '../services/api';
+import { Card, Table, InputNumber, Button, message, Divider, Alert, Space, Modal, Form, DatePicker, Input, Tag, Tabs, Row, Col, Typography, Badge, Tooltip } from 'antd';
+import { SettingOutlined, SaveOutlined, HistoryOutlined, PlusOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined } from '@ant-design/icons';
+import { getFeeConfig, updateFeeConfig, getFeeConfigHistory, addFeeConfigVersion, getScraperRuns } from '../services/api';
 import { useState } from 'react';
 
 function Settings() {
@@ -145,7 +145,72 @@ function Settings() {
             />
     );
 
+    const { data: scraperRuns, isLoading: scraperRunsLoading } = useQuery({
+        queryKey: ['scraper-runs'],
+        queryFn: () => getScraperRuns(30).then(r => r.data?.data || []),
+        refetchInterval: 30000,
+    });
+
+    const statusIcon = (status) => {
+        if (status === 'success') return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+        if (status === 'failure') return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
+        return <SyncOutlined spin style={{ color: '#1890ff' }} />;
+    };
+
+    const renderDataSourcesTab = () => (
+        <div>
+            <Alert
+                type="info" showIcon icon={<ClockCircleOutlined />}
+                message="Automated Scheduler Active"
+                description="Scrapers run automatically during NEPSE trading hours (Sun–Thu). Price data refreshes every 5 min, index snapshots every 15 min, NAV daily at 17:30, and dividends/fundamentals weekly on Sundays."
+                style={{ marginBottom: 16 }}
+            />
+            <Table
+                loading={scraperRunsLoading}
+                dataSource={scraperRuns || []}
+                rowKey="id"
+                pagination={{ pageSize: 15, size: 'small' }}
+                size="small"
+                columns={[
+                    {
+                        title: 'Status', dataIndex: 'status', key: 'status', width: 80, align: 'center',
+                        render: (s) => <Tooltip title={s}>{statusIcon(s)}</Tooltip>,
+                    },
+                    {
+                        title: 'Scraper', dataIndex: 'scraper_name', key: 'scraper_name',
+                        render: (n) => <Tag>{n}</Tag>,
+                    },
+                    {
+                        title: 'Triggered By', dataIndex: 'triggered_by', key: 'triggered_by', width: 110,
+                        render: (t) => <Badge status={t === 'scheduler' ? 'processing' : 'default'} text={t} />,
+                    },
+                    {
+                        title: 'Started', dataIndex: 'started_at', key: 'started_at', width: 180,
+                        render: (v) => v ? new Date(v).toLocaleString() : '—',
+                    },
+                    {
+                        title: 'Finished', dataIndex: 'finished_at', key: 'finished_at', width: 180,
+                        render: (v) => v ? new Date(v).toLocaleString() : '—',
+                    },
+                    {
+                        title: 'Rows', dataIndex: 'rows_affected', key: 'rows_affected', width: 80, align: 'right',
+                        render: (v) => v != null ? v.toLocaleString() : '—',
+                    },
+                    {
+                        title: 'Error', dataIndex: 'error_message', key: 'error_message', ellipsis: true,
+                        render: (e) => e ? <Tooltip title={e}><span style={{ color: '#ff4d4f' }}>{e.substring(0, 80)}</span></Tooltip> : null,
+                    },
+                ]}
+            />
+        </div>
+    );
+
     const settingTabs = [
+        {
+            key: 'data-sources',
+            label: '🔄 Data Sources',
+            children: renderDataSourcesTab(),
+        },
         {
             key: 'broker',
             label: '📊 Broker Commissions',
@@ -202,7 +267,7 @@ function Settings() {
                 <Col xs={24} lg={18}>
                     <Card style={{ borderRadius: 14 }} loading={isLoading} bodyStyle={{ padding: '0px 24px 24px 24px' }}>
                         <Tabs 
-                            defaultActiveKey="broker" 
+                            defaultActiveKey="data-sources" 
                             items={settingTabs}
                             size="large"
                             tabBarStyle={{ marginBottom: 24 }}

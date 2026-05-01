@@ -902,7 +902,7 @@ export default function ExecutiveSummary({ symbol, memberId }) {
     const ScoreBreakdown = () => (
         <div className="stat-card" style={{ padding: '16px 20px', marginBottom: 20 }}>
             <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 10, letterSpacing: '0.5px' }}>
-                <DashboardOutlined /> Score Breakdown
+                <DashboardOutlined /> Fundamental Breakdown
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 6 }}>
                 {data.score_breakdown?.map((item, i) => (
@@ -931,7 +931,17 @@ export default function ExecutiveSummary({ symbol, memberId }) {
         }
     };
 
+    const getTimingConfig = (signal) => {
+        switch (signal) {
+            case 'ENTRY OK': return { color: '#00b894', bg: 'rgba(0,184,148,0.08)', icon: <RiseOutlined />, label: 'Entry OK' };
+            case 'EXIT WATCH': return { color: '#d63031', bg: 'rgba(214,48,49,0.10)', icon: <FallOutlined />, label: 'Exit Watch' };
+            case 'WAIT':
+            default: return { color: '#fdcb6e', bg: 'rgba(253,203,110,0.10)', icon: <SafetyOutlined />, label: signal || 'Wait' };
+        }
+    };
+
     const verdictCfg = getVerdictConfig(data?.action_verdict);
+    const timingCfg = getTimingConfig(data?.technical_timing_guidance?.signal);
     const pCtx = data?.portfolio_context;
 
     return (
@@ -941,7 +951,7 @@ export default function ExecutiveSummary({ symbol, memberId }) {
                 message={<span style={{ fontWeight: 600 }}><SafetyOutlined /> Value Assessment Methodology</span>}
                 description={
                     <span style={{ fontSize: 13 }}>
-                        Institutional-grade sector analysis synthesized with technical timing context. Evaluates intrinsic value, dividend capacity, and optimal entry positioning for long-term investors.
+                        Fundamental health is scored separately from market timing. Use the score for business quality, balance-sheet strength, dividend capacity, and valuation; use the timing note below it only as an entry, exit, or wait overlay.
                     </span>
                 }
                 type="info"
@@ -978,7 +988,7 @@ export default function ExecutiveSummary({ symbol, memberId }) {
                         </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Health Score</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Fundamental Health</div>
                         <div style={{ fontSize: 28, fontWeight: 800, color: scoreColor }}>{data.health_score}<span style={{ fontSize: 14, fontWeight: 400 }}>/100</span></div>
                     </div>
                 </div>
@@ -992,6 +1002,39 @@ export default function ExecutiveSummary({ symbol, memberId }) {
                                 <span>{r}</span>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {data?.technical_timing_guidance && (
+                    <div style={{
+                        marginTop: 14,
+                        padding: '14px 16px',
+                        borderRadius: 10,
+                        background: timingCfg.bg,
+                        border: `1px solid ${timingCfg.color}22`
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: timingCfg.color, fontWeight: 700 }}>
+                                <span style={{ fontSize: 15 }}>{timingCfg.icon}</span>
+                                <span>Technical Timing Note</span>
+                            </div>
+                            <Tag color={data.technical_timing_guidance.signal === 'ENTRY OK' ? 'green' : data.technical_timing_guidance.signal === 'EXIT WATCH' ? 'red' : 'gold'} style={{ margin: 0 }}>
+                                {timingCfg.label}
+                            </Tag>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
+                            {data.technical_timing_guidance.disclaimer}
+                        </div>
+                        {data.technical_timing_guidance.reasons?.length > 0 && (
+                            <div style={{ marginTop: 10 }}>
+                                {data.technical_timing_guidance.reasons.map((reason, i) => (
+                                    <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '2px 0', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                        <span style={{ color: timingCfg.color, flexShrink: 0, marginTop: 2 }}>•</span>
+                                        <span>{reason}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 

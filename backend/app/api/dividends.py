@@ -169,3 +169,41 @@ def dividend_summary(member_id: Optional[int] = Query(None), db: Session = Depen
         "unique_symbols": unique_symbols,
         "by_symbol": summary_by_symbol
     }
+
+
+@router.get("/upcoming")
+def upcoming_dividends(member_id: Optional[int] = Query(None), member_ids: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    """Get upcoming dividends (book closures in the future)."""
+    from datetime import date
+    today = date.today()
+    
+    query = db.query(DividendIncome, Company.name.label("company_name")).outerjoin(
+        Company, DividendIncome.symbol == Company.symbol
+    ).filter(DividendIncome.book_close_date >= today)
+    
+    if member_id:
+        query = query.filter(DividendIncome.member_id == member_id)
+    elif member_ids:
+        try:
+            m_ids = [int(i.strip()) for i in member_ids.split(",")]
+            query = query.filter(DividendIncome.member_id.in_(m_ids))
+        except ValueError:
+            pass
+            
+    records = query.order_by(DividendIncome.book_close_date.asc()).all()
+    
+    res = []
+    for r in records:
+        div = r.DividendIncome
+        res.append({
+            "id": div.id,
+            "symbol": div.symbol,
+            "company_name": r.company_name or div.symbol,
+            "cash_dividend_percent": div.cash_dividend_percent,
+            "bonus_dividend_percent": div.bonus_dividend_percent,
+            "book_close_date": div.book_close_date.isoformat(),
+            "days_remaining": (div.book_close_date - today).days,
+            "is_eligible": div.eligible_quantity > 0
+        })
+        
+    return res

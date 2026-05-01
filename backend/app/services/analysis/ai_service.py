@@ -63,6 +63,30 @@ def _model_options(model: str) -> Dict[str, Any]:
 
 
 class AIService:
+    @staticmethod
+    def _build_value_portfolio_rules(portfolio_ctx: dict | None) -> tuple[str, str]:
+        """Return allowed actions and guidance for held vs discovery mode."""
+        if portfolio_ctx:
+            allowed_actions = "ACCUMULATE, HOLD, REDUCE, or EXIT"
+            rules = (
+                f"- User holds {portfolio_ctx.get('current_qty')} shares at WACC Rs. {portfolio_ctx.get('wacc')} with total investment Rs. {portfolio_ctx.get('total_investment')}.\n"
+                f"- Current holding result: Unrealized PnL {portfolio_ctx.get('pnl_pct')}% (Rs. {portfolio_ctx.get('unrealized_pnl')}), XIRR {portfolio_ctx.get('xirr')}%, dividend income Rs. {portfolio_ctx.get('dividend_income')}.\n"
+                f"- Portfolio fit: concentration {portfolio_ctx.get('concentration_pct')}% of portfolio, so size and opportunity cost matter.\n"
+                "- Your verdict MUST be a capital-allocation decision, not just a stock label.\n"
+                "- ACCUMULATE only when business quality is strong, valuation remains favorable, and concentration is still manageable.\n"
+                "- HOLD when fundamentals remain intact and forward expected return is still acceptable relative to portfolio opportunity cost.\n"
+                "- REDUCE has two distinct cases: VALUATION-DRIVEN REDUCE when the asset is too expensive for its forward return, and OPPORTUNITY-COST-DRIVEN REDUCE when capital is better deployed elsewhere.\n"
+                "- EXIT when the thesis is broken, valuation is clearly unattractive, or capital preservation should take priority.\n"
+                "- Do not recommend REDUCE or EXIT only because the position is in profit. Do not recommend ACCUMULATE only because price is below cost.\n"
+            )
+        else:
+            allowed_actions = "BUY or AVOID"
+            rules = (
+                "- User currently does not hold this stock. Treat this as a fresh value-investing decision.\n"
+                "- BUY only when valuation, business quality, dividend/compounding potential, and rough forward expected return are attractive versus waiting.\n"
+                "- AVOID when margin of safety is weak, balance-sheet quality is poor, or opportunity cost is too high.\n"
+            )
+        return allowed_actions, rules
 
     # ------------------------------------------------------------------
     # Model discovery
@@ -406,63 +430,15 @@ class AIService:
         Combines fundamental analysis with technical timing for long-term value assessment.
         """
         model          = model_name or settings.DEFAULT_OLLAMA_MODEL
-        scoring_action = input_data.get("action_verdict", "HOLD")
+        scoring_action = input_data.get("action_verdict") or input_data.get("scoring_action", "HOLD")
         scoring_score  = input_data.get("health_score", 50)
         portfolio_ctx  = input_data.get("portfolio_context")
-        
-        if portfolio_ctx:
-            allowed_actions = "ACCUMULATE, HOLD, REDUCE, or EXIT"
-            portfolio_rules = (
-                f"- User holds {portfolio_ctx.get('current_qty')} shares at WACC {portfolio_ctx.get('wacc')}.\n"
-                f"- Unrealized PnL: {portfolio_ctx.get('pnl_pct')}% (Rs. {portfolio_ctx.get('unrealized_pnl')}). Portfolio Concentration: {portfolio_ctx.get('concentration_pct')}%.\n"
-                f"- XIRR: {portfolio_ctx.get('xirr')}%. Dividends Received: Rs. {portfolio_ctx.get('dividend_income')}.\n"
-                "- Contextualize your advice based on this portfolio reality (e.g. averaging down, taking profits, managing risk).\n"
-            )
-        else:
-            allowed_actions = "BUY or AVOID"
-            portfolio_rules = "- User currently does not hold this stock. Provide a pure entry/avoid assessment.\n"
-
-        system_prompt = (
-            "You are a professional NEPSE (Nepal Stock Exchange) value investing analyst writing a brief for two audiences "
-            "simultaneously: an experienced value investor who wants the numbers fast, and a beginner who needs to understand what to do and why.\n\n"
-            "═══════════════════════════════════════\n"
-            "NEPSE RULES & REALITIES (hard constraints — never violate):\n"
-            "- Cash market only. Investments take time.\n"
-            "- Promoter vs Ordinary differences in liquidity.\n"
-            "- Focus on compounding, dividend capacity, and intrinsic value.\n"
-            f"- The scoring engine rated this stock's health: {scoring_score}/100 and recommends: {scoring_action}.\n"
-            f"{portfolio_rules}"
-            "═══════════════════════════════════════\n\n"
-            "You MUST structure your thoughts inside <think>...</think> tags first.\n"
-            "After the </think> tag, output a raw JSON object matching this exact format:\n"
-            "{\n"
-            '  "verdict": "One direct sentence stating your recommendation.",\n'
-            '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
-            "}\n\n"
-            "STRICT ANALYSIS STRUCTURE (Use EXACTLY these headers):\n\n"
-            "━━━ VERDICT ━━━\n"
-            f"[One word: {allowed_actions}]\n"
-            "[One sentence explaining the single most important fundamental reason for this signal.]\n"
-            "[Margin of Safety: HIGH / MEDIUM / LOW — and one clause explaining why.]\n\n"
-            "━━━ VALUATION ━━━\n"
-            "[Write this block evaluating P/E, P/B, EPS, and Graham Number]\n"
-            "Intrinsic Value (Graham): Rs. [value] (Discount/Premium vs LTP)\n"
-            "P/E Ratio: [value]\n"
-            "P/B Ratio: [value]\n\n"
-            "━━━ FINANCES & SECTOR ━━━\n"
-            "[Evaluate sector-specific health like NPL/CAR for banks or solvency for insurance]\n"
-            "- [Metric name]: [value] → [what this means in plain English]\n"
-            "- [Metric name]: [value] → [what this means in plain English]\n\n"
-            "━━━ DIVIDEND OUTLOOK ━━━\n"
-            "[Evaluate yield, payout consistency, and distributable profit]\n\n"
-            "━━━ WHAT WOULD CHANGE IT ━━━\n"
-            "[Two to three conditions (like upcoming EPS reports or price drops) that would flip this signal.]\n"
-            "- If [condition] → [result]\n\n"
-            "━━━ BEGINNER CHECKLIST ━━━\n"
-            "☐ [Specific action or check relevant to this stock and signal]\n"
-            "☐ [Specific action or check relevant to this stock and signal]\n"
+        system_prompt = cls._build_value_system_prompt(
+            scoring_action=scoring_action,
+            scoring_score=scoring_score,
+            portfolio_ctx=portfolio_ctx,
+            is_local=True,
         )
-
         user_prompt = f"Stock data:\n{json.dumps(input_data, default=str)}"
         return await cls._call_ollama(system_prompt, user_prompt, model)
 
@@ -634,58 +610,166 @@ class AIService:
     # ------------------------------------------------------------------
 
     @classmethod
-    def _cloud_value_system_prompt(cls, scoring_action: str, scoring_score: int, portfolio_ctx: dict | None = None) -> str:
-        if portfolio_ctx:
-            allowed_actions = "ACCUMULATE, HOLD, REDUCE, or EXIT"
-            portfolio_rules = (
-                f"- User holds {portfolio_ctx.get('current_qty')} shares at WACC {portfolio_ctx.get('wacc')}.\n"
-                f"- Unrealized PnL: {portfolio_ctx.get('pnl_pct')}% (Rs. {portfolio_ctx.get('unrealized_pnl')}). Portfolio Concentration: {portfolio_ctx.get('concentration_pct')}%.\n"
-                f"- XIRR: {portfolio_ctx.get('xirr')}%. Dividends Received: Rs. {portfolio_ctx.get('dividend_income')}.\n"
-                "- Contextualize your advice based on this portfolio reality (e.g. averaging down, taking profits, managing risk).\n"
-            )
-        else:
-            allowed_actions = "BUY or AVOID"
-            portfolio_rules = "- User currently does not hold this stock. Provide a pure entry/avoid assessment.\n"
-            
-        return (
-            "You are a professional NEPSE (Nepal Stock Exchange) value investing analyst writing a brief for two audiences "
-            "simultaneously: an experienced value investor who wants the numbers fast, and a beginner who needs to understand what to do and why.\n\n"
-            "═══════════════════════════════════════\n"
-            "NEPSE RULES & REALITIES (hard constraints — never violate):\n"
-            "- Cash market only. Investments take time.\n"
-            "- Promoter vs Ordinary differences in liquidity.\n"
-            "- Focus on compounding, dividend capacity, and intrinsic value.\n"
-            f"- The scoring engine rated this stock's health: {scoring_score}/100 and recommends: {scoring_action}.\n"
-            f"{portfolio_rules}"
-            "═══════════════════════════════════════\n\n"
-            "OUTPUT FORMAT — respond with a JSON object only:\n"
+    def _build_value_system_prompt(
+        cls,
+        scoring_action: str,
+        scoring_score: int,
+        portfolio_ctx: dict | None = None,
+        is_local: bool = False,
+    ) -> str:
+        allowed_actions, portfolio_rules = cls._build_value_portfolio_rules(portfolio_ctx)
+
+        format_block = (
+            "OUTPUT FORMAT - respond with a JSON object only:\n"
             "{\n"
             '  "verdict": "One direct sentence stating your recommendation.",\n'
             '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
             "}\n\n"
-            "STRICT ANALYSIS STRUCTURE (Use EXACTLY these headers):\n\n"
-            "━━━ VERDICT ━━━\n"
-            f"[One word: {allowed_actions}]\n"
-            "[One sentence explaining the single most important fundamental reason for this signal.]\n"
-            "[Margin of Safety: HIGH / MEDIUM / LOW — and one clause explaining why.]\n\n"
-            "━━━ VALUATION ━━━\n"
-            "[Write this block evaluating P/E, P/B, EPS, and Graham Number]\n"
-            "Intrinsic Value (Graham): Rs. [value] (Discount/Premium vs LTP)\n"
-            "P/E Ratio: [value]\n"
-            "P/B Ratio: [value]\n\n"
-            "━━━ FINANCES & SECTOR ━━━\n"
-            "[Evaluate sector-specific health like NPL/CAR for banks or solvency for insurance]\n"
-            "- [Metric name]: [value] → [what this means in plain English]\n"
-            "- [Metric name]: [value] → [what this means in plain English]\n\n"
-            "━━━ DIVIDEND OUTLOOK ━━━\n"
-            "[Evaluate yield, payout consistency, and distributable profit]\n\n"
-            "━━━ WHAT WOULD CHANGE IT ━━━\n"
-            "[Two to three conditions (like upcoming EPS reports or price drops) that would flip this signal.]\n"
-            "- If [condition] → [result]\n\n"
-            "━━━ BEGINNER CHECKLIST ━━━\n"
-            "☐ [Specific action or check relevant to this stock and signal]\n"
-            "☐ [Specific action or check relevant to this stock and signal]\n"
         )
+        if is_local:
+            format_block = (
+                "You MUST structure your thoughts inside <think>...</think> tags first.\n"
+                "After the </think> tag, output a raw JSON object matching this exact format:\n"
+                "{\n"
+                '  "verdict": "One direct sentence stating your recommendation.",\n'
+                '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
+                "}\n\n"
+            )
+
+        return (
+            "You are a professional NEPSE (Nepal Stock Exchange) value investing analyst writing a brief for two audiences "
+            "simultaneously: an experienced value investor who wants the numbers fast, and a beginner who needs to understand what to do and why.\n\n"
+            "=======================================\n"
+            "NEPSE RULES & REALITIES (hard constraints - never violate):\n"
+            "- Cash market only. Investments take time.\n"
+            "- Promoter vs Ordinary differences in liquidity.\n"
+            "- Focus on compounding, dividend capacity, and intrinsic value.\n"
+            "- Treat this as a capital-allocation decision, not a classification exercise.\n"
+            "- The health score below is a fundamental-health score only. It does NOT measure technical entry timing.\n"
+            f"- The scoring engine rated this stock's health: {scoring_score}/100 and recommends: {scoring_action}.\n"
+            f"{portfolio_rules}"
+            "- MANDATORY DECISION HIERARCHY: 1) business quality, survival, and cash generation, 2) forward expected return, 3) sector-anchored valuation, 4) cash dividend quality, 5) technical timing overlay only.\n"
+            "- Treat the health score as a heuristic summary, not final truth. If the score conflicts with sector structure, normalized earnings, balance-sheet quality, dilution risk, or portfolio reality, say so clearly.\n"
+            "- Graham Number is only a rough cross-check, not a decision rule. Never use Graham alone to justify ACCUMULATE, BUY, HOLD, REDUCE, or EXIT.\n"
+            "- In NEPSE, Graham-style valuation is often low-confidence for banks, insurers, hydros, project-driven businesses, cyclicals, and firms with distorted book value or earnings due to bonus shares, rights issues, provisioning swings, revaluations, or irregular cash generation.\n"
+            "- Estimate rough forward expected return using three components whenever the data allows: earnings growth, dilution-aware cash dividend yield, and valuation change potential.\n"
+            "- Valuation change potential must follow sector anchors, not free-form storytelling: banks/finance -> ROE-to-P/B anchoring, microfinance -> P/B with provisioning-cycle caution, insurance -> solvency/ROE-to-P/B, hydro -> P/B band reversion, manufacturing/processing -> earnings-multiple cycle.\n"
+            "- Treat cash dividend yield as the investable yield. Bonus shares are not cash yield; if bonus distribution is heavy, discuss dilution and capital-allocation implications explicitly.\n"
+            "- PEG must not be ignored. Classify it in plain English as cheap growth, fair growth, or expensive growth when available.\n"
+            "- For growth or cyclical names, PEG and sector valuation anchors outrank Graham in decision weight.\n"
+            "- If the payload provides expected_return_framework or value_decision_framework, treat those gates and anchor summaries as binding synthesis aids, not optional commentary.\n"
+            "- For long-term wealth building in NEPSE, prioritize business survival, dividend durability, distributable profit, reserve/book-value compounding, capital discipline, dilution risk, governance quality, and liquidity alongside valuation.\n"
+            "- Use the separate technical timing data only as an entry/exit overlay. Do not let short-term chart movement override clearly superior or clearly weak fundamentals unless you explain why.\n"
+            "- FINAL RECONCILIATION RULE: the verdict must follow quality gate + forward expected return + portfolio fit together. A cheap isolated metric cannot override weak business quality or poor forward return.\n"
+            "- If quality/survival fails, BUY and ACCUMULATE are forbidden even when valuation looks cheap.\n"
+            "- If forward expected return is weak or negative, HOLD/REDUCE/AVOID should dominate unless you explicitly explain a special portfolio reason.\n"
+            "=======================================\n\n"
+            f"{format_block}"
+            "STRICT ANALYSIS STRUCTURE (Use EXACTLY these headers):\n\n"
+            "VERDICT\n"
+            f"[One word: {allowed_actions}]\n"
+            "[One sentence explaining the single most important capital-allocation reason for this signal.]\n"
+            "[Margin of Safety: HIGH / MEDIUM / LOW - and one clause explaining why.]\n\n"
+            "DECISION HIERARCHY\n"
+            "[State the ranked hierarchy explicitly: quality first, then forward return, then valuation, then dividend quality, then timing.]\n"
+            "Quality gate: [PASS / CAUTION / FAIL]\n"
+            "Forward return gate: [STRONG / ACCEPTABLE / WEAK / NEGATIVE]\n\n"
+            "EXPECTED RETURN\n"
+            "[Estimate rough 12-24 month forward return using growth, dilution-aware cash yield, and valuation change potential. State clearly that it is approximate, not a forecast.]\n"
+            "Growth contribution: [value]%\n"
+            "Cash yield contribution: [value]%\n"
+            "Valuation change potential: [value]%\n"
+            "Valuation anchor: [sector anchor / low-base-high range / assumption note]\n"
+            "Rough forward return: [value]%\n\n"
+            "VALUATION\n"
+            "[Evaluate P/E, P/B, PEG, EPS, and Graham Number. Graham is secondary only. If Graham is weak or misleading for this sector, say so explicitly.]\n"
+            "Intrinsic Value (Graham): Rs. [value] (Discount/Premium vs LTP, if meaningful)\n"
+            "P/E Ratio: [value]\n"
+            "P/B Ratio: [value]\n"
+            "PEG: [value] -> [cheap growth / fair growth / expensive growth]\n\n"
+            "FINANCES & SECTOR\n"
+            "[Evaluate sector-specific health like NPL/CAR for banks or solvency for insurance]\n"
+            "- [Metric name]: [value] -> [what this means in plain English]\n"
+            "- [Metric name]: [value] -> [what this means in plain English]\n\n"
+            "DIVIDEND OUTLOOK\n"
+            "[Evaluate payout quality, not just payout headline. Explicitly distinguish cash yield from bonus-heavy distribution if relevant.]\n"
+            "Cash yield: [value]%\n"
+            "Distribution profile: [cash-led / mixed / bonus-heavy / bonus-only]\n\n"
+            "CAPITAL ALLOCATION FIT\n"
+            "[If held: evaluate WACC, unrealized profit/loss, XIRR, dividend income, concentration, and opportunity cost before deciding whether to add, hold, reduce, or exit. If not held: explain whether it deserves capital now versus waiting.]\n"
+            "Reduction type: [VALUATION-DRIVEN / OPPORTUNITY-COST-DRIVEN / N/A]\n"
+            "- [Metric]: [value] -> [why it supports this action]\n\n"
+            "FINAL RECONCILIATION\n"
+            "[Resolve all conflicts here. If valuation looks cheap but quality gate fails, say that quality wins. If return looks positive but opportunity cost is better elsewhere, say that portfolio fit wins.]\n"
+            "[One short paragraph explaining why the final verdict follows the decision hierarchy rather than isolated metrics.]\n\n"
+            "TIMING NOTE\n"
+            "[Use the separate technical timing guidance as a disclaimer-style overlay: whether entry looks favorable now, whether to wait, or whether existing holders should watch for technical deterioration.]\n\n"
+            "WHAT WOULD CHANGE IT\n"
+            "[Two to three conditions (like earnings deterioration, a better opportunity elsewhere, or a price reset) that would flip this signal.]\n"
+            "- If [condition] -> [result]\n\n"
+            "BEGINNER CHECKLIST\n"
+            "[] [Specific action or check relevant to this stock and signal]\n"
+            "[] [Specific action or check relevant to this stock and signal]\n"
+        )
+
+    @classmethod
+    def _cloud_value_system_prompt(cls, scoring_action: str, scoring_score: int, portfolio_ctx: dict | None = None) -> str:
+        return cls._build_value_system_prompt(
+            scoring_action=scoring_action,
+            scoring_score=scoring_score,
+            portfolio_ctx=portfolio_ctx,
+            is_local=False,
+        )
+    @staticmethod
+    def _build_trading_context_rules(
+        active_trade_setup: Optional[Dict] = None,
+        portfolio_context: Optional[Dict] = None,
+    ) -> tuple[str, str]:
+        """Return allowed signals and position-aware trading instructions."""
+        has_holding = bool(portfolio_context and portfolio_context.get("current_qty", 0) > 0)
+        has_active_setup = bool(active_trade_setup)
+
+        if has_active_setup:
+            qty = active_trade_setup.get("allocated_qty") or (portfolio_context or {}).get("current_qty", 0)
+            rules = (
+                "POSITION MODE: ACTIVE TRADE\n"
+                "- The user already has a live trade in this stock. Manage the existing trade. Do not pitch a brand-new setup.\n"
+                f"- Setup entry: Rs. {active_trade_setup.get('entry_price')}, target 1: Rs. {active_trade_setup.get('target_1') or active_trade_setup.get('target_price')}, target 2: Rs. {active_trade_setup.get('target_2')}, stop: Rs. {active_trade_setup.get('current_stop_loss') or active_trade_setup.get('stop_loss')}, trailing stop: Rs. {active_trade_setup.get('trailing_stop')}.\n"
+                f"- Position size: {qty} shares. Setup quality: {active_trade_setup.get('setup_quality')}. Strategy type: {active_trade_setup.get('strategy_type')}. Thesis: {active_trade_setup.get('thesis') or active_trade_setup.get('strategy_note')}.\n"
+            )
+            if portfolio_context:
+                rules += (
+                    f"- Portfolio reality: WACC Rs. {portfolio_context.get('wacc')}, unrealized PnL {portfolio_context.get('pnl_pct')}% (Rs. {portfolio_context.get('unrealized_pnl')}), XIRR {portfolio_context.get('xirr')}%, concentration {portfolio_context.get('concentration_pct')}%.\n"
+                )
+            rules += (
+                "- Your allowed verdicts are ONLY: EXIT, WAIT, or STOP_LOSS.\n"
+                "- WAIT means hold unchanged. EXIT means take profit, de-risk, or close intentionally. STOP_LOSS means cut because the setup is invalidated or risk is unacceptable.\n"
+                "- Use liquidity, volume confirmation, trend integrity, distance to stop/target, slippage-adjusted reward after costs, and freshness context before choosing a signal.\n"
+            )
+            return "EXIT, WAIT, or STOP_LOSS", rules
+
+        if has_holding:
+            rules = (
+                "POSITION MODE: HELD WITHOUT ACTIVE TRADE PLAN\n"
+                "- The user already holds this stock, but there is no active structured trade setup attached.\n"
+                f"- Current holding: {(portfolio_context or {}).get('current_qty')} shares at WACC Rs. {(portfolio_context or {}).get('wacc')}.\n"
+                f"- Portfolio reality: unrealized PnL {(portfolio_context or {}).get('pnl_pct')}% (Rs. {(portfolio_context or {}).get('unrealized_pnl')}), XIRR {(portfolio_context or {}).get('xirr')}%, concentration {(portfolio_context or {}).get('concentration_pct')}%, dividend income Rs. {(portfolio_context or {}).get('dividend_income')}.\n"
+                "- Your allowed verdicts are ONLY: ADD, WAIT, TRIM, or EXIT.\n"
+                "- ADD means tactically add only if liquidity, volume, and chart structure support it and portfolio concentration is still reasonable.\n"
+                "- TRIM means reduce partially to manage risk or lock gains without fully closing.\n"
+                "- EXIT means fully close. WAIT means do nothing now.\n"
+                "- Do not invent a stop-loss plan unless the chart structure clearly gives one and your explanation makes that explicit.\n"
+            )
+            return "ADD, WAIT, TRIM, or EXIT", rules
+
+        rules = (
+            "POSITION MODE: NO POSITION\n"
+            "- The user does not currently hold this stock as a trade.\n"
+            "- Your allowed verdicts are ONLY: BUY, WAIT, or AVOID.\n"
+            "- BUY requires a valid tactical setup with acceptable liquidity, volume confirmation, risk, and post-cost reward.\n"
+            "- WAIT means interesting chart but no clean entry yet. AVOID means weak or low-quality setup.\n"
+        )
+        return "BUY, WAIT, or AVOID", rules
 
     @classmethod
     def _build_trading_system_prompt(
@@ -694,38 +778,13 @@ class AIService:
         portfolio_context: Optional[Dict] = None,
         is_local: bool = False,
     ) -> str:
-        has_position = bool(active_trade_setup or (portfolio_context and portfolio_context.get("current_qty", 0) > 0))
-        allowed_signals = "EXIT or WAIT or STOP_LOSS" if has_position else "BUY or WAIT or AVOID"
-        
-        context_str = ""
-        if has_position:
-            qty = active_trade_setup.get('allocated_qty', 0) if active_trade_setup else portfolio_context.get("current_qty", 0)
-            context_str = (
-                f"**ACTIVE TRADE CONTEXT**: The user already holds a live position in this stock.\n"
-            )
-            if active_trade_setup:
-                context_str += (
-                    f"- Entry Price: Rs. {active_trade_setup.get('entry_price')}\n"
-                    f"- Initial Target: Rs. {active_trade_setup.get('target_price')}\n"
-                    f"- Stop Loss: Rs. {active_trade_setup.get('stop_loss')}\n"
-                )
-                if active_trade_setup.get("trailing_stop") is not None:
-                    context_str += f"- Trailing Stop: Rs. {active_trade_setup.get('trailing_stop')}\n"
-            if portfolio_context:
-                context_str += (
-                    f"- Quantity Held: {qty} shares\n"
-                    f"- Portfolio WACC: Rs. {portfolio_context.get('wacc')}\n"
-                    f"- Unrealized PnL: {portfolio_context.get('pnl_pct')}% (Rs. {portfolio_context.get('unrealized_pnl')})\n"
-                )
-            else:
-                context_str += f"- Quantity Held: {qty} shares\n"
-            context_str += (
-                "Your allowed verdicts are ONLY: EXIT (take profit / book profit / close), WAIT (hold position unchanged), or STOP_LOSS (cut losses immediately).\n"
-                "Evaluate based on current LTP vs entry, proximity to target/stop, and technical momentum.\n\n"
-            )
+        allowed_signals, context_str = cls._build_trading_context_rules(
+            active_trade_setup=active_trade_setup,
+            portfolio_context=portfolio_context,
+        )
 
         format_str = (
-            "OUTPUT FORMAT — respond with a JSON object only:\n"
+            "OUTPUT FORMAT - respond with a JSON object only:\n"
             "{\n"
             '  "verdict": "One direct sentence stating the trade setup.",\n'
             '  "analysis": "Your entire text response written EXACTLY per the following structure."\n'
@@ -745,53 +804,88 @@ class AIService:
             "You are a professional NEPSE trading analyst writing a brief for two audiences "
             "simultaneously: an experienced trader who wants the numbers fast, and a beginner "
             "who needs to understand what to do and why.\n\n"
-            "═══════════════════════════════════════\n"
-            "NEPSE RULES (hard constraints — never violate):\n"
+            "=======================================\n"
+            "NEPSE RULES (hard constraints - never violate):\n"
             "- Long positions only. No short selling.\n"
             "- T+2 settlement. Plan exits before next session if intraday.\n"
-            "- 10% daily circuit breaker. Stop loss must be within 9% of LTP.\n"
-            "- Minimum meaningful trade: consider turnover_120d for liquidity risk.\n"
-            "═══════════════════════════════════════\n\n"
-            f"{context_str}"
+            "- 10% daily circuit breaker. Stop loss must be realistic for NEPSE volatility and liquidity.\n"
+            "- Minimum meaningful trade: consider turnover_120d and liquidity grade before recommending action.\n"
+            "- If live price or technical data is stale, reduce confidence and avoid aggressive action unless the setup is obviously broken.\n"
+            "- In NEPSE, liquidity and volume shifts matter more than oscillator alignment. Treat volume/OBV/liquidity as primary evidence, trend integrity as secondary confirmation, and RSI as a timing aid only.\n"
+            "- Separate trend integrity from execution timing. Trend integrity answers whether the trade thesis is intact; execution timing answers whether today is an efficient moment to act.\n"
+            "- If a liquidity-adjusted slippage buffer is provided, use it. Prefer slippage-adjusted reward/risk over theoretical reward/risk.\n"
+            "- HARD GATING RULE: if liquidity gate fails, do not endorse bullish action. Weak liquidity blocks BUY and ADD, and usually pushes active trades toward WAIT unless invalidation is triggered.\n"
+            "- HARD GATING RULE: if OBV/distribution is hostile, downgrade bullish setups even if EMA structure still looks good.\n"
+            "- If the payload provides trading_decision_framework, use its gates as binding summaries rather than re-inventing softer interpretations.\n"
+            "- SIGNAL MAPPING RULES: STOP_LOSS is for invalidation/risk failure, EXIT is for intentional close or de-risk before formal invalidation, WAIT is for intact thesis with poor timing or poor reward/risk.\n"
+            "- SETUP INVALIDATION can happen before the stop is hit if trend integrity breaks and support failure or OBV distribution confirms the weakness.\n"
+            "=======================================\n\n"
+            f"{context_str}\n"
             f"{format_str}"
             "WRITE EXACTLY THE FOLLOWING SECTIONS IN ORDER:\n\n"
-            "━━━ SIGNAL ━━━\n"
+            "SIGNAL\n"
             f"[One word: {allowed_signals}]\n"
             "[One sentence explaining the single most important reason for this signal.]\n"
-            "[Confidence: HIGH / MEDIUM / LOW — and one clause explaining why.]\n\n"
-            "━━━ TRADE NUMBERS ━━━\n"
-            "[Write this block evaluating current target vs LTP. If no setup exists, write 'No trade setup.' and skip to next section.]\n"
-            "Entry zone:    Rs. [lower] – Rs. [upper]\n"
+            "[Confidence: HIGH / MEDIUM / LOW - and one clause explaining why.]\n\n"
+            "DECISION GATES\n"
+            "[State the hard gates first. These gates control the signal and must be binding, not advisory.]\n"
+            "Liquidity gate: [PASS / CAUTION / FAIL]\n"
+            "OBV gate: [SUPPORTIVE / NEUTRAL / BLOCK_BULLISH]\n"
+            "Trend integrity status: [INTACT / WEAKENING / BROKEN]\n"
+            "Slippage R:R gate: [PASS / FAIL / N/A]\n\n"
+            "POSITION CONTEXT\n"
+            "[Explain whether this is an active trade, held-without-plan position, or no-position watchlist case, and why that changes the action.]\n\n"
+            "TREND INTEGRITY\n"
+            "[Judge the higher-timeframe structure first using EMA structure, relative strength vs NEPSE, and whether trend is intact or damaged.]\n"
+            "- [Trend factor]: [value] -> [plain English meaning]\n\n"
+            "EXECUTION TIMING\n"
+            "[Judge whether today is a good execution window using liquidity, volume, OBV, ATR, breakout strength, and immediate price behavior. RSI is secondary.]\n"
+            "- [Timing factor]: [value] -> [plain English meaning]\n\n"
+            "TRADE NUMBERS\n"
+            "[If a setup exists or a BUY/ADD case is justified, evaluate entry, stop, target, net reward after costs, and slippage-adjusted reward after costs. If there is no valid setup, explicitly say so.]\n"
+            "Entry zone:    Rs. [lower] - Rs. [upper]\n"
             "Target:        Rs. [price] (+[%])\n"
             "Stop loss:     Rs. [price] (-[%])\n\n"
             "RISK:REWARD CALCULATION RULES (MANDATORY):\n"
             "- Gross Profit = (Target - Entry)\n"
             "- Net Reward = Gross Profit - (7.5% CGT on Profit) - (0.8% Total Commissions on transaction value)\n"
+            "- Slippage-Adjusted Net Reward = Net Reward - liquidity/slippage buffer drag\n"
             "- Risk = (Entry - Stop Loss)\n"
-            "- R:R ratio = Risk : Net Reward (Expressed as 1 : [X])\n"
+            "- Slippage-Adjusted Risk may be wider in low liquidity. Use the payload if available.\n"
+            "- Primary R:R ratio = Risk : Slippage-Adjusted Net Reward (Expressed as 1 : [X])\n"
             "R:R ratio:     1 : [X]\n"
             "Timeframe:     [1-3 days / swing 3-7 days]\n"
             "Position size: [FULL / HALF / QUARTER]\n"
             "               Beginner tip: [one sentence on risk]\n\n"
-            "━━━ WHY THIS SIGNAL ━━━\n"
-            "[Maximum 5 bullet points naming ONE indicator and ending with a plain-English verdict.]\n"
-            "- [Indicator]: [value] → [plain English meaning]\n\n"
-            "━━━ KEY LEVELS ━━━\n"
-            "Resistance:  Rs. [price] ([source]) ← [target / ceiling]\n"
-            "Support:     Rs. [price] ([source]) ← [stop / floor]\n"
+            "INVALIDATION LOGIC\n"
+            "[Explain what would invalidate the setup before the hard stop, using support failure, OBV distribution, volume fade, or trend break if applicable.]\n"
+            "Invalidated now?: [YES / NO]\n"
+            "- [Invalidation trigger]: [what it means]\n\n"
+            "WHY THIS SIGNAL\n"
+            "[Maximum 5 bullet points naming ONE indicator, liquidity measure, or position metric each and ending with a plain-English verdict. Volume/liquidity points should come before RSI if both matter.]\n"
+            "- [Indicator]: [value] -> [plain English meaning]\n\n"
+            "KEY LEVELS\n"
+            "Resistance:  Rs. [price] ([source]) <- [target / ceiling]\n"
+            "Support:     Rs. [price] ([source]) <- [stop / floor]\n"
             "Beginner note: [One sentence explaining support/resistance in this context]\n\n"
-            "━━━ WHAT WOULD CHANGE IT ━━━\n"
-            "[Two conditions that would flip this signal written as IF → THEN statements.]\n\n"
-            "━━━ BEGINNER CHECKLIST ━━━\n"
-            "☐ [Specific action or check relevant to this stock/signal]\n"
-            "☐ [Specific action or check relevant to this stock/signal]\n"
-            "☐ [Specific action or check relevant to this stock/signal]\n\n"
-            "MANDATORY CHECKS: \n"
-            "- DO NOT output R:R lower than 1.5 after taxes.\n"
-            "- Ensure the percentage distance to Target is mathematically LARGER than the percentage distance to Stop Loss.\n"
-            "- DO NOT hallucinate support levels outside data."
+            "WHAT WOULD CHANGE IT\n"
+            "[Two conditions that would flip this signal written as IF -> THEN statements.]\n\n"
+            "BEGINNER CHECKLIST\n"
+            "[] [Specific action or check relevant to this stock/signal]\n"
+            "[] [Specific action or check relevant to this stock/signal]\n"
+            "[] [Specific action or check relevant to this stock/signal]\n\n"
+            "MANDATORY CHECKS:\n"
+            "- DO NOT output R:R lower than 1.5 after taxes and slippage when you recommend BUY or ADD.\n"
+            "- Ensure the percentage distance to Target is mathematically larger than the percentage distance to Stop Loss when you recommend BUY or ADD.\n"
+            "- DO NOT hallucinate support or resistance levels outside data.\n"
+            "- If data freshness is stale, say so explicitly in your confidence statement.\n"
+            "- If there is no active setup, do not pretend one already exists.\n"
+            "- Do not let RSI overrule weak liquidity or absent volume confirmation.\n"
+            "- BUY or ADD is forbidden when liquidity gate = FAIL or OBV gate = BLOCK_BULLISH.\n"
+            "- If slippage-adjusted R:R fails the threshold, default to WAIT unless invalidation requires EXIT or STOP_LOSS.\n"
+            "- For active trades: STOP_LOSS if invalidated or stop is breached; EXIT if trend weakens and distribution/liquidity deterioration collapses remaining edge; WAIT if trend is still intact but timing is poor.\n"
+            "- If setup_invalidated = true, WAIT is not allowed."
         )
-
     # ------------------------------------------------------------------
     # Cloud public API
     # ------------------------------------------------------------------
@@ -803,7 +897,7 @@ class AIService:
         provider: str = "groq"
     ) -> Dict[str, Any]:
         """Value Investing analysis via Cloud API."""
-        scoring_action = input_data.get("action_verdict", "HOLD")
+        scoring_action = input_data.get("action_verdict") or input_data.get("scoring_action", "HOLD")
         scoring_score  = input_data.get("health_score", 50)
         portfolio_ctx  = input_data.get("portfolio_context")
         system_prompt  = cls._cloud_value_system_prompt(scoring_action, scoring_score, portfolio_ctx)
@@ -851,28 +945,30 @@ class AIService:
                 portfolio_context=portfolio_ctx,
                 is_local=False,
             )
-            # Remove JSON formatting instructions for human readability in Chat UIs
-            json_block_pattern = r"OUTPUT FORMAT — respond with a JSON object only:.*?\}\n\n"
-            role = re.sub(json_block_pattern, "", role, flags=re.DOTALL)
-            # Remove specific JSON field references
-            role = role.replace('"analysis": "Your entire text response written EXACTLY per the following structure."', "Structure your response as follows:")
+            role = role.replace('  "verdict": "One direct sentence stating the trade setup.",\n', "")
         else:
-            action = input_data.get("action_verdict", "HOLD")
-            score  = input_data.get("health_score", 50)
+            action = input_data.get("action_verdict") or input_data.get("scoring_action", "HOLD")
+            score = input_data.get("health_score", 50)
             portfolio_ctx = input_data.get("portfolio_context")
             role = cls._cloud_value_system_prompt(action, score, portfolio_ctx)
-            json_block_pattern = r"OUTPUT FORMAT — respond with a JSON object only:.*?\}\n\n"
-            role = re.sub(json_block_pattern, "", role, flags=re.DOTALL)
-            role = role.replace('"analysis": "Your entire text response written EXACTLY per the following structure."', "Structure your response as follows:")
+            role = role.replace('  "verdict": "One direct sentence stating your recommendation.",\n', "")
+
+        json_block_pattern = r"OUTPUT FORMAT\s*[-—]\s*respond with a JSON object only:.*?\}\n\n"
+        role = re.sub(json_block_pattern, "", role, flags=re.DOTALL)
+        role = role.replace(
+            '  "analysis": "Your entire text response written EXACTLY per the following structure."',
+            "Structure your response as follows:"
+        )
 
         return (
             f"{role}\n\n"
             f"--- STOCK DATA ---\n"
             f"{json.dumps(input_data, indent=2, default=str)}\n"
             f"--- END DATA ---\n\n"
-            f"Please provide your analysis based on the data above in the requested structure."
+            "Respond in plain human-readable text using the requested headings.\n"
+            "Do not return JSON, code fences, or key-value objects.\n"
+            "Please provide your analysis based on the data above in the requested structure."
         )
-
     # ------------------------------------------------------------------
     # Trade Intel — Retrospective Investment Analysis
     # ------------------------------------------------------------------

@@ -19,6 +19,7 @@ import {
     BarChart, Bar, XAxis, CartesianGrid, ReferenceLine, LabelList,
 } from 'recharts';
 import AIPortfolioAnalyst from './AIPortfolioAnalyst';
+import SectionErrorBoundary from '../SectionErrorBoundary';
 
 const COLORS = [
     '#6c5ce7', '#00b894', '#fdcb6e', '#e17055', '#0984e3',
@@ -313,7 +314,9 @@ export default function OverviewTab({ summary, context, members, onTabChange, is
         <div className="animate-in">
             {/* AI Analyst */}
             {!isSipMode && (
-                <AIPortfolioAnalyst summary={summary} context={context} />
+                <SectionErrorBoundary fallbackTitle="AI Analyst Unavailable">
+                    <AIPortfolioAnalyst summary={summary} context={context} />
+                </SectionErrorBoundary>
             )}
 
             {/* Stat Cards */}

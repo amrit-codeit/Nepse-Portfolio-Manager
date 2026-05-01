@@ -48,6 +48,7 @@ def calculate_sell_simulation(db: Session, member_id: int, symbol: str, sell_qty
     BUY_TYPES = {
         TransactionType.BUY.value, TransactionType.IPO.value,
         TransactionType.FPO.value, TransactionType.RIGHT.value,
+        TransactionType.RIGHTS_SUBSCRIPTION.value,
         TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value,
         TransactionType.BONUS.value
     }

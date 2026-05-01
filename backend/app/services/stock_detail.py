@@ -26,6 +26,7 @@ from app.services.portfolio_engine import calculate_xirr, _build_cashflows_from_
 BUY_TYPES = {
     TransactionType.BUY.value, TransactionType.IPO.value,
     TransactionType.FPO.value, TransactionType.RIGHT.value,
+    TransactionType.RIGHTS_SUBSCRIPTION.value,
     TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value,
 }
 SELL_TYPES = {TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value}
@@ -290,7 +291,7 @@ def _compute_quantity_breakdown(txns: list) -> dict:
         elif t.txn_type == TransactionType.FPO.value:
             breakdown["total_bought"] += qty
             breakdown["total_buy_cost"] += cost
-        elif t.txn_type == TransactionType.RIGHT.value:
+        elif t.txn_type in (TransactionType.RIGHT.value, TransactionType.RIGHTS_SUBSCRIPTION.value):
             breakdown["total_right"] += qty
             breakdown["total_buy_cost"] += cost
         elif t.txn_type == TransactionType.AUCTION.value:

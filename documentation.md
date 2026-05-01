@@ -1,6 +1,6 @@
 # Nepal Portfolio Manager - Current Codebase Documentation
 
-> Last updated from live code inspection on 2026-04-28.
+> Last updated from live code inspection on 2026-04-30.
 > Scope checked against `backend/app/*`, `frontend/src/*`, `frontend/package.json`, and `backend/requirements.txt`.
 
 ---
@@ -84,7 +84,8 @@ Shutdown sequence:
 
 Important correction from older docs:
 
-- APScheduler currently starts with no active cron jobs. The backup logic is startup-driven, not nightly scheduled.
+- APScheduler manages active cron jobs for price scraping (every 5 min during market hours), index snapshots (every 15 min), daily NAV syncs, and weekly fundamental/dividend scrapes.
+- The backup logic is startup-driven, not nightly scheduled.
 
 Relevant files:
 
@@ -140,6 +141,7 @@ The ORM layer lives in `backend/app/models`.
 - `IssuePrice`
 - `PriceHistory`
 - `IndexHistory`
+- `Notification`
 
 ### Analysis and trading models
 
@@ -175,7 +177,7 @@ All routers are mounted directly in [backend/app/main.py](D:/Projects/Portfolio/
 | `prices.py` | `/api/prices` | Prices, issue prices, historical price and index data |
 | `ipo.py` | `/api/ipo` | Open IPOs, apply jobs, status polling |
 | `insights.py` | `/api/insights` | Symbol-level insights payload |
-| `dividends.py` | `/api/dividends` | Dividend table and summary |
+| `dividends.py` | `/api/dividends` | Dividend table, summary, and upcoming book-closures |
 | `groups.py` | `/api/groups` | Saved member groups |
 | `analysis.py` | `/api/analysis` | Executive summary and AI verdicts |
 | `stock_detail.py` | `/api/stock-detail` | 360-degree stock detail and symbol list |
@@ -183,6 +185,7 @@ All routers are mounted directly in [backend/app/main.py](D:/Projects/Portfolio/
 | `screener.py` | `/api/screener` | Screening data |
 | `market_context.py` | `/api/market` | Market context, technicals, backtesting |
 | `trading.py` | `/api/trading` | Trade setups, signals, journal, stats |
+| `notifications.py` | `/api/notifications` | Unread notifications and mark-as-read status |
 
 ### Health and static routes
 
@@ -194,6 +197,7 @@ All routers are mounted directly in [backend/app/main.py](D:/Projects/Portfolio/
 [backend/app/api/portfolio.py](D:/Projects/Portfolio/backend/app/api/portfolio.py) currently exposes:
 
 - `/summary`
+- `/sector-allocation`
 - `/holdings`
 - `/history`
 - `/snapshot`
@@ -290,6 +294,8 @@ Most business logic lives in `backend/app/services`.
 - [stock_detail.py](D:/Projects/Portfolio/backend/app/services/stock_detail.py)
 - [backup_service.py](D:/Projects/Portfolio/backend/app/services/backup_service.py)
 - [ipo_bot.py](D:/Projects/Portfolio/backend/app/services/ipo_bot.py)
+- [alert_service.py](D:/Projects/Portfolio/backend/app/services/alert_service.py)
+  - Checks live market prices against active TradeSetups and issues Notifications.
 
 ---
 
@@ -450,6 +456,7 @@ Relevant files:
 - Fees are date-versioned and must come from `fee_calculator.py`.
 - Any transaction mutation should be followed by holdings recalculation.
 - The portfolio layer distinguishes true WACC from tax WACC.
+- Rights Subscriptions (`RIGHTS_SUBSCRIPTION`) are explicitly treated as investment capital during WACC and P&L calculations.
 - Mutual-fund-like instruments are treated differently from equity for valuation and analytics.
 
 ### Current limitations

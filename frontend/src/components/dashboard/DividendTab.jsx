@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { Table, Tag, Empty, Spin, Row, Col } from 'antd';
 import { useQuery } from '@tanstack/react-query';
-import { DollarOutlined, GiftOutlined } from '@ant-design/icons';
-import { getPortfolioDividends } from '../../services/api';
+import { DollarOutlined, GiftOutlined, CalendarOutlined } from '@ant-design/icons';
+import { getPortfolioDividends, getUpcomingDividends } from '../../services/api';
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
@@ -19,6 +19,11 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
     const { data: dividendsRaw, isLoading } = useQuery({
         queryKey: ['dividends', summaryParams],
         queryFn: () => getPortfolioDividends(summaryParams).then(r => r.data)
+    });
+
+    const { data: upcomingDividendsRaw } = useQuery({
+        queryKey: ['upcomingDividends', summaryParams],
+        queryFn: () => getUpcomingDividends(summaryParams).then(r => r.data)
     });
 
     const filteredDividends = useMemo(() => {
@@ -237,6 +242,31 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
                         pagination={false}
                         size="small"
                         scroll={{ x: 600 }}
+                    />
+                </div>
+            )}
+
+            {/* Upcoming Dividends Section */}
+            {upcomingDividendsRaw && upcomingDividendsRaw.length > 0 && (
+                <div className="chart-card" style={{ marginTop: 24 }}>
+                    <div className="chart-header">
+                        <h3 style={{ margin: 0, color: 'var(--accent-primary)' }}><CalendarOutlined /> Upcoming Book Closures</h3>
+                    </div>
+                    <Table
+                        columns={[
+                            { title: 'Symbol', dataIndex: 'symbol', key: 'symbol', render: text => <strong>{text}</strong> },
+                            { title: 'Company', dataIndex: 'company_name', key: 'company_name' },
+                            { title: 'Cash Div %', dataIndex: 'cash_dividend_percent', key: 'cash_dividend_percent', align: 'right', render: v => v > 0 ? `${v}%` : '—' },
+                            { title: 'Bonus Div %', dataIndex: 'bonus_dividend_percent', key: 'bonus_dividend_percent', align: 'right', render: v => v > 0 ? `${v}%` : '—' },
+                            { title: 'Book Close Date', dataIndex: 'book_close_date', key: 'book_close_date', align: 'right' },
+                            { title: 'Days Remaining', dataIndex: 'days_remaining', key: 'days_remaining', align: 'right', render: v => v === 0 ? <Tag color="red">Today</Tag> : <Tag color={v < 7 ? "orange" : "blue"}>{v} Days</Tag> },
+                            { title: 'Eligibility', dataIndex: 'is_eligible', key: 'is_eligible', align: 'center', render: v => v ? <Tag color="green">Eligible</Tag> : <Tag>Not Eligible</Tag> }
+                        ]}
+                        dataSource={upcomingDividendsRaw}
+                        rowKey="id"
+                        pagination={false}
+                        size="small"
+                        scroll={{ x: 800 }}
                     />
                 </div>
             )}

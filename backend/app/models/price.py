@@ -23,6 +23,7 @@ class LivePrice(Base):
     open_price = Column(Float, nullable=True)
     volume = Column(Integer, nullable=True)
     prev_close = Column(Float, nullable=True)
+    last_scraped_at = Column(DateTime, nullable=True)
 
     updated_at = Column(DateTime, default=lambda: datetime.now(
         timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -47,6 +48,7 @@ class NavValue(Base):
     repurchase_price = Column(Float, nullable=True)
     sale_price = Column(Float, nullable=True)
     scheme_name = Column(String(300), nullable=True)
+    last_scraped_at = Column(DateTime, nullable=True)
 
     updated_at = Column(DateTime, default=lambda: datetime.now(
         timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -131,6 +133,7 @@ class IndexHistory(Base):
     change = Column(Float, nullable=True)
     percent_change = Column(Float, nullable=True)
     turnover = Column(Float, nullable=True)
+    last_scraped_at = Column(DateTime, nullable=True)
 
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons';
 import { getMergedPrices, scrapePrices, scrapeNav, getHistoricalPrices, getCompanies, syncHistory, getAllIssues, scrapeIssues, scrapeCompanies, getNepseIndex, scrapeIndex } from '../services/api';
 import dayjs from 'dayjs';
+import FreshnessTag from '../components/FreshnessTag';
 
 const { RangePicker } = DatePicker;
 
@@ -508,9 +509,16 @@ function Prices() {
 
     return (
         <div className="animate-in">
-            <div className="page-header">
-                <h1>Market Prices</h1>
-                <p className="subtitle">Real-time share prices and historical performance</p>
+            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1>Market Prices</h1>
+                    <p className="subtitle" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        Real-time share prices and historical performance
+                        {prices && prices.length > 0 && (
+                            <FreshnessTag timestamp={Math.max(...prices.map(p => new Date(p.updated_at).getTime()))} label="Market Data" />
+                        )}
+                    </p>
+                </div>
             </div>
 
             <Tabs defaultActiveKey="live" items={tabItems} className="custom-tabs" />

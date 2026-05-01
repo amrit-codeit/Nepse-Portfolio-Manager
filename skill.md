@@ -62,6 +62,7 @@ backend/
       screener.py        screener payload
       market_context.py  market context, extended technicals, backtests
       trading.py         trade setups, signals, journal, stats
+      notifications.py   unread notifications and mark-as-read status
     models/
       member.py          Member, MeroshareCredential, MemberGroup
       company.py         Company
@@ -72,6 +73,7 @@ backend/
       dividend.py        DividendIncome
       fundamental.py     StockOverview, FundamentalReport, QuarterlyGrowth
       trading.py         TradeSetup, TradeJournal
+      notification.py    Notification
     services/
       portfolio_engine.py
       fee_calculator.py
@@ -84,6 +86,7 @@ backend/
       calculator_service.py
       backup_service.py
       ipo_bot.py
+      alert_service.py
       analysis/
         executive_summary.py
         fundamental.py
@@ -106,7 +109,7 @@ backend/
 
 frontend/src/
   main.jsx              React Query + Router + AntD providers
-  App.jsx               live nav and route shell
+  App.jsx               live nav and route shell (includes NotificationBell)
   services/api.js       axios client with X-Master-Password header
   pages/
     Dashboard.jsx
@@ -132,7 +135,7 @@ frontend/src/
 
 - `main.py` validates `MASTER_PASSWORD` at startup and exits if it is not a bcrypt hash.
 - A database backup runs on startup through `create_database_backup()`.
-- APScheduler starts, but `scheduler.py` currently registers no active cron jobs.
+- APScheduler starts and registers active cron jobs for price scraping (market hours), NAV, index snapshots, dividends, and fundamentals.
 - The backend can serve `frontend/dist` when it exists.
 
 ### Frontend shell
@@ -187,6 +190,8 @@ Do not assume the app only has the early core routers. The active backend includ
 - Use `services/api.js` instead of ad hoc fetch calls.
 - Treat routed and unrouted pages differently. If you add a feature to an unrouted page, confirm whether it also needs route wiring.
 - The app already uses React Query. Prefer that for server state.
+- Use `<SectionErrorBoundary>` to wrap complex subcomponents (like charts) for UI resilience.
+- Use `<FreshnessTag>` to expose data recency on data-heavy dashboards.
 
 ### Documentation rules
 

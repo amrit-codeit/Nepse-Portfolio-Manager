@@ -90,6 +90,12 @@ def _ensure_sqlite_compatibility():
     with engine.begin() as conn:
         _ensure_columns(conn, "trade_setups", trade_setup_columns)
         _ensure_columns(conn, "trade_journals", trade_journal_columns)
+        
+        _ensure_columns(conn, "live_prices", {"last_scraped_at": "DATETIME"})
+        _ensure_columns(conn, "nav_values", {"last_scraped_at": "DATETIME"})
+        _ensure_columns(conn, "index_history", {"last_scraped_at": "DATETIME"})
+        _ensure_columns(conn, "fundamental_report", {"last_scraped_at": "DATETIME"})
+        _ensure_columns(conn, "stock_overview", {"last_scraped_at": "DATETIME"})
 
         conn.execute(text("""
             UPDATE trade_setups

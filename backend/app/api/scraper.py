@@ -15,10 +15,32 @@ from app.scrapers.dividend_scraper import scrape_and_calculate_dividends
 from app.scrapers.fundamental_scraper import scrape_fundamentals
 from app.scrapers.index_scraper import scrape_nepse_index, scrape_sector_indices, scrape_all_indices
 from app.models.holding import Holding
+from app.models.scraper import ScraperRun
 import traceback
 from app.api.members import require_master_password
 
 router = APIRouter(prefix="/api/scraper", tags=["Scraping"])
+
+
+@router.get("/runs")
+def get_scraper_runs(db: Session = Depends(get_db), limit: int = 50):
+    """Get recent scraper execution logs."""
+    try:
+        runs = db.query(ScraperRun).order_by(ScraperRun.started_at.desc()).limit(limit).all()
+        data = [{
+            "id": r.id,
+            "scraper_name": r.scraper_name,
+            "triggered_by": r.triggered_by,
+            "started_at": r.started_at.isoformat() if r.started_at else None,
+            "finished_at": r.finished_at.isoformat() if r.finished_at else None,
+            "status": r.status,
+            "rows_affected": r.rows_affected,
+            "error_message": r.error_message,
+        } for r in runs]
+        return {"status": "success", "data": data}
+    except Exception as e:
+        traceback.print_exc()
+        return {"status": "failed", "error": repr(e)}
 
 
 @router.post("/issues")

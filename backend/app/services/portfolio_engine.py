@@ -52,6 +52,7 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
             TransactionType.IPO.value,
             TransactionType.FPO.value,
             TransactionType.RIGHT.value,
+            TransactionType.RIGHTS_SUBSCRIPTION.value,
             TransactionType.AUCTION.value,
             TransactionType.TRANSFER_IN.value,
         ):
@@ -205,6 +206,7 @@ def _build_cashflows_from_txns(txns: list) -> list[tuple]:
             TransactionType.IPO.value,
             TransactionType.FPO.value,
             TransactionType.RIGHT.value,
+            TransactionType.RIGHTS_SUBSCRIPTION.value,
             TransactionType.AUCTION.value,
             TransactionType.TRANSFER_IN.value,
         ):
@@ -566,7 +568,7 @@ def get_portfolio_summary(
         is_sip_txn = t.symbol in sip_symbols
         target = sip_cashflows if is_sip_txn else eq_cashflows
         
-        if t.txn_type in (TransactionType.BUY.value, TransactionType.IPO.value, TransactionType.FPO.value, TransactionType.RIGHT.value, TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value):
+        if t.txn_type in (TransactionType.BUY.value, TransactionType.IPO.value, TransactionType.FPO.value, TransactionType.RIGHT.value, TransactionType.RIGHTS_SUBSCRIPTION.value, TransactionType.AUCTION.value, TransactionType.TRANSFER_IN.value):
             if cost > 0:
                 target.append((t.txn_date, -cost))
         elif t.txn_type in (TransactionType.SELL.value, TransactionType.TRANSFER_OUT.value):

@@ -13,6 +13,7 @@ class StockOverview(Base):
     net_profit_ttm = Column(Float, nullable=True)
     eps_ttm = Column(Float, nullable=True)
     book_value = Column(Float, nullable=True)
+    last_scraped_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
@@ -29,6 +30,7 @@ class FundamentalReport(Base):
     paid_up_capital = Column(Float, nullable=True)
     net_profit = Column(Float, nullable=True)
     sector_metrics = Column(JSON, nullable=True)  # Store dynamic rows here
+    last_scraped_at = Column(DateTime, nullable=True)
 
 
 class QuarterlyGrowth(Base):

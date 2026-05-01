@@ -89,6 +89,7 @@ export const getFeeConfigHistory = (key) => api.get(`/config/fees/history/${key}
 export const addFeeConfigVersion = (data) => api.post('/config/fees/version', data);
 
 // --- Scrapers ---
+export const getScraperRuns = (limit = 50) => api.get('/scraper/runs', { params: { limit } });
 export const scrapeCompanies = () => api.post('/scraper/companies');
 export const scrapeNav = () => api.post('/scraper/nav');
 export const scrapePrices = () => api.post('/scraper/prices');
@@ -108,9 +109,15 @@ export const runBacktest = (symbol, params = {}) => api.get(`/market/backtest/${
 // --- Dividends ---
 export const getDividends = (params) => api.get('/dividends', { params });
 export const getDividendSummary = (params) => api.get('/dividends/summary', { params });
+export const getUpcomingDividends = (params) => api.get('/dividends/upcoming', { params });
 
 // --- Health ---
 export const healthCheck = () => api.get('/health');
+
+// --- Notifications ---
+export const getUnreadNotifications = () => api.get('/notifications/unread');
+export const markNotificationRead = (id) => api.post(`/notifications/read/${id}`);
+export const markAllNotificationsRead = () => api.post('/notifications/read-all');
 
 // --- Member Groups ---
 export const getGroups = () => api.get('/groups');
