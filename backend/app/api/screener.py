@@ -9,6 +9,7 @@ from app.models.fundamental import StockOverview
 from app.models.price import LivePrice, PriceHistory
 import pandas as pd
 import pandas_ta as ta
+from app.scrapers.screener_scraper import NepseAlphaScreenerScraper
 
 router = APIRouter(prefix="/api/screener", tags=["Screener"])
 
@@ -240,3 +241,112 @@ def get_screener_data(db: Session = Depends(get_db)):
         })
 
     return {"stocks": results, "total": len(results)}
+
+
+@router.get("/fundamental")
+def get_fundamental_screener(
+    pe_ratio: str = None,
+    pb_ratio: str = None,
+    peg_ratio: str = None,
+    roe: str = None,
+    roa: str = None,
+    total_dividend_to_ltp: str = None,
+    ltp: str = None,
+    graham_num: str = None,
+    shares_outstnading: str = None,
+    eps: str = None,
+    book_value: str = None,
+    sector: str = None,
+    yoy_growth: str = None,
+    d_eqty_min: str = None,
+    d_eqty_max: str = None,
+    payout_ratio_min: str = None,
+    payout_ratio_max: str = None,
+):
+    """
+    On-demand fundamental screening via NepseAlpha.
+    Scrapes live data based on user-provided parameters.
+    """
+    filters = {
+        'pe_ratio': pe_ratio,
+        'pb_ratio': pb_ratio,
+        'peg_ratio': peg_ratio,
+        'roe': roe,
+        'roa': roa,
+        'total_dividend_to_ltp': total_dividend_to_ltp,
+        'ltp': ltp,
+        'graham_num': graham_num,
+        'shares_outstnading': shares_outstnading,
+        'eps': eps,
+        'book_value': book_value,
+        'sector': sector,
+        'yoy_growth': yoy_growth,
+        'd_eqty_min': d_eqty_min,
+        'd_eqty_max': d_eqty_max,
+        'payout_ratio_min': payout_ratio_min,
+        'payout_ratio_max': payout_ratio_max,
+    }
+    
+    # Remove None values
+    filters = {k: v for k, v in filters.items() if v is not None}
+    
+    scraper = NepseAlphaScreenerScraper()
+    raw_data = scraper.scrape_fundamental_screener(filters)
+    processed_data = scraper.process_data(raw_data)
+    
+    return {
+        "stocks": processed_data,
+        "total": len(processed_data),
+        "filters_applied": filters
+    }
+
+@router.get("/technical")
+def get_technical_screener(
+    rsi: str = None,
+    rsi_min: str = None,
+    rsi_max: str = None,
+    macd: str = None,
+    sma_200: str = None,
+    sma_520: str = None,
+    bollinger_band: str = None,
+    stochastic_14: str = None,
+    sma_20: str = None,
+    sma_50: str = None,
+    mfi_14: str = None,
+    ltp: str = None,
+    beta_3m: str = None,
+    sector: str = None,
+):
+    """
+    On-demand technical screening via NepseAlpha.
+    Scrapes live data based on user-provided parameters.
+    """
+    filters = {
+        'rsi': rsi,
+        'rsi_min': rsi_min,
+        'rsi_max': rsi_max,
+        'macd': macd,
+        'sma_200': sma_200,
+        'sma_520': sma_520,
+        'bollinger_band': bollinger_band,
+        'stochastic_14': stochastic_14,
+        'sma_20': sma_20,
+        'sma_50': sma_50,
+        'mfi_14': mfi_14,
+        'ltp': ltp,
+        'beta_3m': beta_3m,
+        'sector': sector,
+    }
+    
+    # Remove None values
+    filters = {k: v for k, v in filters.items() if v is not None}
+    
+    scraper = NepseAlphaScreenerScraper()
+    raw_data = scraper.scrape_technical_screener(filters)
+    processed_data = scraper.process_technical_data(raw_data)
+    
+    return {
+        "stocks": processed_data,
+        "total": len(processed_data),
+        "filters_applied": filters
+    }

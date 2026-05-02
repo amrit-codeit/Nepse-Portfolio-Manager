@@ -167,6 +167,8 @@ export const calculateTradePlan = (data) => api.post('/calculator/trade-plan', d
 
 // --- Screener ---
 export const getScreenerData = () => api.get('/screener');
+export const getFundamentalScreener = (params) => api.get('/screener/fundamental', { params });
+export const getTechnicalScreener = (params) => api.get('/screener/technical', { params });
 
 // --- Market Context (Conjunction Trading) ---
 export const getMarketContext = () => api.get('/market/context');

@@ -764,12 +764,12 @@ function PositionsTab() {
 
 export default function TradingDesk() {
     const items = [
+        { key: 'screener', label: <span><FilterOutlined /> Technical Screener</span>, children: <TechnicalScreener /> },
         { key: 'positions', label: <span><ThunderboltOutlined /> Positions</span>, children: <PositionsTab /> },
         { key: 'analysis', label: <span><LineChartOutlined /> Analysis & AI</span>, children: <StockAnalysis /> },
         { key: 'calculator', label: <span><AimOutlined /> Risk Calculator</span>, children: <RiskCalculator /> },
         { key: 'tester', label: <span><TrophyOutlined /> Strategy Tester</span>, children: <StrategyTesterTab /> },
         { key: 'journal', label: <span><HistoryOutlined /> Trade Journal</span>, children: <TradeJournalTab /> },
-        { key: 'screener', label: <span><FilterOutlined /> Technical Screener</span>, children: <TechnicalScreener /> },
         {
             key: 'buysell',
             label: <span><CalculatorOutlined /> Buy/Sell Calc</span>,
