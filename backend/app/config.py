@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     MASTER_PASSWORD: str
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3055", "http://127.0.0.1:3055", "http://localhost:5173", "http://127.0.0.1:5173"]
 
     # Scraper settings
     NEPSE_COMPANY_URL: str = "https://nepalstock.com/company"
