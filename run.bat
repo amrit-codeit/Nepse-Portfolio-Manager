@@ -7,9 +7,18 @@ echo.
 :: Ensure correct active directory
 cd /d "%~dp0"
 
-:: 1. Start unified server (Backend + Static Frontend)
-echo Starting NPM Unified Server...
-start "Nepal Portfolio Manager" cmd /k "cd backend && call venv\Scripts\activate.bat && python run_server.py"
+:: Check if venv exists
+if not exist "backend\venv" (
+    echo [ERROR] Virtual environment not found.
+    echo Please run 'setup.bat' first.
+    pause
+    exit /b 1
+)
+
+:: 1. Start unified server
+echo Starting NPM Unified Server on Port 8080...
+:: Use the explicit venv python path to guarantee all dependencies are found
+start "Nepal Portfolio Manager" cmd /k "cd backend && call venv\Scripts\activate.bat && venv\Scripts\python.exe run_server.py"
 
 :: 2. Wait for server to start, then open browser
 echo Waiting for server to initialize...

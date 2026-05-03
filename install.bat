@@ -1,55 +1,84 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
+
 echo ==============================================================
-echo Nepse Portfolio Manager - Automatic Installer
+echo Nepal Portfolio Manager - Unified Master Installer
 echo ==============================================================
 echo.
 
-:: Check for Git
+:: 1. Check/Install Winget (required for everything else)
+winget --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERROR] 'winget' is not found. Please ensure you are on Windows 10/11.
+    echo Installation cannot proceed automatically.
+    pause
+    exit /b 1
+)
+
+:: 2. Check/Install Git
 git --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [!]: Git is not installed on this PC.
-    echo Installing Git silently via winget...
+    echo [INFO] Installing Git...
     winget install --id Git.Git -e --source winget --accept-package-agreements --accept-source-agreements
-    if %errorlevel% neq 0 (
-        echo [ERROR]: Failed to install Git. Please install Git manually from https://git-scm.com/
-        pause
-        exit /b 1
-    )
-    echo [OK]: Git installed successfully.
-    echo Please CLOSE this window and run install.bat again so your PC recognizes Git.
-    pause
-    exit /b 0
+    set REFRESH_NEEDED=1
+) else (
+    echo [OK] Git is installed.
 )
 
-echo [OK]: Git is already installed.
-
-:: Clone the repo
-echo [INFO]: Downloading Nepse Portfolio Manager from GitHub...
-git clone https://github.com/amrit-codeit/Nepse-Portfolio-Manager.git
-
+:: 3. Check/Install Python
+python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR]: Failed to download the repository. Check your internet connection.
-    pause
-    exit /b 1
+    python3 --version >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo [INFO] Installing Python 3.12...
+        winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+        set REFRESH_NEEDED=1
+    ) else (
+        echo [OK] Python (python3) is installed.
+    )
+) else (
+    echo [OK] Python is installed.
 )
 
-:: Navigate into the cloned folder
-cd Nepse-Portfolio-Manager
+:: 4. Check/Install Node.js
+node --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [INFO] Installing Node.js...
+    winget install -e --id OpenJS.NodeJS --accept-package-agreements --accept-source-agreements
+    set REFRESH_NEEDED=1
+) else (
+    echo [OK] Node.js is installed.
+)
 
-:: Run setup.bat
-echo [INFO]: Starting initial project setup...
+:: 5. Refresh Environment if something was installed
+if "%REFRESH_NEEDED%"=="1" (
+    echo [INFO] Refreshing environment variables...
+    :: This trick refreshes the PATH in the current CMD window
+    for /f "tokens=*" %%a in ('powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')"') do set "PATH=%%a"
+)
+
+:: 6. Handle Repository
+if not exist ".git" (
+    if exist "Nepse-Portfolio-Manager" (
+        cd Nepse-Portfolio-Manager
+    ) else (
+        echo [INFO] Cloning repository...
+        git clone https://github.com/amrit-codeit/Nepse-Portfolio-Manager.git
+        cd Nepse-Portfolio-Manager
+    )
+) else (
+    echo [INFO] Updating repository...
+    git pull origin main
+)
+
+:: 7. Handover to Setup
 if exist setup.bat (
+    echo [INFO] Launching setup...
     call setup.bat
 ) else (
-    echo [ERROR]: setup.bat not found inside the repository!
+    echo [ERROR] setup.bat not found. Please check your repository.
     pause
     exit /b 1
 )
 
-echo.
-echo ==============================================================
-echo Installation Complete!
-echo You can now use run.bat inside the "Nepse-Portfolio-Manager" folder to start the app.
-echo ==============================================================
-pause
+exit /b 0

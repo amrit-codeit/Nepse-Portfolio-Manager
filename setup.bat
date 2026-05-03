@@ -9,80 +9,49 @@ echo.
 :: Ensure we are executing from the script's own folder
 cd /d "%~dp0"
 
-:: 1. Check for Python (try python then python3)
+:: 1. Detect Python Command
 set PY_CMD=python
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     set PY_CMD=python3
     python3 --version >nul 2>&1
-)
-
-if %errorlevel% neq 0 (
-    echo [INFO] Python is not installed or not in PATH. Attempting automatic installation via winget...
-    winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
     if !errorlevel! neq 0 (
-        echo [ERROR] Failed to install Python automatically.
-        echo Please install Python 3.10+ manually from https://www.python.org/downloads/
+        echo [ERROR] Python not found. Please run install.bat first.
         pause
         exit /b 1
     )
-    echo [INFO] Python installed successfully. 
-    echo Please close this terminal window and run setup.bat again to refresh environment variables.
-    pause
-    exit /b 0
 )
-echo [OK] Python found.
 
-:: 2. Check for Node.js
-node --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [INFO] Node.js is not installed or not in PATH. Attempting automatic installation via winget...
-    winget install -e --id OpenJS.NodeJS --accept-package-agreements --accept-source-agreements
-    if !errorlevel! neq 0 (
-        echo [ERROR] Failed to install Node.js automatically.
-        echo Please install Node.js manually from https://nodejs.org/
-        pause
-        exit /b 1
-    )
-    echo [INFO] Node.js installed successfully.
-    echo Please close this terminal window and run setup.bat again to refresh environment variables.
-    pause
-    exit /b 0
-)
-echo [OK] Node.js found.
-
-:: 3. Setup Backend
+:: 2. Setup Backend
 echo.
-echo [1/3] Setting up Backend...
+echo [1/3] Setting up Backend Virtual Environment...
 cd backend
 
+:: Always ensure a fresh venv if uvicorn error persists
 if not exist venv (
     echo Creating virtual environment...
     %PY_CMD% -m venv venv
 )
 
-echo Installing backend dependencies...
-call venv\Scripts\activate.bat
+echo Installing/Updating dependencies...
 venv\Scripts\python.exe -m pip install --upgrade pip
 venv\Scripts\pip.exe install -r requirements.txt
 if !errorlevel! neq 0 (
-    echo [ERROR] Failed to install backend dependencies.
+    echo [ERROR] Failed to install backend dependencies. Check your internet connection.
     pause
     exit /b 1
 )
 
-:: 4. Setup Environment Variables
+:: 3. Setup Environment Variables
 echo.
 echo [2/3] Configuring Environment...
 if not exist .env (
     echo Creating .env from .env.example...
     copy .env.example .env >nul
     
-    :: Generate a random key using Python
     echo Generating secure encryption key...
     for /f "tokens=*" %%a in ('venv\Scripts\python.exe -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"') do set NEW_KEY=%%a
     
-    :: Prompt for Master Password
     echo.
     echo -------------------------------------------------------------
     echo SECURITY SETUP: Master Password
@@ -93,44 +62,25 @@ if not exist .env (
     echo Generating secure password hash...
     for /f "tokens=*" %%b in ('venv\Scripts\python.exe -c "import bcrypt; print(bcrypt.hashpw('!USER_MASTER_PASS!'.encode('utf-8'), bcrypt.gensalt()).decode())"') do set HASHED_PASS=%%b
     
-    :: Replace placeholder in .env
     powershell -Command "(gc .env) -replace 'your_encryption_key_here', '!NEW_KEY!' | Out-File -encoding ASCII .env"
-    
-    :: Append MASTER_PASSWORD to .env
     echo.>> .env
     echo MASTER_PASSWORD=!HASHED_PASS!>> .env
-    
-    echo [OK] .env created with fresh ENCRYPTION_KEY and hashed MASTER_PASSWORD.
-) else (
-    echo [SKIP] .env already exists.
-    :: Verify existing .env has MASTER_PASSWORD
-    findstr /C:"MASTER_PASSWORD" .env >nul
-    if !errorlevel! neq 0 (
-        echo [INFO] Updating existing .env with MASTER_PASSWORD...
-        echo.
-        echo -------------------------------------------------------------
-        echo SECURITY UPDATE: Master Password Required
-        echo This password protects your MeroShare credentials and sensitive actions.
-        set /p "USER_MASTER_PASS=Enter a strong master password: "
-        if "!USER_MASTER_PASS!"=="" set USER_MASTER_PASS=admin123
-        
-        echo Generating secure password hash...
-        for /f "tokens=*" %%b in ('venv\Scripts\python.exe -c "import bcrypt; print(bcrypt.hashpw('!USER_MASTER_PASS!'.encode('utf-8'), bcrypt.gensalt()).decode())"') do set HASHED_PASS=%%b
-        echo.>> .env
-        echo MASTER_PASSWORD=!HASHED_PASS!>> .env
-        echo [OK] Added hashed MASTER_PASSWORD to .env.
-    )
+    echo [OK] .env created with secure defaults.
 )
 
-:: 5. Setup Frontend
+:: 4. Setup Frontend
 echo.
-echo [3/3] Setting up Frontend...
+echo [3/3] Building Frontend...
 cd ..\frontend
-echo Installing frontend dependencies (this may take a minute)...
+echo Installing frontend dependencies (npm install)...
 call npm install
-echo Building frontend for production...
+echo Building production assets (npm run build)...
 call npm run build
-echo [OK] Frontend dependencies installed and built.
+if !errorlevel! neq 0 (
+    echo [ERROR] Frontend build failed.
+    pause
+    exit /b 1
+)
 
 echo.
 echo ################################################
@@ -138,9 +88,9 @@ echo #          Setup Complete!                     #
 echo ################################################
 echo.
 echo Your environment is fully configured. 
-echo The application will now launch automatically...
+echo Launching the application...
 echo.
-timeout /t 3 >nul
+timeout /t 2 >nul
 
 :: Navigate back to root and launch run.bat
 cd ..
