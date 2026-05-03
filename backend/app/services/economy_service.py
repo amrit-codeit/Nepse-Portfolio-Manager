@@ -313,31 +313,68 @@ def get_alternatives_comparison(db: Session, principal: float, start_date: datet
 
     # --- Fixed Deposit ---
     try:
-        fd_rate_row = db.query(MacroData).filter(
+        current_date = start_date
+        current_principal = principal
+        
+        # Get initial rate for the start date
+        initial_rate_row = db.query(MacroData).filter(
             MacroData.date <= start_date,
+            MacroData.fixed_deposit_rate.isnot(None)
         ).order_by(MacroData.date.desc()).first()
+        
+        if not initial_rate_row:
+            initial_rate_row = db.query(MacroData).filter(
+                MacroData.fixed_deposit_rate.isnot(None)
+            ).order_by(MacroData.date.asc()).first()
+            
+        start_rate = initial_rate_row.fixed_deposit_rate if initial_rate_row else 0.0
 
-        if not fd_rate_row:
-            fd_rate_row = db.query(MacroData).order_by(MacroData.date.asc()).first()
+        # Simulate rolling 1-year FD, reinvesting at maturity
+        while current_date < today:
+            try:
+                next_date = current_date.replace(year=current_date.year + 1)
+            except ValueError:
+                next_date = current_date.replace(year=current_date.year + 1, day=28)
+                
+            if next_date > today:
+                next_date = today
+                
+            fd_rate_row = db.query(MacroData).filter(
+                MacroData.date <= current_date,
+                MacroData.fixed_deposit_rate.isnot(None)
+            ).order_by(MacroData.date.desc()).first()
+            
+            rate = (fd_rate_row.fixed_deposit_rate / 100.0) if fd_rate_row and fd_rate_row.fixed_deposit_rate else (start_rate / 100.0)
+            fraction_of_year = (next_date - current_date).days / 365.25
+            
+            # Simple interest for the fraction/year, compounded at the end of the term
+            current_principal += current_principal * (rate * fraction_of_year)
+            current_date = next_date
 
-        if fd_rate_row and fd_rate_row.fixed_deposit_rate:
-            rate = fd_rate_row.fixed_deposit_rate / 100.0
-            # Compound annually
-            final = principal * math.pow(1 + rate, years_held)
-            total_return = ((final / principal) - 1) * 100
-            results.append({
-                "label": "Fixed Deposit",
-                "icon": "bank",
-                "start_value": round(fd_rate_row.fixed_deposit_rate, 2),
-                "end_value": round(fd_rate_row.fixed_deposit_rate, 2),
-                "start_date": start_date.isoformat(),
-                "end_date": today.isoformat(),
-                "final_amount": round(final, 2),
-                "total_return_pct": round(total_return, 2),
-                "annualized_return_pct": round(fd_rate_row.fixed_deposit_rate, 2),
-                "years_held": round(years_held, 2),
-                "note": f"Using FD rate of {fd_rate_row.fixed_deposit_rate:.2f}% from {fd_rate_row.date.isoformat()}",
-            })
+        final = current_principal
+        total_return = ((final / principal) - 1) * 100
+        cagr = (math.pow(final / principal, 1 / years_held) - 1) * 100 if years_held > 0 else 0
+
+        # Get final rate for display
+        final_rate_row = db.query(MacroData).filter(
+            MacroData.date <= today,
+            MacroData.fixed_deposit_rate.isnot(None)
+        ).order_by(MacroData.date.desc()).first()
+        end_rate = final_rate_row.fixed_deposit_rate if final_rate_row else start_rate
+
+        results.append({
+            "label": "Fixed Deposit",
+            "icon": "bank",
+            "start_value": round(start_rate, 2),
+            "end_value": round(end_rate, 2),
+            "start_date": start_date.isoformat(),
+            "end_date": today.isoformat(),
+            "final_amount": round(final, 2),
+            "total_return_pct": round(total_return, 2),
+            "annualized_return_pct": round(cagr, 2),
+            "years_held": round(years_held, 2),
+            "note": "Reinvested annually at prevailing FD rates",
+        })
     except Exception:
         pass
 

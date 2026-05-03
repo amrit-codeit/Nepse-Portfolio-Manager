@@ -195,4 +195,14 @@ export const triggerEconomyScrape = () => api.post('/economy/macro/scrape');
 export const getEconomyAlternatives = (principal, startDate) =>
   api.get('/economy/alternatives', { params: { principal, start_date: startDate } });
 
+// --- System Import/Export ---
+export const exportMarketData = () => api.get('/system/export-market-data', { responseType: 'blob' });
+export const importMarketData = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return api.post('/system/import-market-data', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
 export default api;

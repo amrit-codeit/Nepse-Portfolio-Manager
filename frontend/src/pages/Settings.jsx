@@ -1,15 +1,50 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, Table, InputNumber, Button, message, Divider, Alert, Space, Modal, Form, DatePicker, Input, Tag, Tabs, Row, Col, Typography, Badge, Tooltip } from 'antd';
-import { SettingOutlined, SaveOutlined, HistoryOutlined, PlusOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined } from '@ant-design/icons';
-import { getFeeConfig, updateFeeConfig, getFeeConfigHistory, addFeeConfigVersion, getScraperRuns } from '../services/api';
+import { Card, Table, InputNumber, Button, message, Divider, Alert, Space, Modal, Form, DatePicker, Input, Tag, Tabs, Row, Col, Typography, Badge, Tooltip, Upload } from 'antd';
+import { SettingOutlined, SaveOutlined, HistoryOutlined, PlusOutlined, ClockCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined, DatabaseOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { getFeeConfig, updateFeeConfig, getFeeConfigHistory, addFeeConfigVersion, getScraperRuns, exportMarketData, importMarketData } from '../services/api';
 import { useState } from 'react';
 
 function Settings() {
     const [editedValues, setEditedValues] = useState({});
     const [historyModal, setHistoryModal] = useState({ visible: false, key: null, title: '' });
     const [versionModal, setVersionModal] = useState(false);
+    const [importing, setImporting] = useState(false);
     const [versionForm] = Form.useForm();
     const queryClient = useQueryClient();
+
+    const handleExportData = async () => {
+        try {
+            message.loading({ content: 'Preparing market data export...', key: 'exporting' });
+            const res = await exportMarketData();
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'market_data_export.json.gz');
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            message.success({ content: 'Market data exported successfully', key: 'exporting' });
+        } catch (e) {
+            message.error({ content: 'Failed to export market data', key: 'exporting' });
+        }
+    };
+
+    const handleImportData = async (options) => {
+        const { file, onSuccess, onError } = options;
+        setImporting(true);
+        message.loading({ content: 'Importing historical data. This may take a minute...', key: 'importing' });
+        try {
+            await importMarketData(file);
+            onSuccess("Ok");
+            message.success({ content: 'Market data imported successfully. Refreshing...', key: 'importing' });
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (e) {
+            onError(e);
+            message.error({ content: e?.response?.data?.detail || 'Failed to import market data', key: 'importing' });
+        } finally {
+            setImporting(false);
+        }
+    };
 
     const { data: feeConfig, isLoading } = useQuery({
         queryKey: ['fee-config'],
@@ -205,7 +240,48 @@ function Settings() {
         </div>
     );
 
+    const renderDataManagementTab = () => (
+        <div>
+            <Alert
+                type="info" showIcon icon={<DatabaseOutlined />}
+                message="Global Market Data Sync"
+                description="Export or import historical stock prices, fundamentals, macroeconomic data, and commodities. This acts as a 'seed' database so you do not have to wait hours for scrapers to download years of historical data from scratch. Note: Your personal portfolio and transactions are NEVER exported."
+                style={{ marginBottom: 24 }}
+            />
+            
+            <Row gutter={[24, 24]}>
+                <Col xs={24} md={12}>
+                    <Card size="small" title="Export Market Data">
+                        <p style={{ color: 'var(--text-secondary)' }}>Download a compressed backup of all market data. Share this with other instances to bootstrap their database instantly.</p>
+                        <Button type="primary" icon={<DownloadOutlined />} onClick={handleExportData}>
+                            Download Data Backup
+                        </Button>
+                    </Card>
+                </Col>
+                <Col xs={24} md={12}>
+                    <Card size="small" title="Import Market Data">
+                        <p style={{ color: 'var(--text-secondary)' }}>Restore from a backup. This will safely upsert data without deleting existing rows.</p>
+                        <Upload 
+                            customRequest={handleImportData} 
+                            showUploadList={false} 
+                            accept=".gz,.json"
+                        >
+                            <Button type="primary" danger loading={importing} icon={<UploadOutlined />}>
+                                Upload & Restore Data
+                            </Button>
+                        </Upload>
+                    </Card>
+                </Col>
+            </Row>
+        </div>
+    );
+
     const settingTabs = [
+        {
+            key: 'data-management',
+            label: '💾 Data Management',
+            children: renderDataManagementTab(),
+        },
         {
             key: 'data-sources',
             label: '🔄 Data Sources',
