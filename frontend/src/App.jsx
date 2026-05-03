@@ -12,6 +12,7 @@ import {
   InfoCircleOutlined,
   StockOutlined,
   CalculatorOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import Dashboard from './pages/Dashboard';
 import Holdings from './pages/Holdings';
@@ -22,6 +23,7 @@ import Prices from './pages/Prices';
 import ApplyIPO from './pages/ApplyIPO';
 import Insights from './pages/Insights';
 import TradingDesk from './pages/TradingDesk';
+import Economy from './pages/Economy';
 import About from './pages/About';
 import Members from './pages/Members';
 import ScripDetail from './pages/ScripDetail';
@@ -36,6 +38,7 @@ const menuItems = [
   { key: '/prices', icon: <BankOutlined />, label: 'Prices' },
   { key: '/insights', icon: <StockOutlined />, label: 'Stock Explorer' },
   { key: '/trading', icon: <ThunderboltOutlined />, label: 'Trading Desk' },
+  { key: '/economy', icon: <GlobalOutlined />, label: 'Economy' },
   { key: '/apply-ipo', icon: <ThunderboltOutlined />, label: 'Apply IPO' },
   { key: '/upload', icon: <UploadOutlined />, label: 'Sync & Credentials' },
   { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
@@ -126,6 +129,7 @@ function App() {
             <Route path="/prices" element={<Prices />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/trading" element={<TradingDesk />} />
+            <Route path="/economy" element={<Economy />} />
             <Route path="/apply-ipo" element={<ApplyIPO />} />
             <Route path="/upload" element={<Upload />} />
             <Route path="/settings" element={<Settings />} />

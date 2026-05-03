@@ -20,7 +20,7 @@ export default function About() {
                     Nepse Portfolio Manager
                 </Title>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Tag color="blue" bordered={false} style={{ borderRadius: 4 }}>v1.4.0-Stable</Tag>
+                    <Tag color="blue" bordered={false} style={{ borderRadius: 4 }}>v1.7.0-Stable</Tag>
                     <Text type="secondary" style={{ fontSize: 13 }}>Enterprise-grade performance tracking for the Nepali Stock Market.</Text>
                 </div>
             </div>
@@ -47,7 +47,8 @@ export default function About() {
                             { title: 'Multi-Member Governance', desc: 'Consolidated tracking for multiple family portfolios with isolated or group-level reporting.' },
                             { title: 'True WACC & Alpha Engine', desc: 'Cash-flow based XIRR calculation and performance benchmarking against the NEPSE Index.' },
                             { title: 'Technical 360° View', desc: 'Consolidated technical analysis with ADX, VSA, ATR, and live data injection for real-time decision making.' },
-                            { title: 'Structured AI Analyst', desc: 'Role-specific AI prompts (Value/Trading) with private local LLM integration for precision strategy verdicts.' },
+                            { title: 'Macroeconomic Context', desc: 'Integrated regime detection and multi-asset benchmarking (NEPSE vs Gold/Silver/FD).' },
+                            { title: 'Structured AI Analyst', desc: 'Role-specific AI prompts (Value/Trading) enriched with macro data via local LLMs and cloud providers.' },
                             { title: 'Data Sovereignty', desc: 'Privacy-focused local SQLite architecture with multi-layer credential encryption (Fernet).' },
                         ]}
                         renderItem={(item) => (
@@ -70,6 +71,9 @@ export default function About() {
                         <List
                             size="small"
                             dataSource={[
+                                { date: 'May 03, 2026', version: 'v1.7.0', msg: 'Integrated Macro Pulse and Alternatives Comparison dashboard with AI Context.' },
+                                { date: 'Apr 28, 2026', version: 'v1.6.0', msg: 'Added AI Portfolio Context Awareness and Trade Intel integration.' },
+                                { date: 'Apr 26, 2026', version: 'v1.5.0', msg: 'Integrated Multi-Provider Cloud AI (Groq, Nvidia).' },
                                 { date: 'Apr 24, 2026', version: 'v1.4.0', msg: 'Unified Technical 360° dashboard, ADX/VSA indicators, and role-specific AI Strategy Prompts.' },
                                 { date: 'Apr 20, 2026', version: 'v1.3.5', msg: 'Live LTP injection into Stock Explorer and enhanced position risk calculator.' },
                                 { date: 'Apr 14, 2026', version: 'v1.3.0', msg: 'Integrated true 5% TDS logic for Dividends and AI Technical Insights.' },

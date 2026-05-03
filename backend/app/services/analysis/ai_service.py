@@ -416,6 +416,24 @@ class AIService:
         return {"status": "error", "verdict": verdict, "analysis": message}
 
     # ------------------------------------------------------------------
+    # Macro context injection (background enrichment for AI prompts)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _get_macro_context() -> str:
+        """Fetch macro context string for AI prompt enrichment. Returns empty string on failure."""
+        try:
+            from app.database import SessionLocal
+            from app.services.economy_service import build_macro_context_string
+            db = SessionLocal()
+            try:
+                return build_macro_context_string(db)
+            finally:
+                db.close()
+        except Exception:
+            return ""
+
+    # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
@@ -440,6 +458,9 @@ class AIService:
             is_local=True,
         )
         user_prompt = f"Stock data:\n{json.dumps(input_data, default=str)}"
+        macro_ctx = cls._get_macro_context()
+        if macro_ctx:
+            user_prompt += f"\n\n{macro_ctx}"
         return await cls._call_ollama(system_prompt, user_prompt, model)
 
     @classmethod
@@ -463,6 +484,9 @@ class AIService:
         )
 
         user_prompt = f"Technical data:\n{json.dumps(input_data, default=str)}"
+        macro_ctx = cls._get_macro_context()
+        if macro_ctx:
+            user_prompt += f"\n\n{macro_ctx}"
         return await cls._call_ollama(system_prompt, user_prompt, model)
 
     @classmethod
@@ -888,6 +912,9 @@ class AIService:
         portfolio_ctx  = input_data.get("portfolio_context")
         system_prompt  = cls._cloud_value_system_prompt(scoring_action, scoring_score, portfolio_ctx)
         user_prompt    = f"Stock data:\n{json.dumps(input_data, default=str)}"
+        macro_ctx = cls._get_macro_context()
+        if macro_ctx:
+            user_prompt += f"\n\n{macro_ctx}"
         
         if provider == "nvidia":
             return await cls._call_nvidia_api(system_prompt, user_prompt)
@@ -908,6 +935,9 @@ class AIService:
             is_local=False,
         )
         user_prompt   = f"Technical data:\n{json.dumps(input_data, default=str)}"
+        macro_ctx = cls._get_macro_context()
+        if macro_ctx:
+            user_prompt += f"\n\n{macro_ctx}"
         
         if provider == "nvidia":
             return await cls._call_nvidia_api(system_prompt, user_prompt)

@@ -52,6 +52,7 @@ backend/
       scraper.py         manual scraper triggers
       config_api.py      fee config endpoints
       prices.py          prices, issues, historical price and index data
+      economy.py         macro snapshot, scrape triggers, and alternatives comparison
       ipo.py             open issues, apply, status
       insights.py        symbol-level insights payload
       dividends.py       dividend records and summary
@@ -83,6 +84,7 @@ backend/
       portfolio_history.py
       stock_detail.py
       trade_intel.py
+      economy_service.py
       calculator_service.py
       backup_service.py
       ipo_bot.py
@@ -118,6 +120,7 @@ frontend/src/
     Prices.jsx
     Insights.jsx
     TradingDesk.jsx
+    Economy.jsx
     ApplyIPO.jsx
     Upload.jsx
     Settings.jsx
@@ -147,6 +150,7 @@ frontend/src/
   - `/prices`
   - `/insights`
   - `/trading`
+  - `/economy`
   - `/apply-ipo`
   - `/upload`
   - `/settings`

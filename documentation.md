@@ -175,6 +175,7 @@ All routers are mounted directly in [backend/app/main.py](D:/Projects/Portfolio/
 | `scraper.py` | `/api/scraper` | Manual scraper triggers |
 | `config_api.py` | `/api/config` | Fee config and fee history |
 | `prices.py` | `/api/prices` | Prices, issue prices, historical price and index data |
+| `economy.py` | `/api/economy` | Macroeconomic snapshot, scrape triggers, alternatives comparison |
 | `ipo.py` | `/api/ipo` | Open IPOs, apply jobs, status polling |
 | `insights.py` | `/api/insights` | Symbol-level insights payload |
 | `dividends.py` | `/api/dividends` | Dividend table, summary, and upcoming book-closures |
@@ -292,6 +293,8 @@ Most business logic lives in `backend/app/services`.
 
 - [calculator_service.py](D:/Projects/Portfolio/backend/app/services/calculator_service.py)
 - [stock_detail.py](D:/Projects/Portfolio/backend/app/services/stock_detail.py)
+- [economy_service.py](D:/Projects/Portfolio/backend/app/services/economy_service.py)
+  - Evaluates monetary regimes and aggregates macroeconomic data
 - [backup_service.py](D:/Projects/Portfolio/backend/app/services/backup_service.py)
 - [ipo_bot.py](D:/Projects/Portfolio/backend/app/services/ipo_bot.py)
 - [alert_service.py](D:/Projects/Portfolio/backend/app/services/alert_service.py)
@@ -358,6 +361,7 @@ Current sidebar routes:
 - `/prices` -> Prices
 - `/insights` -> Stock Explorer
 - `/trading` -> Trading Desk
+- `/economy` -> Economy & Alternatives
 - `/apply-ipo` -> Apply IPO
 - `/upload` -> Sync and Credentials
 - `/settings` -> Settings
@@ -381,6 +385,7 @@ Routed from `App.jsx`:
 - `Prices.jsx`
 - `Insights.jsx`
 - `TradingDesk.jsx`
+- `Economy.jsx`
 - `ApplyIPO.jsx`
 - `Upload.jsx`
 - `Settings.jsx`

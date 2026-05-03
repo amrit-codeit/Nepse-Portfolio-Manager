@@ -189,5 +189,10 @@ export const getTradeSignals = () => api.get('/trading/setups/signals');
 export const getTradeJournal = () => api.get('/trading/journal');
 export const createTradeJournalEntry = (data) => api.post('/trading/journal', data);
 export const getTradeJournalStats = () => api.get('/trading/journal/stats');
+// --- Economy & Alternatives ---
+export const getEconomyMacro = () => api.get('/economy/macro');
+export const triggerEconomyScrape = () => api.post('/economy/macro/scrape');
+export const getEconomyAlternatives = (principal, startDate) =>
+  api.get('/economy/alternatives', { params: { principal, start_date: startDate } });
 
 export default api;

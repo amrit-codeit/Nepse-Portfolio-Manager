@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-05-03
+### Added
+- **Economy & Alternatives Dashboard**: New global dashboard tracking macroeconomic indicators, monetary regime signals, and sector rotation advice based on interest rates.
+- **Alternatives Comparison Tool**: A dedicated tool to benchmark hypothetical principal investments between NEPSE, Fixed Deposits, Gold, and Silver starting from 2020.
+- **AI Macro Intelligence**: Integrated real-time macroeconomic context (CPI, FD Rates, GDP growth) into AI Value and Trading verdicts for grounded decision making.
+
 ## [1.6.0] - 2026-04-28
 ### Added
 - **AI Portfolio Context Awareness**: Upgraded the AI Analysts (both Value and Trading) to be fully portfolio-aware. The AI now evaluates stocks differently depending on whether they are new discoveries or existing holdings in a specific member's portfolio.
