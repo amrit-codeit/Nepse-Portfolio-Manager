@@ -15,10 +15,10 @@ start "Nepal Portfolio Manager" cmd /k "cd backend && venv\Scripts\activate && p
 echo Waiting for server to initialize...
 timeout /t 5 >nul
 echo Opening Web App in default browser...
-start http://localhost:8000
+start http://localhost:8080
 
 echo.
 echo [SUCCESS] The application is running!
-echo You can also access it on other devices using your computer's local IP address (e.g. http://192.168.1.XX:8000).
+echo You can also access it on other devices using your computer's local IP address (e.g. http://192.168.1.XX:8080).
 echo.
 pause

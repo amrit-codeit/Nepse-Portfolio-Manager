@@ -54,7 +54,7 @@ backend (FastAPI)
 
 ### Runtime behavior
 
-- In development, the frontend runs on `:5173` and the backend on `:8000`.
+- In development, the frontend runs on `:3055` and the backend on `:8080`.
 - In production-style local use, FastAPI can serve the built frontend from `frontend/dist` if that folder exists.
 - The backend currently requires `MASTER_PASSWORD` to already be a bcrypt hash at startup. If it is missing or plaintext-like, the process exits.
 
@@ -498,7 +498,7 @@ cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8080
 ```
 
 Frontend:
