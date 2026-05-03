@@ -9,8 +9,14 @@ echo.
 :: Ensure we are executing from the script's own folder
 cd /d "%~dp0"
 
-:: 1. Check for Python
+:: 1. Check for Python (try python then python3)
+set PY_CMD=python
 python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    set PY_CMD=python3
+    python3 --version >nul 2>&1
+)
+
 if %errorlevel% neq 0 (
     echo [INFO] Python is not installed or not in PATH. Attempting automatic installation via winget...
     winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
@@ -52,13 +58,18 @@ cd backend
 
 if not exist venv (
     echo Creating virtual environment...
-    python -m venv venv
+    %PY_CMD% -m venv venv
 )
 
 echo Installing backend dependencies...
 call venv\Scripts\activate.bat
 venv\Scripts\python.exe -m pip install --upgrade pip
 venv\Scripts\pip.exe install -r requirements.txt
+if !errorlevel! neq 0 (
+    echo [ERROR] Failed to install backend dependencies.
+    pause
+    exit /b 1
+)
 
 :: 4. Setup Environment Variables
 echo.

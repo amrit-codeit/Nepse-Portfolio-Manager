@@ -9,7 +9,7 @@ cd /d "%~dp0"
 
 :: 1. Start unified server (Backend + Static Frontend)
 echo Starting NPM Unified Server...
-start "Nepal Portfolio Manager" cmd /k "cd backend && venv\Scripts\activate && python run_server.py"
+start "Nepal Portfolio Manager" cmd /k "cd backend && call venv\Scripts\activate.bat && python run_server.py"
 
 :: 2. Wait for server to start, then open browser
 echo Waiting for server to initialize...
