@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, Button, Modal, Form, Input, Table, Tag, message, Popconfirm, Space } from 'antd';
+import { Card, Button, Modal, Form, Input, Table, Tag, message, Popconfirm, Space, Select } from 'antd';
 import { PlusOutlined, DeleteOutlined, KeyOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import { getMembers, createMember, deleteMember, setCredentials } from '../services/api';
+import axios from 'axios';
 
 function Members() {
     const [memberModalOpen, setMemberModalOpen] = useState(false);
@@ -15,6 +16,12 @@ function Members() {
     const { data: members, isLoading } = useQuery({
         queryKey: ['members'],
         queryFn: () => getMembers().then(r => r.data),
+    });
+
+    const { data: dpList, isLoading: isDPLoading } = useQuery({
+        queryKey: ['dpList'],
+        queryFn: () => axios.get('https://webbackend.cdsc.com.np/api/meroShare/capital/').then(r => r.data),
+        staleTime: Infinity, // The DP list doesn't change often
     });
 
     const addMemberMutation = useMutation({
@@ -162,10 +169,22 @@ function Members() {
                     style={{ marginTop: 16 }}
                 >
                     <Form.Item name="dp" label="Depository Participant (DP)" rules={[{ required: true }]}>
-                        <Input placeholder="e.g., GLOBAL IME CAPITAL LIMITED (11200)" />
+                        <Select
+                            showSearch
+                            placeholder="Select DP"
+                            loading={isDPLoading}
+                            optionFilterProp="children"
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                            options={dpList?.map(dp => ({
+                                value: `${dp.name} (${dp.code})`,
+                                label: `${dp.name} (${dp.code})`,
+                            }))}
+                        />
                     </Form.Item>
-                    <Form.Item name="username" label="Username (DMAT No.)" rules={[{ required: true }]}>
-                        <Input placeholder="e.g., 1604585" />
+                    <Form.Item name="username" label="MeroShare ID" rules={[{ required: true }]}>
+                        <Input placeholder="Enter MeroShare ID (DMAT No.)" />
                     </Form.Item>
                     <Form.Item name="password" label="Password" rules={[{ required: true }]}>
                         <Input.Password placeholder="MeroShare password" />
@@ -189,5 +208,6 @@ function Members() {
         </div>
     );
 }
+
 
 export default Members;

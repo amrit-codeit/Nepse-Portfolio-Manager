@@ -1,2 +1,0 @@
-Status: 200
-[{'symbol': 'ACLBSL', 'full_name': 'Aarambha Chautari Laghubitta Bittiya Sanstha Limited', 'sector': 'Microfinance', 'rsi_14': '38.159873754625', 'ltp': '941.1', 'todayprice': {'symbol': 'ACLBSL', 'today_price': '941.1'}}, {'symbol': 'ADBL', 'full_name': 'Agricultural Development Bank Limited', 'sector': 'Commercial Banks', 'rsi_14': '44.713473418116', 'ltp': '309.5', 'todayprice': {'symbol': 'ADBL', 'today_price': '309.5'}}]

@@ -1,0 +1,693 @@
+<table data-v-97569900="" style="border-width: medium; border-style: none; border-color: currentcolor; border-image: initial;"><tbody data-v-97569900=""><tr data-v-97569900=""><th class="nowrap" data-v-97569900=""><b data-v-97569900="">VOLUME LEADERS</b></th> <th class="text-muted" data-v-97569900=""><span data-v-97569900="" style="border-right: 1px solid rgb(204, 204, 204); margin-left: 10px;"> </span></th> <th data-v-97569900="" style="overflow: hidden;"><marquee data-v-97569900="" onmouseout="this.start();" onmouseover="this.stop();" scrollamount="4"><a data-v-97569900="" href="/stocks/NHPC/info" target="_blank" title="National Hydro Power Company Limited"><b data-v-97569900="">NHPC</b>
+                      669,730.00 Kitta (Rs.296.00)
+                    </a><a data-v-97569900="" href="/stocks/AKJCL/info" target="_blank" title="Ankhu Khola Jalvidhyut Company Ltd"><b data-v-97569900="">AKJCL</b>
+                      602,146.00 Kitta (Rs.375.00)
+                    </a><a data-v-97569900="" href="/stocks/HDHPC/info" target="_blank" title="Himal Dolakha Hydropower Company Limited"><b data-v-97569900="">HDHPC</b>
+                      369,448.00 Kitta (Rs.222.80)
+                    </a><a data-v-97569900="" href="/stocks/KBL/info" target="_blank" title="Kumari Bank Limited"><b data-v-97569900="">KBL</b>
+                      368,727.00 Kitta (Rs.217.30)
+                    </a><a data-v-97569900="" href="/stocks/HIDCLP/info" target="_blank" title="Hydorelectricity Investment and Development Company Limited Promoter"><b data-v-97569900="">HIDCLP</b>
+                      329,808.00 Kitta (Rs.205.00)
+                    </a><a data-v-97569900="" href="/stocks/RIDI/info" target="_blank" title="Ridi Power Company Limited"><b data-v-97569900="">RIDI</b>
+                      322,578.00 Kitta (Rs.349.00)
+                    </a><a data-v-97569900="" href="/stocks/SHIVM/info" target="_blank" title="SHIVAM CEMENTS LTD"><b data-v-97569900="">SHIVM</b>
+                      258,669.00 Kitta (Rs.664.20)
+                    </a><a data-v-97569900="" href="/stocks/UPPER/info" target="_blank" title="Upper Tamakoshi Hydropower Ltd"><b data-v-97569900="">UPPER</b>
+                      241,756.00 Kitta (Rs.203.80)
+                    </a><a data-v-97569900="" href="/stocks/NGPL/info" target="_blank" title="Ngadi Group Power Ltd."><b data-v-97569900="">NGPL</b>
+                      205,103.00 Kitta (Rs.437.00)
+                    </a><a data-v-97569900="" href="/stocks/SOHL/info" target="_blank" title="Solu Hydropower Limited"><b data-v-97569900="">SOHL</b>
+                      194,162.00 Kitta (Rs.710.00)
+                    </a><a data-v-97569900="" href="/stocks/SSHL/info" target="_blank" title="Shiva Shree Hydropower Ltd"><b data-v-97569900="">SSHL</b>
+                      174,304.00 Kitta (Rs.212.00)
+                    </a><a data-v-97569900="" href="/stocks/BHL/info" target="_blank" title="Balephi Hydropower Limited"><b data-v-97569900="">BHL</b>
+                      163,696.00 Kitta (Rs.217.60)
+                    </a><a data-v-97569900="" href="/stocks/LEC/info" target="_blank" title="Liberty Energy Company Limited"><b data-v-97569900="">LEC</b>
+                      160,616.00 Kitta (Rs.222.00)
+                    </a><a data-v-97569900="" href="/stocks/PRVU/info" target="_blank" title="Prabhu  Bank Limited"><b data-v-97569900="">PRVU</b>
+                      156,425.00 Kitta (Rs.196.00)
+                    </a><a data-v-97569900="" href="/stocks/API/info" target="_blank" title="Api Power Company Ltd."><b data-v-97569900="">API</b>
+                      155,102.00 Kitta (Rs.334.90)
+                    </a><a data-v-97569900="" href="/stocks/NIFRA/info" target="_blank" title="Nepal Infrastructure Bank Limited"><b data-v-97569900="">NIFRA</b>
+                      143,622.00 Kitta (Rs.261.20)
+                    </a><a data-v-97569900="" href="/stocks/AKPL/info" target="_blank" title="Arun Kabeli Power Ltd."><b data-v-97569900="">AKPL</b>
+                      134,064.00 Kitta (Rs.267.80)
+                    </a><a data-v-97569900="" href="/stocks/AHPC/info" target="_blank" title="Arun Valley Hydropower Development Co. Ltd."><b data-v-97569900="">AHPC</b>
+                      130,322.00 Kitta (Rs.277.00)
+                    </a><a data-v-97569900="" href="/stocks/HIDCL/info" target="_blank" title="Hydorelectricity Investment and Development Company Ltd"><b data-v-97569900="">HIDCL</b>
+                      126,205.00 Kitta (Rs.265.70)
+                    </a><a data-v-97569900="" href="/stocks/SHEL/info" target="_blank" title="Singati Hydro Energy Limited"><b data-v-97569900="">SHEL</b>
+                      124,580.00 Kitta (Rs.307.00)
+                    </a><a data-v-97569900="" href="/stocks/MBL/info" target="_blank" title="Machhapuchhre Bank Limited"><b data-v-97569900="">MBL</b>
+                      109,730.00 Kitta (Rs.242.10)
+                    </a><a data-v-97569900="" href="/stocks/NRN/info" target="_blank" title="NRN Infrastructure and Development Limited"><b data-v-97569900="">NRN</b>
+                      108,483.00 Kitta (Rs.1,443.00)
+                    </a><a data-v-97569900="" href="/stocks/PCIL/info" target="_blank" title="Palpa Cement Industries Limited"><b data-v-97569900="">PCIL</b>
+                      108,003.00 Kitta (Rs.948.00)
+                    </a><a data-v-97569900="" href="/stocks/LSL/info" target="_blank" title="Laxmi Sunrise Bank Limited"><b data-v-97569900="">LSL</b>
+                      106,398.00 Kitta (Rs.216.50)
+                    </a><a data-v-97569900="" href="/stocks/HBLPO/info" target="_blank" title="Himalayan Bank Ltd. Promoter"><b data-v-97569900="">HBLPO</b>
+                      105,823.00 Kitta (Rs.128.00)
+                    </a><a data-v-97569900="" href="/stocks/HRL/info" target="_blank" title="Himalayan Reinsurance Limited"><b data-v-97569900="">HRL</b>
+                      104,696.00 Kitta (Rs.671.10)
+                    </a><a data-v-97569900="" href="/stocks/HFIN/info" target="_blank" title="Hotel Forest Inn Limited"><b data-v-97569900="">HFIN</b>
+                      94,735.00 Kitta (Rs.1,024.00)
+                    </a><a data-v-97569900="" href="/stocks/GHL/info" target="_blank" title="Ghalemdi Hydro Limited"><b data-v-97569900="">GHL</b>
+                      92,953.00 Kitta (Rs.234.00)
+                    </a><a data-v-97569900="" href="/stocks/HURJA/info" target="_blank" title="Himalaya Urja Bikas Company Limited"><b data-v-97569900="">HURJA</b>
+                      90,951.00 Kitta (Rs.255.00)
+                    </a><a data-v-97569900="" href="/stocks/NIMB/info" target="_blank" title="Nepal Investment Mega Bank Limited"><b data-v-97569900="">NIMB</b>
+                      89,697.00 Kitta (Rs.198.00)
+                    </a><a data-v-97569900="" href="/stocks/SYPNL/info" target="_blank" title="SY Panel Nepal Limited"><b data-v-97569900="">SYPNL</b>
+                      87,391.00 Kitta (Rs.1,497.00)
+                    </a><a data-v-97569900="" href="/stocks/SAIL/info" target="_blank" title="Shreenagar Agritech Industries Limited"><b data-v-97569900="">SAIL</b>
+                      84,231.00 Kitta (Rs.1,263.00)
+                    </a><a data-v-97569900="" href="/stocks/RFPL/info" target="_blank" title="River Falls Power Limited"><b data-v-97569900="">RFPL</b>
+                      82,093.00 Kitta (Rs.388.30)
+                    </a><a data-v-97569900="" href="/stocks/HHL/info" target="_blank" title="Himalayan Hydropower Limited"><b data-v-97569900="">HHL</b>
+                      81,781.00 Kitta (Rs.384.00)
+                    </a><a data-v-97569900="" href="/stocks/GBIME/info" target="_blank" title="Global IME Bank Limited"><b data-v-97569900="">GBIME</b>
+                      77,576.00 Kitta (Rs.231.00)
+                    </a><a data-v-97569900="" href="/stocks/DORDI/info" target="_blank" title="Dordi Khola Jal Bidyut Company Limited"><b data-v-97569900="">DORDI</b>
+                      74,510.00 Kitta (Rs.277.00)
+                    </a><a data-v-97569900="" href="/stocks/PHCL/info" target="_blank" title="Peoples Hydropower Company Limited"><b data-v-97569900="">PHCL</b>
+                      73,697.00 Kitta (Rs.303.90)
+                    </a><a data-v-97569900="" href="/stocks/JBBL/info" target="_blank" title="Jyoti Bikas Bank Limited"><b data-v-97569900="">JBBL</b>
+                      73,257.00 Kitta (Rs.360.10)
+                    </a><a data-v-97569900="" href="/stocks/BEDC/info" target="_blank" title="Bhugol Energy Development Company Limited"><b data-v-97569900="">BEDC</b>
+                      71,340.00 Kitta (Rs.365.90)
+                    </a><a data-v-97569900="" href="/stocks/RSML/info" target="_blank" title="Reliance Spinning Mills Limited"><b data-v-97569900="">RSML</b>
+                      70,158.00 Kitta (Rs.3,850.20)
+                    </a><a data-v-97569900="" href="/stocks/BARUN/info" target="_blank" title="Barun Hydropower Co. Ltd."><b data-v-97569900="">BARUN</b>
+                      69,616.00 Kitta (Rs.340.00)
+                    </a><a data-v-97569900="" href="/stocks/CZBIL/info" target="_blank" title="Citizens Bank International Limited"><b data-v-97569900="">CZBIL</b>
+                      66,969.00 Kitta (Rs.204.50)
+                    </a><a data-v-97569900="" href="/stocks/MBJC/info" target="_blank" title="Madhya Bhotekoshi Jalavidyut Company Limited"><b data-v-97569900="">MBJC</b>
+                      66,145.00 Kitta (Rs.281.00)
+                    </a><a data-v-97569900="" href="/stocks/GLH/info" target="_blank" title="GreenLife Hydropower Limited"><b data-v-97569900="">GLH</b>
+                      65,645.00 Kitta (Rs.264.50)
+                    </a><a data-v-97569900="" href="/stocks/RADHI/info" target="_blank" title="Radhi Bidyut Company Ltd"><b data-v-97569900="">RADHI</b>
+                      65,157.00 Kitta (Rs.754.00)
+                    </a><a data-v-97569900="" href="/stocks/SBL/info" target="_blank" title="Siddhartha Bank Limited"><b data-v-97569900="">SBL</b>
+                      64,239.00 Kitta (Rs.389.90)
+                    </a><a data-v-97569900="" href="/stocks/NICA/info" target="_blank" title="NIC Asia Bank Ltd."><b data-v-97569900="">NICA</b>
+                      62,652.00 Kitta (Rs.358.00)
+                    </a><a data-v-97569900="" href="/stocks/SIPD/info" target="_blank" title="Shikhar power Development Limited"><b data-v-97569900="">SIPD</b>
+                      62,190.00 Kitta (Rs.974.00)
+                    </a><a data-v-97569900="" href="/stocks/SPDL/info" target="_blank" title="Synergy Power Development Ltd."><b data-v-97569900="">SPDL</b>
+                      61,161.00 Kitta (Rs.394.00)
+                    </a><a data-v-97569900="" href="/stocks/UPCL/info" target="_blank" title="UNIVERSAL POWER COMPANY LTD"><b data-v-97569900="">UPCL</b>
+                      59,161.00 Kitta (Rs.374.00)
+                    </a><a data-v-97569900="" href="/stocks/HLI/info" target="_blank" title="Himalayan Life Insurance Limited"><b data-v-97569900="">HLI</b>
+                      55,779.00 Kitta (Rs.340.00)
+                    </a><a data-v-97569900="" href="/stocks/SAHAS/info" target="_blank" title="Sahas Urja Limited"><b data-v-97569900="">SAHAS</b>
+                      55,506.00 Kitta (Rs.616.00)
+                    </a><a data-v-97569900="" href="/stocks/SAPDBL/info" target="_blank" title="Saptakoshi Development Bank Ltd"><b data-v-97569900="">SAPDBL</b>
+                      52,986.00 Kitta (Rs.815.00)
+                    </a><a data-v-97569900="" href="/stocks/SANIMA/info" target="_blank" title="Sanima Bank Limited"><b data-v-97569900="">SANIMA</b>
+                      52,897.00 Kitta (Rs.349.00)
+                    </a><a data-v-97569900="" href="/stocks/HBL/info" target="_blank" title="Himalayan Bank Limited"><b data-v-97569900="">HBL</b>
+                      51,271.00 Kitta (Rs.202.00)
+                    </a><a data-v-97569900="" href="/stocks/TAMOR/info" target="_blank" title="Sanima Middle Tamor Hydropower Limited"><b data-v-97569900="">TAMOR</b>
+                      50,711.00 Kitta (Rs.434.00)
+                    </a><a data-v-97569900="" href="/stocks/KKHC/info" target="_blank" title="Khanikhola Hydropower Co. Ltd."><b data-v-97569900="">KKHC</b>
+                      48,511.00 Kitta (Rs.262.00)
+                    </a><a data-v-97569900="" href="/stocks/CORBL/info" target="_blank" title="Corporate Development Bank Limited"><b data-v-97569900="">CORBL</b>
+                      47,404.00 Kitta (Rs.2,400.00)
+                    </a><a data-v-97569900="" href="/stocks/DOLTI/info" target="_blank" title="Dolti Power Company Limited"><b data-v-97569900="">DOLTI</b>
+                      47,272.00 Kitta (Rs.364.00)
+                    </a><a data-v-97569900="" href="/stocks/NABIL/info" target="_blank" title="Nabil Bank Limited"><b data-v-97569900="">NABIL</b>
+                      47,024.00 Kitta (Rs.528.00)
+                    </a><a data-v-97569900="" href="/stocks/KEF/info" target="_blank" title="Kumari Equity Fund"><b data-v-97569900="">KEF</b>
+                      46,400.00 Kitta (Rs.10.57)
+                    </a><a data-v-97569900="" href="/stocks/BANDIPUR/info" target="_blank" title="Bandipur Cablecar and Tourism Limited"><b data-v-97569900="">BANDIPUR</b>
+                      45,389.00 Kitta (Rs.824.70)
+                    </a><a data-v-97569900="" href="/stocks/SMHL/info" target="_blank" title="Super Madi Hydropower Limited"><b data-v-97569900="">SMHL</b>
+                      44,961.00 Kitta (Rs.486.30)
+                    </a><a data-v-97569900="" href="/stocks/NBL/info" target="_blank" title="Nepal Bank Limited"><b data-v-97569900="">NBL</b>
+                      44,316.00 Kitta (Rs.268.00)
+                    </a><a data-v-97569900="" href="/stocks/HPPL/info" target="_blank" title="Himalayan Power Partner Ltd."><b data-v-97569900="">HPPL</b>
+                      42,793.00 Kitta (Rs.366.60)
+                    </a><a data-v-97569900="" href="/stocks/NIBLSTF/info" target="_blank" title="NIBL Stable Fund"><b data-v-97569900="">NIBLSTF</b>
+                      41,095.00 Kitta (Rs.9.00)
+                    </a><a data-v-97569900="" href="/stocks/SHL/info" target="_blank" title="Soaltee Hotel Limited"><b data-v-97569900="">SHL</b>
+                      40,288.00 Kitta (Rs.496.10)
+                    </a><a data-v-97569900="" href="/stocks/SONA/info" target="_blank" title="Sonapur Minerals And Oil Limited"><b data-v-97569900="">SONA</b>
+                      40,142.00 Kitta (Rs.433.00)
+                    </a><a data-v-97569900="" href="/stocks/PCBL/info" target="_blank" title="Prime Commercial Bank Ltd."><b data-v-97569900="">PCBL</b>
+                      40,022.00 Kitta (Rs.238.00)
+                    </a><a data-v-97569900="" href="/stocks/NRIC/info" target="_blank" title="Nepal Reinsurance Company Limited"><b data-v-97569900="">NRIC</b>
+                      39,461.00 Kitta (Rs.880.60)
+                    </a><a data-v-97569900="" href="/stocks/TPC/info" target="_blank" title="Terhathum Power Company Limited"><b data-v-97569900="">TPC</b>
+                      38,893.00 Kitta (Rs.372.00)
+                    </a><a data-v-97569900="" href="/stocks/GRDBL/info" target="_blank" title="Green Development Bank Ltd."><b data-v-97569900="">GRDBL</b>
+                      38,831.00 Kitta (Rs.1,100.00)
+                    </a><a data-v-97569900="" href="/stocks/JHAPA/info" target="_blank" title="Jhapa Energy Limited"><b data-v-97569900="">JHAPA</b>
+                      38,447.00 Kitta (Rs.1,564.00)
+                    </a><a data-v-97569900="" href="/stocks/CHCL/info" target="_blank" title="Chilime Hydropower Company Limited"><b data-v-97569900="">CHCL</b>
+                      38,316.00 Kitta (Rs.478.50)
+                    </a><a data-v-97569900="" href="/stocks/PPL/info" target="_blank" title="People's Power Limited"><b data-v-97569900="">PPL</b>
+                      38,272.00 Kitta (Rs.348.00)
+                    </a><a data-v-97569900="" href="/stocks/RHGCL/info" target="_blank" title="Rapti Hydro And General Construction Limited"><b data-v-97569900="">RHGCL</b>
+                      35,583.00 Kitta (Rs.294.90)
+                    </a><a data-v-97569900="" href="/stocks/RLEL/info" target="_blank" title="Ridge Line Energy Limited"><b data-v-97569900="">RLEL</b>
+                      34,662.00 Kitta (Rs.1,150.00)
+                    </a><a data-v-97569900="" href="/stocks/MFIL/info" target="_blank" title="Manjushree Finance Ltd."><b data-v-97569900="">MFIL</b>
+                      34,319.00 Kitta (Rs.768.10)
+                    </a><a data-v-97569900="" href="/stocks/NSIF2/info" target="_blank" title="NMB Sulav Investment Fund - 2"><b data-v-97569900="">NSIF2</b>
+                      34,255.00 Kitta (Rs.10.81)
+                    </a><a data-v-97569900="" href="/stocks/SHPC/info" target="_blank" title="Sanima Mai Hydropower Ltd."><b data-v-97569900="">SHPC</b>
+                      33,375.00 Kitta (Rs.512.30)
+                    </a><a data-v-97569900="" href="/stocks/LBBL/info" target="_blank" title="Lumbini Bikas Bank Ltd."><b data-v-97569900="">LBBL</b>
+                      33,166.00 Kitta (Rs.492.00)
+                    </a><a data-v-97569900="" href="/stocks/SABBL/info" target="_blank" title="Salapa Bikas Bank Limited"><b data-v-97569900="">SABBL</b>
+                      32,910.00 Kitta (Rs.1,349.00)
+                    </a><a data-v-97569900="" href="/stocks/SJCL/info" target="_blank" title="SANJEN JALAVIDHYUT COMPANY LIMITED"><b data-v-97569900="">SJCL</b>
+                      31,991.00 Kitta (Rs.298.70)
+                    </a><a data-v-97569900="" href="/stocks/UMHL/info" target="_blank" title="United Modi Hydropower Ltd."><b data-v-97569900="">UMHL</b>
+                      30,905.00 Kitta (Rs.570.90)
+                    </a><a data-v-97569900="" href="/stocks/MEN/info" target="_blank" title="Mountain Energy Nepal Limited"><b data-v-97569900="">MEN</b>
+                      30,475.00 Kitta (Rs.583.50)
+                    </a><a data-v-97569900="" href="/stocks/C30MF/info" target="_blank" title="Citizens Super 30 Mutual Fund"><b data-v-97569900="">C30MF</b>
+                      30,320.00 Kitta (Rs.10.07)
+                    </a><a data-v-97569900="" href="/stocks/KSBBL/info" target="_blank" title="Kamana Sewa Bikas Bank Limited"><b data-v-97569900="">KSBBL</b>
+                      29,763.00 Kitta (Rs.477.90)
+                    </a><a data-v-97569900="" href="/stocks/UNHPL/info" target="_blank" title="Union Hydropower Limited"><b data-v-97569900="">UNHPL</b>
+                      29,729.00 Kitta (Rs.474.10)
+                    </a><a data-v-97569900="" href="/stocks/MNBBL/info" target="_blank" title="Muktinath Bikas Bank Ltd."><b data-v-97569900="">MNBBL</b>
+                      28,768.00 Kitta (Rs.372.00)
+                    </a><a data-v-97569900="" href="/stocks/CHL/info" target="_blank" title="Chhyangdi Hydropower Ltd."><b data-v-97569900="">CHL</b>
+                      28,397.00 Kitta (Rs.283.00)
+                    </a><a data-v-97569900="" href="/stocks/HDL/info" target="_blank" title="Himalayan Distillery Limited"><b data-v-97569900="">HDL</b>
+                      28,379.00 Kitta (Rs.1,146.00)
+                    </a><a data-v-97569900="" href="/stocks/GBBL/info" target="_blank" title="Garima Bikas Bank Limited"><b data-v-97569900="">GBBL</b>
+                      27,568.00 Kitta (Rs.414.00)
+                    </a><a data-v-97569900="" href="/stocks/GVL/info" target="_blank" title="Green Ventures Limited"><b data-v-97569900="">GVL</b>
+                      26,961.00 Kitta (Rs.487.50)
+                    </a><a data-v-97569900="" href="/stocks/SHINE/info" target="_blank" title="Shine Resunga Development Bank Ltd."><b data-v-97569900="">SHINE</b>
+                      25,799.00 Kitta (Rs.405.00)
+                    </a><a data-v-97569900="" href="/stocks/NMB/info" target="_blank" title="NMB Bank Limited"><b data-v-97569900="">NMB</b>
+                      25,770.00 Kitta (Rs.240.40)
+                    </a><a data-v-97569900="" href="/stocks/SKHL/info" target="_blank" title="Super Khudi Hydropower Limited"><b data-v-97569900="">SKHL</b>
+                      25,492.00 Kitta (Rs.980.10)
+                    </a><a data-v-97569900="" href="/stocks/EHPL/info" target="_blank" title="Eastern Hydropower Limited"><b data-v-97569900="">EHPL</b>
+                      24,360.00 Kitta (Rs.391.40)
+                    </a><a data-v-97569900="" href="/stocks/RMF1/info" target="_blank" title="RBB Mutual Fund 1"><b data-v-97569900="">RMF1</b>
+                      24,335.00 Kitta (Rs.9.76)
+                    </a><a data-v-97569900="" href="/stocks/BHCL/info" target="_blank" title="Bikash Hydropower Company Limited"><b data-v-97569900="">BHCL</b>
+                      24,060.00 Kitta (Rs.519.00)
+                    </a><a data-v-97569900="" href="/stocks/SEF/info" target="_blank" title="Siddhartha Equity Fund"><b data-v-97569900="">SEF</b>
+                      23,799.00 Kitta (Rs.9.82)
+                    </a><a data-v-97569900="" href="/stocks/JOSHI/info" target="_blank" title="Joshi Hydropower Development Company Ltd"><b data-v-97569900="">JOSHI</b>
+                      23,785.00 Kitta (Rs.277.00)
+                    </a><a data-v-97569900="" href="/stocks/SMJC/info" target="_blank" title="Sagarmatha Jalabidhyut Company Limited"><b data-v-97569900="">SMJC</b>
+                      23,274.00 Kitta (Rs.454.00)
+                    </a><a data-v-97569900="" href="/stocks/MHNL/info" target="_blank" title="Mountain Hydro Nepal Limited"><b data-v-97569900="">MHNL</b>
+                      22,857.00 Kitta (Rs.261.00)
+                    </a><a data-v-97569900="" href="/stocks/CSY/info" target="_blank" title="Citizens Santulit Yojana"><b data-v-97569900="">CSY</b>
+                      22,800.00 Kitta (Rs.9.32)
+                    </a><a data-v-97569900="" href="/stocks/NLIC/info" target="_blank" title="Nepal Life Insurance Co. Ltd."><b data-v-97569900="">NLIC</b>
+                      22,550.00 Kitta (Rs.762.90)
+                    </a><a data-v-97569900="" href="/stocks/SAGF/info" target="_blank" title="Sanima Growth Fund"><b data-v-97569900="">SAGF</b>
+                      22,320.00 Kitta (Rs.10.10)
+                    </a><a data-v-97569900="" href="/stocks/SJLIC/info" target="_blank" title="SuryaJyoti Life Insurance Company Limited"><b data-v-97569900="">SJLIC</b>
+                      22,142.00 Kitta (Rs.429.60)
+                    </a><a data-v-97569900="" href="/stocks/KDBY/info" target="_blank" title="Kumari Dhanabriddhi Yojana"><b data-v-97569900="">KDBY</b>
+                      22,140.00 Kitta (Rs.11.70)
+                    </a><a data-v-97569900="" href="/stocks/RHPL/info" target="_blank" title="RASUWAGADHI HYDROPOWER COMPANY LIMITED"><b data-v-97569900="">RHPL</b>
+                      21,550.00 Kitta (Rs.275.00)
+                    </a><a data-v-97569900="" href="/stocks/USHEC/info" target="_blank" title="Upper Solu Hydro Electric Company Limited"><b data-v-97569900="">USHEC</b>
+                      21,303.00 Kitta (Rs.485.50)
+                    </a><a data-v-97569900="" href="/stocks/EBL/info" target="_blank" title="Everest Bank Limited"><b data-v-97569900="">EBL</b>
+                      20,626.00 Kitta (Rs.697.00)
+                    </a><a data-v-97569900="" href="/stocks/PRSF/info" target="_blank" title="Prabhu Smart Fund"><b data-v-97569900="">PRSF</b>
+                      20,500.00 Kitta (Rs.12.98)
+                    </a><a data-v-97569900="" href="/stocks/DHEL/info" target="_blank" title="Daramkhola Hydro Energy Limited"><b data-v-97569900="">DHEL</b>
+                      20,350.00 Kitta (Rs.599.30)
+                    </a><a data-v-97569900="" href="/stocks/MCHL/info" target="_blank" title="Menchhiyam Hydropower Limited"><b data-v-97569900="">MCHL</b>
+                      20,167.00 Kitta (Rs.322.00)
+                    </a><a data-v-97569900="" href="/stocks/SADBL/info" target="_blank" title="Shangrila Development Bank Ltd."><b data-v-97569900="">SADBL</b>
+                      20,093.00 Kitta (Rs.413.80)
+                    </a><a data-v-97569900="" href="/stocks/ADBL/info" target="_blank" title="Agricultural Development Bank Limited"><b data-v-97569900="">ADBL</b>
+                      20,081.00 Kitta (Rs.309.50)
+                    </a><a data-v-97569900="" href="/stocks/TTL/info" target="_blank" title="Trade Tower Limited"><b data-v-97569900="">TTL</b>
+                      19,889.00 Kitta (Rs.790.00)
+                    </a><a data-v-97569900="" href="/stocks/PSF/info" target="_blank" title="Prabhu Select Fund"><b data-v-97569900="">PSF</b>
+                      19,200.00 Kitta (Rs.12.30)
+                    </a><a data-v-97569900="" href="/stocks/BPCL/info" target="_blank" title="Butwal Power Company Limited"><b data-v-97569900="">BPCL</b>
+                      18,662.00 Kitta (Rs.668.00)
+                    </a><a data-v-97569900="" href="/stocks/NBF3/info" target="_blank" title="Nabil Balanced Fund-3"><b data-v-97569900="">NBF3</b>
+                      18,650.00 Kitta (Rs.9.78)
+                    </a><a data-v-97569900="" href="/stocks/SAGAR/info" target="_blank" title="Sagar Distillery Limited"><b data-v-97569900="">SAGAR</b>
+                      18,123.00 Kitta (Rs.1,770.90)
+                    </a><a data-v-97569900="" href="/stocks/SANVI/info" target="_blank" title="Sanvi Energy Limited"><b data-v-97569900="">SANVI</b>
+                      18,017.00 Kitta (Rs.693.00)
+                    </a><a data-v-97569900="" href="/stocks/SINDU/info" target="_blank" title="Sindhu Bikash Bank Ltd"><b data-v-97569900="">SINDU</b>
+                      17,819.00 Kitta (Rs.732.10)
+                    </a><a data-v-97569900="" href="/stocks/FMDBL/info" target="_blank" title="First Micro Finance Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">FMDBL</b>
+                      17,754.00 Kitta (Rs.795.00)
+                    </a><a data-v-97569900="" href="/stocks/BHDC/info" target="_blank" title="Bindhyabasini Hydropower Development Company Limited"><b data-v-97569900="">BHDC</b>
+                      17,595.00 Kitta (Rs.455.10)
+                    </a><a data-v-97569900="" href="/stocks/ILI/info" target="_blank" title="IME Life Insurance Company Limited"><b data-v-97569900="">ILI</b>
+                      17,474.00 Kitta (Rs.433.50)
+                    </a><a data-v-97569900="" href="/stocks/NTC/info" target="_blank" title="Nepal Doorsanchar Company Limited"><b data-v-97569900="">NTC</b>
+                      17,381.00 Kitta (Rs.872.00)
+                    </a><a data-v-97569900="" href="/stocks/MLBL/info" target="_blank" title="Mahalaxmi Bikas Bank Ltd."><b data-v-97569900="">MLBL</b>
+                      17,001.00 Kitta (Rs.366.00)
+                    </a><a data-v-97569900="" href="/stocks/MPFL/info" target="_blank" title="Multipurpose Finance Company  Limited"><b data-v-97569900="">MPFL</b>
+                      16,847.00 Kitta (Rs.609.90)
+                    </a><a data-v-97569900="" href="/stocks/IGI/info" target="_blank" title="IGI Prudential insurance Limited"><b data-v-97569900="">IGI</b>
+                      16,627.00 Kitta (Rs.428.90)
+                    </a><a data-v-97569900="" href="/stocks/SGHC/info" target="_blank" title="Swet-Ganga Hydropower &amp; Construction Limited "><b data-v-97569900="">SGHC</b>
+                      15,583.00 Kitta (Rs.375.90)
+                    </a><a data-v-97569900="" href="/stocks/CHDC/info" target="_blank" title="CEDB Holdings Limited"><b data-v-97569900="">CHDC</b>
+                      15,008.00 Kitta (Rs.2,260.90)
+                    </a><a data-v-97569900="" href="/stocks/NMB50/info" target="_blank" title="NMB 50"><b data-v-97569900="">NMB50</b>
+                      15,000.00 Kitta (Rs.10.50)
+                    </a><a data-v-97569900="" href="/stocks/HIMSTAR/info" target="_blank" title="Him Star Urja Company Limited"><b data-v-97569900="">HIMSTAR</b>
+                      14,834.00 Kitta (Rs.840.00)
+                    </a><a data-v-97569900="" href="/stocks/PPCL/info" target="_blank" title="Panchthar Power Compant Limited"><b data-v-97569900="">PPCL</b>
+                      14,728.00 Kitta (Rs.375.50)
+                    </a><a data-v-97569900="" href="/stocks/ALBSL/info" target="_blank" title="Asha Laghubitta Bittiya Sanstha Ltd"><b data-v-97569900="">ALBSL</b>
+                      14,708.00 Kitta (Rs.1,115.00)
+                    </a><a data-v-97569900="" href="/stocks/MEL/info" target="_blank" title="Modi Energy Limited"><b data-v-97569900="">MEL</b>
+                      14,629.00 Kitta (Rs.250.00)
+                    </a><a data-v-97569900="" href="/stocks/NFS/info" target="_blank" title="Nepal Finance Ltd."><b data-v-97569900="">NFS</b>
+                      14,499.00 Kitta (Rs.582.00)
+                    </a><a data-v-97569900="" href="/stocks/MEHL/info" target="_blank" title="Manakamana Engineering Hydropower Limited"><b data-v-97569900="">MEHL</b>
+                      14,386.00 Kitta (Rs.395.90)
+                    </a><a data-v-97569900="" href="/stocks/SCB/info" target="_blank" title="Standard Chartered Bank Limited"><b data-v-97569900="">SCB</b>
+                      14,186.00 Kitta (Rs.639.00)
+                    </a><a data-v-97569900="" href="/stocks/AHL/info" target="_blank" title="Asian Hydropower Limited"><b data-v-97569900="">AHL</b>
+                      14,073.00 Kitta (Rs.534.00)
+                    </a><a data-v-97569900="" href="/stocks/EDBL/info" target="_blank" title="Excel Development Bank Ltd."><b data-v-97569900="">EDBL</b>
+                      14,063.00 Kitta (Rs.577.70)
+                    </a><a data-v-97569900="" href="/stocks/CITY/info" target="_blank" title="City Hotel Limited"><b data-v-97569900="">CITY</b>
+                      13,892.00 Kitta (Rs.448.00)
+                    </a><a data-v-97569900="" href="/stocks/RNLI/info" target="_blank" title="Reliable Nepal Life Insurance Limited"><b data-v-97569900="">RNLI</b>
+                      13,805.00 Kitta (Rs.460.10)
+                    </a><a data-v-97569900="" href="/stocks/SICL/info" target="_blank" title="Shikhar Insurance Co. Ltd."><b data-v-97569900="">SICL</b>
+                      13,494.00 Kitta (Rs.614.90)
+                    </a><a data-v-97569900="" href="/stocks/CLI/info" target="_blank" title="Citizen Life Insurance Company Limited"><b data-v-97569900="">CLI</b>
+                      13,491.00 Kitta (Rs.452.60)
+                    </a><a data-v-97569900="" href="/stocks/NIBSF2/info" target="_blank" title="NIBL Samriddhi Fund -2"><b data-v-97569900="">NIBSF2</b>
+                      13,409.00 Kitta (Rs.9.27)
+                    </a><a data-v-97569900="" href="/stocks/IHL/info" target="_blank" title="Ingwa Hydropower Limited"><b data-v-97569900="">IHL</b>
+                      13,138.00 Kitta (Rs.395.00)
+                    </a><a data-v-97569900="" href="/stocks/ALICL/info" target="_blank" title="Asian Life Insurance Co. Limited"><b data-v-97569900="">ALICL</b>
+                      12,837.00 Kitta (Rs.450.50)
+                    </a><a data-v-97569900="" href="/stocks/SIKLES/info" target="_blank" title="Sikles Hydropower Limited"><b data-v-97569900="">SIKLES</b>
+                      12,806.00 Kitta (Rs.581.00)
+                    </a><a data-v-97569900="" href="/stocks/SKHEL/info" target="_blank" title="Suryakunda Hydro Electric Limited"><b data-v-97569900="">SKHEL</b>
+                      12,590.00 Kitta (Rs.1,419.90)
+                    </a><a data-v-97569900="" href="/stocks/PURE/info" target="_blank" title="Pure Energy Limited"><b data-v-97569900="">PURE</b>
+                      12,532.00 Kitta (Rs.903.20)
+                    </a><a data-v-97569900="" href="/stocks/MKHC/info" target="_blank" title="Maya Khola Hydropower Company Limited"><b data-v-97569900="">MKHC</b>
+                      12,257.00 Kitta (Rs.319.00)
+                    </a><a data-v-97569900="" href="/stocks/SIFC/info" target="_blank" title="Shree Investment Finance Co. Ltd."><b data-v-97569900="">SIFC</b>
+                      11,738.00 Kitta (Rs.530.00)
+                    </a><a data-v-97569900="" href="/stocks/SMH/info" target="_blank" title="Super Mai Hydropower Limited"><b data-v-97569900="">SMH</b>
+                      11,735.00 Kitta (Rs.559.00)
+                    </a><a data-v-97569900="" href="/stocks/BFC/info" target="_blank" title="Best Finance Company Ltd."><b data-v-97569900="">BFC</b>
+                      11,432.00 Kitta (Rs.449.00)
+                    </a><a data-v-97569900="" href="/stocks/MMF1/info" target="_blank" title="Mega Mutual Fund -1"><b data-v-97569900="">MMF1</b>
+                      11,300.00 Kitta (Rs.9.56)
+                    </a><a data-v-97569900="" href="/stocks/SKBBL/info" target="_blank" title="Sana Kisan Bikas Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">SKBBL</b>
+                      11,251.00 Kitta (Rs.760.00)
+                    </a><a data-v-97569900="" href="/stocks/NMIC/info" target="_blank" title="Nepal Micro Insurance Company Limited"><b data-v-97569900="">NMIC</b>
+                      11,171.00 Kitta (Rs.1,010.00)
+                    </a><a data-v-97569900="" href="/stocks/NRM/info" target="_blank" title="Nepal Republic Media Limited"><b data-v-97569900="">NRM</b>
+                      10,830.00 Kitta (Rs.400.00)
+                    </a><a data-v-97569900="" href="/stocks/PMHPL/info" target="_blank" title="Panchakanya Mai Hydropower Ltd"><b data-v-97569900="">PMHPL</b>
+                      10,680.00 Kitta (Rs.334.00)
+                    </a><a data-v-97569900="" href="/stocks/MKHL/info" target="_blank" title="Mai Khola Hydropower Limited"><b data-v-97569900="">MKHL</b>
+                      10,618.00 Kitta (Rs.559.00)
+                    </a><a data-v-97569900="" href="/stocks/SRLI/info" target="_blank" title="Sanima Reliance Life Insurance Limited"><b data-v-97569900="">SRLI</b>
+                      10,369.00 Kitta (Rs.390.00)
+                    </a><a data-v-97569900="" href="/stocks/GUFL/info" target="_blank" title="Gurkhas Finance Ltd."><b data-v-97569900="">GUFL</b>
+                      10,337.00 Kitta (Rs.518.20)
+                    </a><a data-v-97569900="" href="/stocks/BJHL/info" target="_blank" title="Bhujung Hydropower Limited"><b data-v-97569900="">BJHL</b>
+                      10,144.00 Kitta (Rs.1,035.00)
+                    </a><a data-v-97569900="" href="/stocks/CBBL/info" target="_blank" title="Chhimek Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">CBBL</b>
+                      10,091.00 Kitta (Rs.903.00)
+                    </a><a data-v-97569900="" href="/stocks/SIGS2/info" target="_blank" title="Siddhartha Investment Growth Scheme - 2"><b data-v-97569900="">SIGS2</b>
+                      9,515.00 Kitta (Rs.9.99)
+                    </a><a data-v-97569900="" href="/stocks/MABEL/info" target="_blank" title="Mabilung Energy Limited"><b data-v-97569900="">MABEL</b>
+                      9,466.00 Kitta (Rs.664.00)
+                    </a><a data-v-97569900="" href="/stocks/GCIL/info" target="_blank" title="Ghorahi Cement Industry Limited"><b data-v-97569900="">GCIL</b>
+                      9,456.00 Kitta (Rs.415.00)
+                    </a><a data-v-97569900="" href="/stocks/NMLBBL/info" target="_blank" title="Nerude Mirmire Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">NMLBBL</b>
+                      9,293.00 Kitta (Rs.610.00)
+                    </a><a data-v-97569900="" href="/stocks/MHL/info" target="_blank" title="Mandakini Hydropower Limited"><b data-v-97569900="">MHL</b>
+                      9,126.00 Kitta (Rs.497.00)
+                    </a><a data-v-97569900="" href="/stocks/NLICL/info" target="_blank" title="National Life Insurance Co. Ltd."><b data-v-97569900="">NLICL</b>
+                      8,965.00 Kitta (Rs.587.00)
+                    </a><a data-v-97569900="" href="/stocks/HATHY/info" target="_blank" title="Hathway Investment Nepal Limited"><b data-v-97569900="">HATHY</b>
+                      8,882.00 Kitta (Rs.814.00)
+                    </a><a data-v-97569900="" href="/stocks/NIMBPO/info" target="_blank" title="Nepal Investment Mega Bank Ltd. Promoter Share"><b data-v-97569900="">NIMBPO</b>
+                      8,866.00 Kitta (Rs.149.30)
+                    </a><a data-v-97569900="" href="/stocks/BUNGAL/info" target="_blank" title="Bungal Hydro Limited"><b data-v-97569900="">BUNGAL</b>
+                      8,665.00 Kitta (Rs.571.00)
+                    </a><a data-v-97569900="" href="/stocks/NABBC/info" target="_blank" title="Narayani Development Bank Limited"><b data-v-97569900="">NABBC</b>
+                      8,661.00 Kitta (Rs.1,192.00)
+                    </a><a data-v-97569900="" href="/stocks/CFCL/info" target="_blank" title="Central Finance Co. Ltd."><b data-v-97569900="">CFCL</b>
+                      8,441.00 Kitta (Rs.493.00)
+                    </a><a data-v-97569900="" href="/stocks/MAKAR/info" target="_blank" title="Makar Jitumaya Suri Hydropower Limited"><b data-v-97569900="">MAKAR</b>
+                      8,423.00 Kitta (Rs.492.00)
+                    </a><a data-v-97569900="" href="/stocks/VLUCL/info" target="_blank" title="Vision Lumbini Urja Company Limited "><b data-v-97569900="">VLUCL</b>
+                      8,356.00 Kitta (Rs.494.80)
+                    </a><a data-v-97569900="" href="/stocks/BNHC/info" target="_blank" title="Buddha Bhumi Nepal Hydropower Company Limited"><b data-v-97569900="">BNHC</b>
+                      8,218.00 Kitta (Rs.327.50)
+                    </a><a data-v-97569900="" href="/stocks/KPCL/info" target="_blank" title="Kalika power Company Ltd"><b data-v-97569900="">KPCL</b>
+                      8,094.00 Kitta (Rs.485.90)
+                    </a><a data-v-97569900="" href="/stocks/ULHC/info" target="_blank" title="Upper Lohore Khola Hydropower Company Limited"><b data-v-97569900="">ULHC</b>
+                      8,072.00 Kitta (Rs.493.90)
+                    </a><a data-v-97569900="" href="/stocks/SPC/info" target="_blank" title="Samling Power Company Limited"><b data-v-97569900="">SPC</b>
+                      8,066.00 Kitta (Rs.463.30)
+                    </a><a data-v-97569900="" href="/stocks/NICSF/info" target="_blank" title="NIC Asia Select Fund 30"><b data-v-97569900="">NICSF</b>
+                      7,850.00 Kitta (Rs.9.38)
+                    </a><a data-v-97569900="" href="/stocks/GBIMESY2/info" target="_blank" title="Global IME Sammunat Yojana -2"><b data-v-97569900="">GBIMESY2</b>
+                      7,790.00 Kitta (Rs.9.20)
+                    </a><a data-v-97569900="" href="/stocks/SNLI/info" target="_blank" title="Sun Nepal Life Insurance Company Limited"><b data-v-97569900="">SNLI</b>
+                      7,756.00 Kitta (Rs.452.50)
+                    </a><a data-v-97569900="" href="/stocks/PROFL/info" target="_blank" title="Progressive Finance Limited"><b data-v-97569900="">PROFL</b>
+                      7,718.00 Kitta (Rs.444.70)
+                    </a><a data-v-97569900="" href="/stocks/MHCL/info" target="_blank" title="Molung Hydropower Company Limited"><b data-v-97569900="">MHCL</b>
+                      7,607.00 Kitta (Rs.350.60)
+                    </a><a data-v-97569900="" href="/stocks/NICFC/info" target="_blank" title="NIC Asia Flexi CAP Fund"><b data-v-97569900="">NICFC</b>
+                      7,550.00 Kitta (Rs.9.18)
+                    </a><a data-v-97569900="" href="/stocks/CREST/info" target="_blank" title="Crest Micro Life Insurance Limited"><b data-v-97569900="">CREST</b>
+                      7,509.00 Kitta (Rs.1,112.10)
+                    </a><a data-v-97569900="" href="/stocks/SBI/info" target="_blank" title="Nepal SBI Bank Limited"><b data-v-97569900="">SBI</b>
+                      7,503.00 Kitta (Rs.397.90)
+                    </a><a data-v-97569900="" href="/stocks/NIBLGF/info" target="_blank" title="NIBL Growth Fund"><b data-v-97569900="">NIBLGF</b>
+                      7,200.00 Kitta (Rs.9.65)
+                    </a><a data-v-97569900="" href="/stocks/SFCL/info" target="_blank" title="Samriddhi Finance Company Limited"><b data-v-97569900="">SFCL</b>
+                      7,148.00 Kitta (Rs.380.00)
+                    </a><a data-v-97569900="" href="/stocks/H8020/info" target="_blank" title="Himalayan 80-20"><b data-v-97569900="">H8020</b>
+                      7,127.00 Kitta (Rs.11.51)
+                    </a><a data-v-97569900="" href="/stocks/SGIC/info" target="_blank" title="Sanima GIC Insurance Limited"><b data-v-97569900="">SGIC</b>
+                      7,020.00 Kitta (Rs.476.40)
+                    </a><a data-v-97569900="" href="/stocks/PMLI/info" target="_blank" title="Prabhu Mahalaxmi Life Insurance Limited"><b data-v-97569900="">PMLI</b>
+                      7,009.00 Kitta (Rs.464.00)
+                    </a><a data-v-97569900="" href="/stocks/AVYAN/info" target="_blank" title="Aviyan Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">AVYAN</b>
+                      6,954.00 Kitta (Rs.1,100.00)
+                    </a><a data-v-97569900="" href="/stocks/SARBTM/info" target="_blank" title="Sarbottam Cement Limited"><b data-v-97569900="">SARBTM</b>
+                      6,865.00 Kitta (Rs.827.00)
+                    </a><a data-v-97569900="" href="/stocks/CGH/info" target="_blank" title="Chandragiri Hills Limited"><b data-v-97569900="">CGH</b>
+                      6,861.00 Kitta (Rs.807.50)
+                    </a><a data-v-97569900="" href="/stocks/BHPL/info" target="_blank" title="Barahi Hydropower Public Limited"><b data-v-97569900="">BHPL</b>
+                      6,767.00 Kitta (Rs.520.20)
+                    </a><a data-v-97569900="" href="/stocks/PRIN/info" target="_blank" title="Prabhu Insurance Ltd."><b data-v-97569900="">PRIN</b>
+                      6,676.00 Kitta (Rs.646.70)
+                    </a><a data-v-97569900="" href="/stocks/NLG/info" target="_blank" title="NLG Insurance Company Ltd."><b data-v-97569900="">NLG</b>
+                      6,673.00 Kitta (Rs.600.00)
+                    </a><a data-v-97569900="" href="/stocks/SFMF/info" target="_blank" title="Sunrise First Mutual Fund"><b data-v-97569900="">SFMF</b>
+                      6,600.00 Kitta (Rs.10.38)
+                    </a><a data-v-97569900="" href="/stocks/PFL/info" target="_blank" title="Pokhara Finance Ltd."><b data-v-97569900="">PFL</b>
+                      6,375.00 Kitta (Rs.379.90)
+                    </a><a data-v-97569900="" href="/stocks/MNMF1/info" target="_blank" title="Muktinath Mutual Fund 1"><b data-v-97569900="">MNMF1</b>
+                      6,260.00 Kitta (Rs.9.85)
+                    </a><a data-v-97569900="" href="/stocks/GMFIL/info" target="_blank" title="Guheshowori Merchant Bank &amp; Finance Co. Ltd."><b data-v-97569900="">GMFIL</b>
+                      6,225.00 Kitta (Rs.464.40)
+                    </a><a data-v-97569900="" href="/stocks/MDB/info" target="_blank" title="Miteri Development Bank Limited"><b data-v-97569900="">MDB</b>
+                      6,103.00 Kitta (Rs.585.00)
+                    </a><a data-v-97569900="" href="/stocks/GILB/info" target="_blank" title="Global IME Laghubitta Bittiya Sanstha Ltd."><b data-v-97569900="">GILB</b>
+                      6,047.00 Kitta (Rs.1,100.20)
+                    </a><a data-v-97569900="" href="/stocks/DDBL/info" target="_blank" title="Deprosc Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">DDBL</b>
+                      6,014.00 Kitta (Rs.829.00)
+                    </a><a data-v-97569900="" href="/stocks/HLICF/info" target="_blank" title="HLI Large Cap Fund"><b data-v-97569900="">HLICF</b>
+                      6,000.00 Kitta (Rs.8.93)
+                    </a><a data-v-97569900="" href="/stocks/GMLI/info" target="_blank" title="Guardian Micro Life Insurance Limited "><b data-v-97569900="">GMLI</b>
+                      5,949.00 Kitta (Rs.1,280.00)
+                    </a><a data-v-97569900="" href="/stocks/NUBL/info" target="_blank" title="Nirdhan Utthan Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">NUBL</b>
+                      5,917.00 Kitta (Rs.678.00)
+                    </a><a data-v-97569900="" href="/stocks/NICLBSL/info" target="_blank" title="NIC ASIA Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">NICLBSL</b>
+                      5,885.00 Kitta (Rs.576.50)
+                    </a><a data-v-97569900="" href="/stocks/JFL/info" target="_blank" title="Janaki Finance Company Limited"><b data-v-97569900="">JFL</b>
+                      5,862.00 Kitta (Rs.409.00)
+                    </a><a data-v-97569900="" href="/stocks/CIT/info" target="_blank" title="Citizen Investment Trust"><b data-v-97569900="">CIT</b>
+                      5,856.00 Kitta (Rs.1,766.00)
+                    </a><a data-v-97569900="" href="/stocks/RURU/info" target="_blank" title="Ru Ru Jalbidhyut Pariyojana Limited"><b data-v-97569900="">RURU</b>
+                      5,680.00 Kitta (Rs.650.10)
+                    </a><a data-v-97569900="" href="/stocks/MERO/info" target="_blank" title="Mero Microfinance Bittiya Sanstha Ltd."><b data-v-97569900="">MERO</b>
+                      5,626.00 Kitta (Rs.718.80)
+                    </a><a data-v-97569900="" href="/stocks/ICFC/info" target="_blank" title="ICFC Finance Limited"><b data-v-97569900="">ICFC</b>
+                      5,496.00 Kitta (Rs.622.10)
+                    </a><a data-v-97569900="" href="/stocks/TVCL/info" target="_blank" title="Trishuli Jal Vidhyut Company Limited "><b data-v-97569900="">TVCL</b>
+                      5,458.00 Kitta (Rs.508.00)
+                    </a><a data-v-97569900="" href="/stocks/NSY/info" target="_blank" title="Nepal Life Samriddhi Lagani Yojana"><b data-v-97569900="">NSY</b>
+                      5,350.00 Kitta (Rs.9.44)
+                    </a><a data-v-97569900="" href="/stocks/RLFL/info" target="_blank" title="Reliance Finance Ltd."><b data-v-97569900="">RLFL</b>
+                      5,328.00 Kitta (Rs.430.00)
+                    </a><a data-v-97569900="" href="/stocks/GFCL/info" target="_blank" title="Goodwill Finance Limited"><b data-v-97569900="">GFCL</b>
+                      5,197.00 Kitta (Rs.620.20)
+                    </a><a data-v-97569900="" href="/stocks/NMBHF2/info" target="_blank" title="NMB Hybrid Fund L- II"><b data-v-97569900="">NMBHF2</b>
+                      5,065.00 Kitta (Rs.9.47)
+                    </a><a data-v-97569900="" href="/stocks/RSDC/info" target="_blank" title="RSDC Laghubitta Bittiya Sanstha Ltd."><b data-v-97569900="">RSDC</b>
+                      4,978.00 Kitta (Rs.665.00)
+                    </a><a data-v-97569900="" href="/stocks/OMPL/info" target="_blank" title="Om Megashree Pharmaceuticals Limited"><b data-v-97569900="">OMPL</b>
+                      4,960.00 Kitta (Rs.1,154.90)
+                    </a><a data-v-97569900="" href="/stocks/NICL/info" target="_blank" title="Nepal Insurance Co. Ltd."><b data-v-97569900="">NICL</b>
+                      4,928.00 Kitta (Rs.482.20)
+                    </a><a data-v-97569900="" href="/stocks/SLCF/info" target="_blank" title="Sanima Large Cap Fund"><b data-v-97569900="">SLCF</b>
+                      4,750.00 Kitta (Rs.9.70)
+                    </a><a data-v-97569900="" href="/stocks/BGWT/info" target="_blank" title="Bhagawati Hydropower Development Company Limited"><b data-v-97569900="">BGWT</b>
+                      4,728.00 Kitta (Rs.705.00)
+                    </a><a data-v-97569900="" href="/stocks/UMRH/info" target="_blank" title="United IDI Mardi RB Hydropower Limited."><b data-v-97569900="">UMRH</b>
+                      4,692.00 Kitta (Rs.532.00)
+                    </a><a data-v-97569900="" href="/stocks/UHEWA/info" target="_blank" title="Upper Hewakhola Hydropower Company Limited"><b data-v-97569900="">UHEWA</b>
+                      4,561.00 Kitta (Rs.569.00)
+                    </a><a data-v-97569900="" href="/stocks/LUK/info" target="_blank" title="Laxmi Unnati Kosh"><b data-v-97569900="">LUK</b>
+                      4,500.00 Kitta (Rs.9.94)
+                    </a><a data-v-97569900="" href="/stocks/JBLB/info" target="_blank" title="Jeevan Bikas Laghubitta  Bittya Sanstha Ltd"><b data-v-97569900="">JBLB</b>
+                      4,483.00 Kitta (Rs.1,268.00)
+                    </a><a data-v-97569900="" href="/stocks/SMATA/info" target="_blank" title="Samata Gharelu Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">SMATA</b>
+                      4,213.00 Kitta (Rs.755.00)
+                    </a><a data-v-97569900="" href="/stocks/MMKJL/info" target="_blank" title="Mathillo Mailun Khola Jalvidhyut Limited"><b data-v-97569900="">MMKJL</b>
+                      4,166.00 Kitta (Rs.498.00)
+                    </a><a data-v-97569900="" href="/stocks/VLBS/info" target="_blank" title="Vijaya laghubitta Bittiya Sanstha Ltd."><b data-v-97569900="">VLBS</b>
+                      4,153.00 Kitta (Rs.696.10)
+                    </a><a data-v-97569900="" href="/stocks/MKJC/info" target="_blank" title="Mailung Khola Jal Vidhyut Company Limited"><b data-v-97569900="">MKJC</b>
+                      4,126.00 Kitta (Rs.498.00)
+                    </a><a data-v-97569900="" href="/stocks/GSY/info" target="_blank" title="Garima Samriddhi Yojana"><b data-v-97569900="">GSY</b>
+                      4,110.00 Kitta (Rs.9.78)
+                    </a><a data-v-97569900="" href="/stocks/UAIL/info" target="_blank" title="United Ajod Insurance Limited"><b data-v-97569900="">UAIL</b>
+                      3,998.00 Kitta (Rs.439.70)
+                    </a><a data-v-97569900="" href="/stocks/DHPL/info" target="_blank" title="Dibyashwori Hydropower Ltd."><b data-v-97569900="">DHPL</b>
+                      3,969.00 Kitta (Rs.300.00)
+                    </a><a data-v-97569900="" href="/stocks/NICBF/info" target="_blank" title="NIC Asia Balanced Fund"><b data-v-97569900="">NICBF</b>
+                      3,890.00 Kitta (Rs.9.50)
+                    </a><a data-v-97569900="" href="/stocks/KDL/info" target="_blank" title="Kalinchowk Darshan Limited"><b data-v-97569900="">KDL</b>
+                      3,733.00 Kitta (Rs.820.00)
+                    </a><a data-v-97569900="" href="/stocks/MBLEF/info" target="_blank" title="MBL Equity Fund"><b data-v-97569900="">MBLEF</b>
+                      3,600.00 Kitta (Rs.10.00)
+                    </a><a data-v-97569900="" href="/stocks/NYADI/info" target="_blank" title="Nyadi Hydropower Limited"><b data-v-97569900="">NYADI</b>
+                      3,599.00 Kitta (Rs.391.00)
+                    </a><a data-v-97569900="" href="/stocks/LICN/info" target="_blank" title="Life Insurance Corporation (Nepal) Limited"><b data-v-97569900="">LICN</b>
+                      3,563.00 Kitta (Rs.808.10)
+                    </a><a data-v-97569900="" href="/stocks/SWMF/info" target="_blank" title="Suryodaya Womi Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">SWMF</b>
+                      3,412.00 Kitta (Rs.666.80)
+                    </a><a data-v-97569900="" href="/stocks/SWBBL/info" target="_blank" title="Swabalamban Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">SWBBL</b>
+                      3,126.00 Kitta (Rs.720.00)
+                    </a><a data-v-97569900="" href="/stocks/KMCDB/info" target="_blank" title="Kalika Laghubitta Bittiya Sanstha Ltd"><b data-v-97569900="">KMCDB</b>
+                      3,124.00 Kitta (Rs.879.00)
+                    </a><a data-v-97569900="" href="/stocks/RBBF40/info" target="_blank" title="RBB Focus 40"><b data-v-97569900="">RBBF40</b>
+                      3,076.00 Kitta (Rs.9.21)
+                    </a><a data-v-97569900="" href="/stocks/NIL/info" target="_blank" title="Neco Insurance Limited"><b data-v-97569900="">NIL</b>
+                      3,057.00 Kitta (Rs.611.90)
+                    </a><a data-v-97569900="" href="/stocks/LVF2/info" target="_blank" title="Laxmi Value Fund 2"><b data-v-97569900="">LVF2</b>
+                      2,970.00 Kitta (Rs.10.20)
+                    </a><a data-v-97569900="" href="/stocks/RAWA/info" target="_blank" title="Rawa Energy Development Limited"><b data-v-97569900="">RAWA</b>
+                      2,895.00 Kitta (Rs.605.00)
+                    </a><a data-v-97569900="" href="/stocks/FOWAD/info" target="_blank" title="Forward Microfinance Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">FOWAD</b>
+                      2,800.00 Kitta (Rs.1,096.00)
+                    </a><a data-v-97569900="" href="/stocks/RSY/info" target="_blank" title="Reliable Samriddhi Yojana"><b data-v-97569900="">RSY</b>
+                      2,800.00 Kitta (Rs.10.30)
+                    </a><a data-v-97569900="" href="/stocks/SBCF/info" target="_blank" title="Sunrise Bluechip Fund"><b data-v-97569900="">SBCF</b>
+                      2,600.00 Kitta (Rs.9.52)
+                    </a><a data-v-97569900="" href="/stocks/GIBF1/info" target="_blank" title="Global IME Balanced Fund-1"><b data-v-97569900="">GIBF1</b>
+                      2,500.00 Kitta (Rs.11.00)
+                    </a><a data-v-97569900="" href="/stocks/GBLBS/info" target="_blank" title="Grameen Bikas Laghubitta Bittiya Sanstha Ltd."><b data-v-97569900="">GBLBS</b>
+                      2,432.00 Kitta (Rs.750.00)
+                    </a><a data-v-97569900="" href="/stocks/SLBBL/info" target="_blank" title="Swarojgar Laghubitta Bittiya Sanstha Ltd."><b data-v-97569900="">SLBBL</b>
+                      2,270.00 Kitta (Rs.810.00)
+                    </a><a data-v-97569900="" href="/stocks/SALICO/info" target="_blank" title="Sagarmatha Lumbini Insurance Co. Limited"><b data-v-97569900="">SALICO</b>
+                      2,160.00 Kitta (Rs.592.10)
+                    </a><a data-v-97569900="" href="/stocks/NMBMF/info" target="_blank" title="NMB  Microfinance Bittiya Sanstha Ltd."><b data-v-97569900="">NMBMF</b>
+                      2,132.00 Kitta (Rs.636.20)
+                    </a><a data-v-97569900="" href="/stocks/NMFBS/info" target="_blank" title="National Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">NMFBS</b>
+                      2,094.00 Kitta (Rs.1,097.10)
+                    </a><a data-v-97569900="" href="/stocks/HEI/info" target="_blank" title="Himalayan Everest Insurance Limited"><b data-v-97569900="">HEI</b>
+                      2,081.00 Kitta (Rs.516.00)
+                    </a><a data-v-97569900="" href="/stocks/SPIL/info" target="_blank" title="Siddhartha Premier Insurance Limited"><b data-v-97569900="">SPIL</b>
+                      2,038.00 Kitta (Rs.701.00)
+                    </a><a data-v-97569900="" href="/stocks/USHL/info" target="_blank" title="Upper Syange Hydropower Limited"><b data-v-97569900="">USHL</b>
+                      1,999.00 Kitta (Rs.645.00)
+                    </a><a data-v-97569900="" href="/stocks/MKCL/info" target="_blank" title="Muktinath Krishi Company Limited"><b data-v-97569900="">MKCL</b>
+                      1,915.00 Kitta (Rs.1,315.00)
+                    </a><a data-v-97569900="" href="/stocks/USLB/info" target="_blank" title="Unnati Sahakarya Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">USLB</b>
+                      1,846.00 Kitta (Rs.1,294.00)
+                    </a><a data-v-97569900="" href="/stocks/SFEF/info" target="_blank" title="Sunrise Focused Equity Fund"><b data-v-97569900="">SFEF</b>
+                      1,800.00 Kitta (Rs.9.99)
+                    </a><a data-v-97569900="" href="/stocks/OHL/info" target="_blank" title="Oriental Hotels Limited"><b data-v-97569900="">OHL</b>
+                      1,785.00 Kitta (Rs.697.00)
+                    </a><a data-v-97569900="" href="/stocks/ULBSL/info" target="_blank" title="Upakar Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">ULBSL</b>
+                      1,753.00 Kitta (Rs.2,978.00)
+                    </a><a data-v-97569900="" href="/stocks/KSY/info" target="_blank" title="Kumari Sabal Yojana"><b data-v-97569900="">KSY</b>
+                      1,750.00 Kitta (Rs.9.51)
+                    </a><a data-v-97569900="" href="/stocks/NBF2/info" target="_blank" title="NABIL BALANCED FUND-2"><b data-v-97569900="">NBF2</b>
+                      1,700.00 Kitta (Rs.10.00)
+                    </a><a data-v-97569900="" href="/stocks/MLBSL/info" target="_blank" title="Mahila Lagubitta Bittiya Sanstha Limited "><b data-v-97569900="">MLBSL</b>
+                      1,684.00 Kitta (Rs.1,789.00)
+                    </a><a data-v-97569900="" href="/stocks/CKHL/info" target="_blank" title="Chirkhwa Hydropower Limited "><b data-v-97569900="">CKHL</b>
+                      1,620.00 Kitta (Rs.699.00)
+                    </a><a data-v-97569900="" href="/stocks/SMFBS/info" target="_blank" title="Swabhimaan Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">SMFBS</b>
+                      1,414.00 Kitta (Rs.1,611.50)
+                    </a><a data-v-97569900="" href="/stocks/MLBBL/info" target="_blank" title="Mithila LaghuBitta Bittiya Sanstha Limited"><b data-v-97569900="">MLBBL</b>
+                      1,372.00 Kitta (Rs.1,205.00)
+                    </a><a data-v-97569900="" href="/stocks/NWCL/info" target="_blank" title="Nepal Warehousing Company Limited "><b data-v-97569900="">NWCL</b>
+                      1,307.00 Kitta (Rs.793.90)
+                    </a><a data-v-97569900="" href="/stocks/UNLB/info" target="_blank" title="Unique Nepal Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">UNLB</b>
+                      1,298.00 Kitta (Rs.1,431.90)
+                    </a><a data-v-97569900="" href="/stocks/SWASTIK/info" target="_blank" title="Swastik Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">SWASTIK</b>
+                      1,278.00 Kitta (Rs.2,455.00)
+                    </a><a data-v-97569900="" href="/stocks/SPL/info" target="_blank" title="Shuvam Power Limited"><b data-v-97569900="">SPL</b>
+                      1,272.00 Kitta (Rs.710.00)
+                    </a><a data-v-97569900="" href="/stocks/NESDO/info" target="_blank" title="NESDO Sambridha Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">NESDO</b>
+                      1,253.00 Kitta (Rs.1,538.00)
+                    </a><a data-v-97569900="" href="/stocks/SPHL/info" target="_blank" title="Sayapatri Hydropower Limited"><b data-v-97569900="">SPHL</b>
+                      1,217.00 Kitta (Rs.516.50)
+                    </a><a data-v-97569900="" href="/stocks/RMF2/info" target="_blank" title="RBB Mutual Fund 2"><b data-v-97569900="">RMF2</b>
+                      1,200.00 Kitta (Rs.10.10)
+                    </a><a data-v-97569900="" href="/stocks/TRH/info" target="_blank" title="Taragaon Regency Hotel Limited"><b data-v-97569900="">TRH</b>
+                      1,155.00 Kitta (Rs.735.50)
+                    </a><a data-v-97569900="" href="/stocks/LLBS/info" target="_blank" title="Laxmi Laghubitta Bittiya Sanstha Ltd."><b data-v-97569900="">LLBS</b>
+                      1,019.00 Kitta (Rs.975.00)
+                    </a><a data-v-97569900="" href="/stocks/NHDL/info" target="_blank" title="Nepal Hydro Developers Ltd."><b data-v-97569900="">NHDL</b>
+                      972.00 Kitta (Rs.627.00)
+                    </a><a data-v-97569900="" href="/stocks/ILBS/info" target="_blank" title="Infinity Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">ILBS</b>
+                      967.00 Kitta (Rs.944.00)
+                    </a><a data-v-97569900="" href="/stocks/ACLBSL/info" target="_blank" title="Aarambha Chautari Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">ACLBSL</b>
+                      932.00 Kitta (Rs.941.10)
+                    </a><a data-v-97569900="" href="/stocks/SIGS3/info" target="_blank" title="Siddhartha Investment Growth Scheme 3"><b data-v-97569900="">SIGS3</b>
+                      900.00 Kitta (Rs.10.71)
+                    </a><a data-v-97569900="" href="/stocks/SLBSL/info" target="_blank" title="Samudayik Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">SLBSL</b>
+                      899.00 Kitta (Rs.1,217.00)
+                    </a><a data-v-97569900="" href="/stocks/WNLB/info" target="_blank" title="Wean Nepal Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">WNLB</b>
+                      895.00 Kitta (Rs.1,417.00)
+                    </a><a data-v-97569900="" href="/stocks/MLBS/info" target="_blank" title="Manushi Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">MLBS</b>
+                      763.00 Kitta (Rs.1,245.00)
+                    </a><a data-v-97569900="" href="/stocks/HLBSL/info" target="_blank" title="Himalayan Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">HLBSL</b>
+                      762.00 Kitta (Rs.889.00)
+                    </a><a data-v-97569900="" href="/stocks/SMPDA/info" target="_blank" title="Sampada Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">SMPDA</b>
+                      674.00 Kitta (Rs.844.90)
+                    </a><a data-v-97569900="" href="/stocks/CYCL/info" target="_blank" title="CYC Nepal Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">CYCL</b>
+                      643.00 Kitta (Rs.1,490.00)
+                    </a><a data-v-97569900="" href="/stocks/GMFBS/info" target="_blank" title="Ganapati Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">GMFBS</b>
+                      619.00 Kitta (Rs.1,310.10)
+                    </a><a data-v-97569900="" href="/stocks/MSLB/info" target="_blank" title="Mahuli Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">MSLB</b>
+                      613.00 Kitta (Rs.1,241.10)
+                    </a><a data-v-97569900="" href="/stocks/NADEP/info" target="_blank" title="Nadep Laghubittiya bittya Sanstha Ltd."><b data-v-97569900="">NADEP</b>
+                      544.00 Kitta (Rs.740.10)
+                    </a><a data-v-97569900="" href="/stocks/STC/info" target="_blank" title="Salt Trading Corporation"><b data-v-97569900="">STC</b>
+                      501.00 Kitta (Rs.5,800.00)
+                    </a><a data-v-97569900="" href="/stocks/TSHL/info" target="_blank" title="Three Star Hydropower Limited"><b data-v-97569900="">TSHL</b>
+                      432.00 Kitta (Rs.637.00)
+                    </a><a data-v-97569900="" href="/stocks/EBLD91/info" target="_blank" title="Everest Bank Limited Debenture 2091"><b data-v-97569900="">EBLD91</b>
+                      425.00 Kitta (Rs.1,056.10)
+                    </a><a data-v-97569900="" href="/stocks/NICGF2/info" target="_blank" title="NIC ASIA Growth Fund-2"><b data-v-97569900="">NICGF2</b>
+                      400.00 Kitta (Rs.9.31)
+                    </a><a data-v-97569900="" href="/stocks/SHLB/info" target="_blank" title="Shrijanshil Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">SHLB</b>
+                      390.00 Kitta (Rs.1,460.00)
+                    </a><a data-v-97569900="" href="/stocks/GLBSL/info" target="_blank" title="Gurans Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">GLBSL</b>
+                      390.00 Kitta (Rs.1,763.90)
+                    </a><a data-v-97569900="" href="/stocks/MATRI/info" target="_blank" title="Matribhumi Lagubitta Bittiya Sanstha Limited"><b data-v-97569900="">MATRI</b>
+                      379.00 Kitta (Rs.919.50)
+                    </a><a data-v-97569900="" href="/stocks/ICFCD89/info" target="_blank" title="8% ICFC Finance Limited Debenture 2089"><b data-v-97569900="">ICFCD89</b>
+                      375.00 Kitta (Rs.1,087.10)
+                    </a><a data-v-97569900="" href="/stocks/SMB/info" target="_blank" title="Support Microfinance Bittiya Sanstha Ltd."><b data-v-97569900="">SMB</b>
+                      340.00 Kitta (Rs.1,718.00)
+                    </a><a data-v-97569900="" href="/stocks/DLBS/info" target="_blank" title="Dhaulagiri Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">DLBS</b>
+                      310.00 Kitta (Rs.1,290.00)
+                    </a><a data-v-97569900="" href="/stocks/ADBLD83/info" target="_blank" title="10.35% Agricultural Bank Debenture 2083"><b data-v-97569900="">ADBLD83</b>
+                      300.00 Kitta (Rs.1,070.00)
+                    </a><a data-v-97569900="" href="/stocks/JSLBB/info" target="_blank" title="Janautthan Samudayic Laghubitta Bittya Sanstha Limited"><b data-v-97569900="">JSLBB</b>
+                      279.00 Kitta (Rs.1,093.00)
+                    </a><a data-v-97569900="" href="/stocks/NICAD2091/info" target="_blank" title="7% NIC ASIA Debenture 2091"><b data-v-97569900="">NICAD2091</b>
+                      235.00 Kitta (Rs.1,068.00)
+                    </a><a data-v-97569900="" href="/stocks/NIFRAGED/info" target="_blank" title="Nifra Green Energy Debenture 6% - 2088/89"><b data-v-97569900="">NIFRAGED</b>
+                      233.00 Kitta (Rs.1,032.00)
+                    </a><a data-v-97569900="" href="/stocks/MANDU/info" target="_blank" title="Mandu Hydropower Limited"><b data-v-97569900="">MANDU</b>
+                      222.00 Kitta (Rs.803.50)
+                    </a><a data-v-97569900="" href="/stocks/NABILD2089/info" target="_blank" title="7% Nabil Debenture 2089"><b data-v-97569900="">NABILD2089</b>
+                      175.00 Kitta (Rs.1,065.00)
+                    </a><a data-v-97569900="" href="/stocks/MSHL/info" target="_blank" title="Mid Solu Hydropower Limited"><b data-v-97569900="">MSHL</b>
+                      140.00 Kitta (Rs.727.10)
+                    </a><a data-v-97569900="" href="/stocks/NIMBD90/info" target="_blank" title="10% NIMB Debenture 2090"><b data-v-97569900="">NIMBD90</b>
+                      140.00 Kitta (Rs.1,270.00)
+                    </a><a data-v-97569900="" href="/stocks/BBC/info" target="_blank" title="Bishal Bazar Company Limited"><b data-v-97569900="">BBC</b>
+                      130.00 Kitta (Rs.4,814.90)
+                    </a><a data-v-97569900="" href="/stocks/NIBD84/info" target="_blank" title="8.5% Nepal Investment Bank Debenture 2084"><b data-v-97569900="">NIBD84</b>
+                      125.00 Kitta (Rs.1,055.00)
+                    </a><a data-v-97569900="" href="/stocks/EBLD85/info" target="_blank" title="10.50% Everest Bank Limited Debenture 2085"><b data-v-97569900="">EBLD85</b>
+                      125.00 Kitta (Rs.1,162.00)
+                    </a><a data-v-97569900="" href="/stocks/KBSH/info" target="_blank" title="Kutheli Bukhari Small Hydropower Limited"><b data-v-97569900="">KBSH</b>
+                      123.00 Kitta (Rs.1,580.00)
+                    </a><a data-v-97569900="" href="/stocks/BNT/info" target="_blank" title="Bottlers Nepal (Terai) Limited"><b data-v-97569900="">BNT</b>
+                      111.00 Kitta (Rs.11,610.00)
+                    </a><a data-v-97569900="" href="/stocks/ENL/info" target="_blank" title="Emerging Nepal Limited"><b data-v-97569900="">ENL</b>
+                      111.00 Kitta (Rs.899.80)
+                    </a><a data-v-97569900="" href="/stocks/GBBD85/info" target="_blank" title="Garima Debenture, 2085"><b data-v-97569900="">GBBD85</b>
+                      100.00 Kitta (Rs.1,100.00)
+                    </a><a data-v-97569900="" href="/stocks/BOKD86/info" target="_blank" title="8.5% BOK Debenture 2086"><b data-v-97569900="">BOKD86</b>
+                      100.00 Kitta (Rs.1,081.00)
+                    </a><a data-v-97569900="" href="/stocks/SBD87/info" target="_blank" title="8.5% Sanima Debenture 2087"><b data-v-97569900="">SBD87</b>
+                      100.00 Kitta (Rs.1,086.00)
+                    </a><a data-v-97569900="" href="/stocks/ICFCD88/info" target="_blank" title="9% ICFC Finance Limited Debenture 2088"><b data-v-97569900="">ICFCD88</b>
+                      100.00 Kitta (Rs.1,201.00)
+                    </a><a data-v-97569900="" href="/stocks/HEIP/info" target="_blank" title="Himalayan Everest Insurance Limited Promoter"><b data-v-97569900="">HEIP</b>
+                      100.00 Kitta (Rs.317.10)
+                    </a><a data-v-97569900="" href="/stocks/RBCL/info" target="_blank" title="Rastriya Beema Company Limited"><b data-v-97569900="">RBCL</b>
+                      60.00 Kitta (Rs.15,000.00)
+                    </a><a data-v-97569900="" href="/stocks/NABILD87/info" target="_blank" title="9% Nabil Debenture 2087"><b data-v-97569900="">NABILD87</b>
+                      54.00 Kitta (Rs.1,135.00)
+                    </a><a data-v-97569900="" href="/stocks/SBID83/info" target="_blank" title="10.25% Nepal SBI Bank Debenture 2083"><b data-v-97569900="">SBID83</b>
+                      50.00 Kitta (Rs.1,075.00)
+                    </a><a data-v-97569900="" href="/stocks/SBID2090/info" target="_blank" title="7% Nepal SBI Bank Debenture 2090"><b data-v-97569900="">SBID2090</b>
+                      50.00 Kitta (Rs.1,042.10)
+                    </a><a data-v-97569900="" href="/stocks/RBBD2088/info" target="_blank" title="7% RBBL Debenture 2088"><b data-v-97569900="">RBBD2088</b>
+                      50.00 Kitta (Rs.1,070.00)
+                    </a><a data-v-97569900="" href="/stocks/CIZBD90/info" target="_blank" title="10% Citizens Bank Debenture 2090"><b data-v-97569900="">CIZBD90</b>
+                      30.00 Kitta (Rs.1,277.90)
+                    </a><a data-v-97569900="" href="/stocks/PBD88/info" target="_blank" title="10% Prime Debenture 2088"><b data-v-97569900="">PBD88</b>
+                      25.00 Kitta (Rs.1,180.20)
+                    </a><a data-v-97569900="" href="/stocks/EBLD86/info" target="_blank" title="Everest Bank Limited"><b data-v-97569900="">EBLD86</b>
+                      25.00 Kitta (Rs.1,072.10)
+                    </a><a data-v-97569900="" href="/stocks/NBLD87/info" target="_blank" title="8.5% Nepal Bank Debenture 2087"><b data-v-97569900="">NBLD87</b>
+                      25.00 Kitta (Rs.1,075.30)
+                    </a><a data-v-97569900="" href="/stocks/KSBBLD87/info" target="_blank" title="9% Kamana Sewa Bikas Bank Limited Debenture 2087"><b data-v-97569900="">KSBBLD87</b>
+                      25.00 Kitta (Rs.1,078.40)
+                    </a><a data-v-97569900="" href="/stocks/SAND2085/info" target="_blank" title="10% Sanima Bank Limited Debenture"><b data-v-97569900="">SAND2085</b>
+                      25.00 Kitta (Rs.1,125.00)
+                    </a><a data-v-97569900="" href="/stocks/HBLD86/info" target="_blank" title="Himalayan Bank Limited Bond, 2086"><b data-v-97569900="">HBLD86</b>
+                      25.00 Kitta (Rs.1,148.40)
+                    </a><a data-v-97569900="" href="/stocks/SHINED/info" target="_blank" title="Shine Resunga Debenture"><b data-v-97569900="">SHINED</b>
+                      25.00 Kitta (Rs.1,110.10)
+                    </a><a data-v-97569900="" href="/stocks/ANLB/info" target="_blank" title="Aatmanirbhar Laghubitta Bittiya Sanstha Limited"><b data-v-97569900="">ANLB</b>
+                      21.00 Kitta (Rs.6,285.00)
+                    </a><a data-v-97569900="" href="/stocks/SRBLD83/info" target="_blank" title="10.25% Sunrise Bank Debenture 2083"><b data-v-97569900="">SRBLD83</b>
+                      12.00 Kitta (Rs.1,048.20)
+                    </a><a data-v-97569900="" href="/stocks/SDBD87/info" target="_blank" title="Shangri-la Development Bank Debenture 2087"><b data-v-97569900="">SDBD87</b>
+                      5.00 Kitta (Rs.1,127.80)
+                    </a><a data-v-97569900="" href="/stocks/HBLD83/info" target="_blank" title="10% Himalayan Bank Debenture 2083"><b data-v-97569900="">HBLD83</b>
+                      2.00 Kitta (Rs.1,043.00)
+                    </a><a data-v-97569900="" href="/stocks/GBILD84/85/info" target="_blank" title="Global IME Bank Debenture, 2084/85"><b data-v-97569900="">GBILD84/85</b>
+                      2.00 Kitta (Rs.1,121.00)
+                    </a><a data-v-97569900="" href="/stocks/KBLD89/info" target="_blank" title="11% KBL Debenture 2089"><b data-v-97569900="">KBLD89</b>
+                      1.00 Kitta (Rs.1,235.00)
+                    </a><a data-v-97569900="" href="/stocks/KBLD86/info" target="_blank" title="10.25% KBL Debenture 2086"><b data-v-97569900="">KBLD86</b>
+                      1.00 Kitta (Rs.1,128.30)
+                    </a><a data-v-97569900="" href="/stocks/UNL/info" target="_blank" title="Unilever Nepal Limited"><b data-v-97569900="">UNL</b>
+                      1.00 Kitta (Rs.47,000.00)
+                    </a></marquee></th></tr></tbody></table>

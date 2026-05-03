@@ -143,3 +143,61 @@ class IndexHistory(Base):
 
     def __repr__(self):
         return f"<IndexHistory(name='{self.index_name}', date='{self.date}', close={self.close})>"
+
+class CommodityPrice(Base):
+    """Historical daily prices for commodities like Gold and Silver."""
+    __tablename__ = "commodity_prices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, index=True)
+    gold_price = Column(Float, nullable=True)
+    silver_price = Column(Float, nullable=True)
+
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("date", name="uix_commodity_date"),
+    )
+
+    def __repr__(self):
+        return f"<CommodityPrice(date='{self.date}', gold={self.gold_price}, silver={self.silver_price})>"
+
+
+class MacroData(Base):
+    """Historical macroeconomic data like Fixed Deposit Interest Rates."""
+    __tablename__ = "macro_data"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, index=True)
+    year = Column(Integer, nullable=True)
+    fixed_deposit_rate = Column(Float, nullable=True)
+
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("date", name="uix_macro_date"),
+    )
+
+    def __repr__(self):
+        return f"<MacroData(date='{self.date}', fd_rate={self.fixed_deposit_rate})>"
+
+
+class EconomicIndicator(Base):
+    """General macroeconomic indicators from various sources."""
+    __tablename__ = "economic_indicators"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String(100), nullable=True)
+    indicator_name = Column(String(200), nullable=False, index=True)
+    date_label = Column(String(100), nullable=False)
+    date_value = Column(Date, nullable=True, index=True)
+    value = Column(Float, nullable=True)
+    
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("indicator_name", "date_label", name="uix_indicator_date"),
+    )
+
+    def __repr__(self):
+        return f"<EconomicIndicator(name='{self.indicator_name}', date='{self.date_label}', value={self.value})>"
