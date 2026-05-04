@@ -53,49 +53,6 @@ def create_member(data: MemberCreate, db: Session = Depends(get_db)):
     db.refresh(member)
     return MemberResponse.model_validate(member)
 
-
-@router.get("/{member_id}", response_model=MemberResponse)
-def get_member(member_id: int, db: Session = Depends(get_db)):
-    """Get a specific member."""
-    member = db.query(Member).filter(Member.id == member_id).first()
-    if not member:
-        raise HTTPException(status_code=404, detail="Member not found")
-    resp = MemberResponse.model_validate(member)
-    resp.has_credentials = member.credentials is not None
-    return resp
-
-
-@router.put("/{member_id}", response_model=MemberResponse)
-def update_member(member_id: int, data: MemberUpdate, db: Session = Depends(get_db)):
-    """Update a member."""
-    member = db.query(Member).filter(Member.id == member_id).first()
-    if not member:
-        raise HTTPException(status_code=404, detail="Member not found")
-
-    if data.name is not None:
-        member.name = data.name
-    if data.display_name is not None:
-        member.display_name = data.display_name
-    if data.is_active is not None:
-        member.is_active = data.is_active
-
-    db.commit()
-    db.refresh(member)
-    resp = MemberResponse.model_validate(member)
-    resp.has_credentials = member.credentials is not None
-    return resp
-
-
-@router.delete("/{member_id}", status_code=204)
-def delete_member(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
-    """Delete a member and all associated data."""
-    member = db.query(Member).filter(Member.id == member_id).first()
-    if not member:
-        raise HTTPException(status_code=404, detail="Member not found")
-    db.delete(member)
-    db.commit()
-
-
 @router.post("/verify-password")
 def verify_password(data: VerifyPasswordRequest):
     """Verify master password before allowing credential edits.
@@ -173,6 +130,48 @@ def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTask
             background_tasks.add_task(_sync_member_in_background, member.id)
 
     return {"status": "success", "message": f"Successfully imported/updated {count} member(s)"}
+
+
+@router.get("/{member_id}", response_model=MemberResponse)
+def get_member(member_id: int, db: Session = Depends(get_db)):
+    """Get a specific member."""
+    member = db.query(Member).filter(Member.id == member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    resp = MemberResponse.model_validate(member)
+    resp.has_credentials = member.credentials is not None
+    return resp
+
+
+@router.put("/{member_id}", response_model=MemberResponse)
+def update_member(member_id: int, data: MemberUpdate, db: Session = Depends(get_db)):
+    """Update a member."""
+    member = db.query(Member).filter(Member.id == member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    if data.name is not None:
+        member.name = data.name
+    if data.display_name is not None:
+        member.display_name = data.display_name
+    if data.is_active is not None:
+        member.is_active = data.is_active
+
+    db.commit()
+    db.refresh(member)
+    resp = MemberResponse.model_validate(member)
+    resp.has_credentials = member.credentials is not None
+    return resp
+
+
+@router.delete("/{member_id}", status_code=204)
+def delete_member(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+    """Delete a member and all associated data."""
+    member = db.query(Member).filter(Member.id == member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    db.delete(member)
+    db.commit()
 
 
 # --- Credential Endpoints ---

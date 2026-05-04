@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
     SyncOutlined, LockOutlined, EditOutlined,
-    ImportOutlined, ExportOutlined, UserOutlined,
+    ImportOutlined, ExportOutlined, UserOutlined, DownloadOutlined,
     SafetyCertificateOutlined, KeyOutlined,
     TranslationOutlined, NumberOutlined, DeleteOutlined, PlusOutlined,
     CheckCircleOutlined, CloseCircleOutlined
@@ -190,18 +190,27 @@ function Upload() {
     const handleExportExcel = async () => {
         try {
             const res = await exportCredentials();
+            if (!res.data || res.data.length === 0) {
+                message.warning('No credentials found to export');
+                return;
+            }
             const ws = XLSX.utils.json_to_sheet(res.data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Credentials");
             XLSX.writeFile(wb, "credentials_export.xlsx");
         } catch (err) {
-            message.error('Export Excel failed');
+            console.error('Export Error:', err);
+            message.error(err.response?.data?.detail || 'Export Excel failed. Ensure you are authenticated.');
         }
     };
 
     const handleExportCSV = async () => {
         try {
             const res = await exportCredentials();
+            if (!res.data || res.data.length === 0) {
+                message.warning('No credentials found to export');
+                return;
+            }
             const csv = Papa.unparse(res.data);
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
@@ -211,8 +220,21 @@ function Upload() {
             link.click();
             document.body.removeChild(link);
         } catch (err) {
-            message.error('Export CSV failed');
+            console.error('Export Error:', err);
+            message.error(err.response?.data?.detail || 'Export CSV failed. Ensure you are authenticated.');
         }
+    };
+
+    const handleExportSyncResults = () => {
+        if (!overallResults || overallResults.length === 0) return;
+        const csv = Papa.unparse(overallResults);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', `sync_results_${dayjs().format('YYYY-MM-DD_HHmm')}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const exportItems = [
@@ -357,7 +379,7 @@ function Upload() {
                         <h1>Sync & Credentials</h1>
                         <p className="subtitle">Manage MeroShare connections and automate history synchronization</p>
                     </div>
-                    {isAuthenticated && activeTab === 'creds' && (
+                    {isAuthenticated && (
                         <Space>
                             <input
                                 type="file"
@@ -368,7 +390,7 @@ function Upload() {
                             />
                             <Button icon={<ImportOutlined />} onClick={handleImportClick}>Import CSV</Button>
                             <Dropdown menu={{ items: exportItems }}>
-                                <Button icon={<ExportOutlined />}>Export</Button>
+                                <Button icon={<ExportOutlined />}>Export Credentials</Button>
                             </Dropdown>
                             <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddMemberModalVisible(true)}>Add Member</Button>
                         </Space>
@@ -454,7 +476,12 @@ function Upload() {
 
                         {overallResults.length > 0 && (
                             <div style={{ marginTop: 24 }}>
-                                <h3>Sync Results</h3>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                    <h3 style={{ margin: 0 }}>Sync Results</h3>
+                                    <Button size="small" icon={<DownloadOutlined />} onClick={handleExportSyncResults}>
+                                        Export Results (CSV)
+                                    </Button>
+                                </div>
                                 <List
                                     size="small"
                                     dataSource={overallResults}
