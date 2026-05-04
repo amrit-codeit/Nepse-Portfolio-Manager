@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-    Table, Select, Input, Button, Modal, Form, InputNumber,
-    DatePicker, Tag, message, Popconfirm, Space, Tooltip, Dropdown, Upload, Tabs
+    Table, Select, Input, Button, Tag, message, Popconfirm, Space, Tooltip, Dropdown, Tabs
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, SearchOutlined, EditOutlined, DownloadOutlined, ImportOutlined, UploadOutlined, SyncOutlined } from '@ant-design/icons';
-import api, { getTransactions, createTransaction, updateTransaction, deleteTransaction, getMembers, getCompanies, getIssuePrice, uploadHistory, uploadDpStatement, getMergedPrices } from '../services/api';
+import api, { getTransactions, deleteTransaction, getMembers, getCompanies, getMergedPrices } from '../services/api';
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
+import AddEditTransactionModal from '../components/transactions/AddEditTransactionModal';
+import ImportMeroShareModal from '../components/transactions/ImportMeroShareModal';
+import ImportDpStatementModal from '../components/transactions/ImportDpStatementModal';
+import ImportNativePortfolioModal from '../components/transactions/ImportNativePortfolioModal';
+import SectionErrorBoundary from '../components/SectionErrorBoundary';
 
 const TXN_TYPES = [
     { value: 'BUY', label: 'Buy', color: 'green' },
@@ -36,13 +40,8 @@ function Transactions() {
     const [editingTxn, setEditingTxn] = useState(null);
     const [importModalOpen, setImportModalOpen] = useState(false);
     const [importDpModalOpen, setImportDpModalOpen] = useState(false);
-    const [importFile, setImportFile] = useState(null);
-    const [importMemberId, setImportMemberId] = useState(null);
-    const [importDpFormat, setImportDpFormat] = useState('NIBLSF');
-    const [importDpSymbol, setImportDpSymbol] = useState(null);
     const [nativeImportModalOpen, setNativeImportModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('equity');
-    const [form] = Form.useForm();
     const queryClient = useQueryClient();
     const [pageSize, setPageSize] = useState(20);
 
@@ -70,89 +69,7 @@ function Transactions() {
         }).then(r => r.data),
     });
 
-    const addMutation = useMutation({
-        mutationFn: createTransaction,
-        onSuccess: () => {
-            message.success('Transaction added');
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['holdings'] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
-            setModalOpen(false);
-            form.resetFields();
-        },
-        onError: (err) => message.error(err.response?.data?.detail || 'Failed to add transaction'),
-    });
 
-    const updateMutation = useMutation({
-        mutationFn: ({ id, data }) => updateTransaction(id, data),
-        onSuccess: () => {
-            message.success('Transaction updated');
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['holdings'] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
-            setModalOpen(false);
-            setEditingTxn(null);
-            form.resetFields();
-        },
-        onError: (err) => message.error(err.response?.data?.detail || 'Failed to update transaction'),
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: deleteTransaction,
-        onSuccess: () => {
-            message.success('Transaction deleted');
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['holdings'] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
-        },
-    });
-
-    const uploadMutation = useMutation({
-        mutationFn: ({ memberId, file }) => uploadHistory(memberId, file),
-        onSuccess: (res) => {
-            message.success(res.data?.message || 'CSV Imported Successfully');
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['holdings'] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
-            setImportModalOpen(false);
-            setImportFile(null);
-            setImportMemberId(null);
-        },
-        onError: (err) => message.error(err.response?.data?.detail || 'Failed to import CSV'),
-    });
-
-    const uploadDpMutation = useMutation({
-        mutationFn: ({ memberId, symbol, format, file }) => uploadDpStatement(memberId, symbol, format, file),
-        onSuccess: (res) => {
-            message.success(res.data?.message || 'DP Statement Imported Successfully');
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['holdings'] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
-            setImportDpModalOpen(false);
-            setImportFile(null);
-            setImportMemberId(null);
-        },
-        onError: (err) => message.error(err.response?.data?.detail || 'Failed to import DP Statement'),
-    });
-
-    const nativeImportMutation = useMutation({
-        mutationFn: ({ file }) => {
-            const formData = new FormData();
-            formData.append('file', file);
-            return api.post('/transactions/import-native', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
-        },
-        onSuccess: (res) => {
-            message.success(res.data?.message || 'Portfolio CSV Imported Successfully');
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['holdings'] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
-            setNativeImportModalOpen(false);
-            setImportFile(null);
-        },
-        onError: (err) => message.error(err.response?.data?.detail || 'Failed to import Portfolio CSV'),
-    });
 
     const syncIssuePricesMutation = useMutation({
         mutationFn: () => api.post('/scraper/issues'),
@@ -325,19 +242,6 @@ function Transactions() {
                         size="small"
                         onClick={() => {
                             setEditingTxn(r);
-                            form.setFieldsValue({
-                                member_id: r.member_id,
-                                symbol: r.symbol,
-                                txn_type: r.txn_type,
-                                quantity: r.quantity,
-                                rate: r.rate,
-                                dp_charge: r.dp_charge,
-                                broker_commission: r.broker_commission,
-                                sebon_fee: r.sebon_fee,
-                                cgt: r.cgt,
-                                txn_date: r.txn_date ? dayjs(r.txn_date) : null,
-                                remarks: r.remarks,
-                            });
                             setModalOpen(true);
                         }}
                     />
@@ -424,142 +328,15 @@ function Transactions() {
         },
     ];
 
-    const handleImportSubmit = () => {
-        if (!importMemberId) {
-            message.warning("Please select a member");
-            return;
-        }
-        if (!importFile) {
-            message.warning("Please select a file");
-            return;
-        }
-        uploadMutation.mutate({ memberId: importMemberId, file: importFile });
-    };
-
-    const handleDpImportSubmit = () => {
-        if (!importMemberId) {
-            message.warning("Please select a member");
-            return;
-        }
-        if (!importDpSymbol) {
-            message.warning("Please select a symbol");
-            return;
-        }
-        if (!importFile) {
-            message.warning("Please select a file");
-            return;
-        }
-        uploadDpMutation.mutate({ memberId: importMemberId, symbol: importDpSymbol, format: importDpFormat, file: importFile });
-    }
-
-    const handleNativeImportSubmit = () => {
-        if (!importFile) {
-            message.warning("Please select a file");
-            return;
-        }
-        nativeImportMutation.mutate({ file: importFile });
-    };
-
-    const handleValuesChange = (changedValues, allValues) => {
-        // Auto-rate logic
-        if (changedValues.txn_type) {
-            const type = changedValues.txn_type;
-            if (['IPO', 'RIGHT', 'FPO'].includes(type) && (!allValues.rate || allValues.rate === 0)) {
-                form.setFieldsValue({ rate: 100 });
-            }
-            
-            // Specifically reset rate to 0 and DP charge to 0 for BONUS
-            if (type === 'BONUS') {
-                if (!allValues.rate || allValues.rate === 100) {
-                    form.setFieldsValue({ rate: 0 });
-                }
-                form.setFieldsValue({ dp_charge: 0 });
-            }
-
-            // DP Fee logic - only autocalculate for non-SIP mode
-            if (activeTab === 'equity') {
-                if (['IPO', 'FPO', 'RIGHT'].includes(type)) {
-                    form.setFieldsValue({ dp_charge: 5 });
-                } else if (type === 'BONUS') {
-                    form.setFieldsValue({ dp_charge: 0 });
-                } else if (type === 'BUY' || type === 'SELL' || type === 'AUCTION') {
-                    form.setFieldsValue({ dp_charge: 25 });
-                }
-            }
-
-            // Auto-fetch issue price if symbol is already selected
-            if (['IPO', 'RIGHT', 'FPO'].includes(type) && allValues.symbol) {
-                handleFetchIssuePrice();
-            }
-        }
-
-        // Auto-fetch if symbol changes and type is already set to IPO/RIGHT/FPO
-        if (changedValues.symbol && ['IPO', 'RIGHT', 'FPO'].includes(allValues.txn_type)) {
-            handleFetchIssuePrice();
-        }
-    };
-
-    const handleFetchIssuePrice = async () => {
-        const symbol = form.getFieldValue('symbol');
-        const currentType = form.getFieldValue('txn_type');
-        
-        if (currentType === 'BONUS') {
-            form.setFieldsValue({ rate: 0, dp_charge: 0 });
-            message.info('Bonus shares are treated as Rs. 0 cost by default.');
-            return;
-        }
-
-        if (!symbol) {
-            message.warning('Please select a symbol first');
-            return;
-        }
-
-        try {
-            // Pass the current type to avoid fetching the wrong record for the same symbol
-            const res = await getIssuePrice(symbol, currentType);
-            if (res.data && res.data.price) {
-                const fetchedType = res.data.type;
-                
-                // Update the form
-                const updates = { rate: res.data.price };
-                
-                // Only overwrite type if it's not already set to a matching valid type, 
-                // OR if it's a completely new transaction.
-                if (!currentType || (!['IPO', 'RIGHT', 'FPO'].includes(currentType) && !editingTxn)) {
-                    updates.txn_type = fetchedType;
-                }
-                
-                form.setFieldsValue(updates);
-                message.success(`Fetched ${fetchedType} price for ${symbol}: Rs. ${res.data.price}`);
-            } else {
-                message.info(`No stored ${currentType || 'issue'} price found for ${symbol}`);
-            }
-        } catch (err) {
-            message.error('Failed to fetch issue price');
-        }
-    };
-
-    const handleAddOrUpdate = (values) => {
-        const payload = {
-            member_id: values.member_id,
-            symbol: values.symbol,
-            txn_type: values.txn_type,
-            quantity: values.quantity,
-            rate: values.rate || null,
-            txn_date: values.txn_date ? values.txn_date.format('YYYY-MM-DD') : null,
-            remarks: values.remarks || null,
-            dp_charge: values.dp_charge || null,
-            cgt: values.cgt || null,
-            broker_commission: activeTab === 'equity' ? (values.broker_commission || null) : 0,
-            sebon_fee: activeTab === 'equity' ? (values.sebon_fee || null) : 0,
-        };
-
-        if (editingTxn) {
-            updateMutation.mutate({ id: editingTxn.id, data: payload });
-        } else {
-            addMutation.mutate(payload);
-        }
-    };
+    const deleteMutation = useMutation({
+        mutationFn: deleteTransaction,
+        onSuccess: () => {
+            message.success('Transaction deleted');
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['holdings'] });
+            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
+        },
+    });
 
     return (
         <div className="animate-in">
@@ -689,236 +466,30 @@ function Transactions() {
                 ]}
             />
 
-            {/* Add/Edit Transaction Modal */}
-            <Modal
-                title={editingTxn ? "Edit Transaction" : "Add Transaction"}
-                open={modalOpen}
-                onCancel={() => { setModalOpen(false); setEditingTxn(null); form.resetFields(); }}
-                footer={null}
-                width={500}
-            >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={handleAddOrUpdate}
-                    onValuesChange={handleValuesChange}
-                    style={{ marginTop: 16 }}
-                >
-                    <Form.Item name="member_id" label="Member" rules={[{ required: true }]}>
-                        <Select
-                            placeholder="Select member"
-                            showSearch
-                            optionFilterProp="label"
-                            options={(members || []).map(m => ({ value: m.id, label: m.name }))}
-                        />
-                    </Form.Item>
-                    <Form.Item name="symbol" label="Symbol" rules={[{ required: true }]}>
-                        <Select
-                            placeholder="Search company..."
-                            showSearch
-                            optionFilterProp="label"
-                            options={(companiesData?.companies || []).map(c => ({
-                                value: c.symbol,
-                                label: `${c.symbol} — ${c.name}`,
-                            }))}
-                        />
-                    </Form.Item>
-                    <Form.Item name="txn_type" label="Transaction Type" rules={[{ required: true }]}>
-                        <Select options={TXN_TYPES} disabled={!!editingTxn} />
-                    </Form.Item>
-                    <Space style={{ width: '100%' }}>
-                        <Form.Item name="quantity" label="Quantity" rules={[{ required: true }]} style={{ flex: 1 }}>
-                            <InputNumber style={{ width: '100%' }} min={0} />
-                        </Form.Item>
-                        <Form.Item name="rate" label="Rate (per unit)" style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <InputNumber style={{ flex: 1 }} min={0} step={0.01} />
-                                <Button
-                                    size="small"
-                                    onClick={handleFetchIssuePrice}
-                                    title="Fetch IPO/Right/FPO Price"
-                                    style={{ height: 32 }}
-                                >
-                                    Fetch
-                                </Button>
-                            </div>
-                        </Form.Item>
-                        <Form.Item name="dp_charge" label="DP Fee" style={{ flex: 1 }}>
-                            <InputNumber style={{ width: '100%' }} min={0} step={1} />
-                        </Form.Item>
-                        {activeTab === 'equity' && (
-                            <>
-                                <Form.Item name="broker_commission" label="Broker Comm." style={{ flex: 1 }}>
-                                    <InputNumber style={{ width: '100%' }} min={0} step={0.01} />
-                                </Form.Item>
-                                <Form.Item name="sebon_fee" label="SEBON Fee" style={{ flex: 1 }}>
-                                    <InputNumber style={{ width: '100%' }} min={0} step={0.01} />
-                                </Form.Item>
-                            </>
-                        )}
-                        <Form.Item name="cgt" label="CGT" style={{ flex: 1 }}>
-                            <InputNumber style={{ width: '100%' }} min={0} step={0.01} />
-                        </Form.Item>
-                    </Space>
-                    <Form.Item name="txn_date" label="Date">
-                        <DatePicker style={{ width: '100%' }} />
-                    </Form.Item>
-                    <Form.Item name="remarks" label="Remarks">
-                        <Input.TextArea rows={2} />
-                    </Form.Item>
-                    <Form.Item>
-                        <Button type="primary" htmlType="submit" loading={addMutation.isPending || updateMutation.isPending} block>
-                            {editingTxn ? "Update Transaction" : "Add Transaction"}
-                        </Button>
-                    </Form.Item>
-                </Form>
-            </Modal>
-
-            {/* Import CSV Modal (Equity) */}
-            <Modal
-                title="Import MeroShare Transactions CSV"
-                open={importModalOpen}
-                onCancel={() => { setImportModalOpen(false); setImportFile(null); setImportMemberId(null); }}
-                onOk={handleImportSubmit}
-                confirmLoading={uploadMutation.isPending}
-                okText="Import"
-            >
-                <p>Select a member and upload their exported MeroShare history CSV to automatically import transactions.</p>
-                <div style={{ marginBottom: 16, marginTop: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Select Member:</label>
-                    <Select
-                        placeholder="Select Member"
-                        showSearch
-                        optionFilterProp="label"
-                        style={{ width: '100%' }}
-                        onChange={setImportMemberId}
-                        value={importMemberId}
-                        options={(members || []).map(m => ({ value: m.id, label: m.name }))}
-                    />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>CSV File:</label>
-                    <Upload
-                        beforeUpload={(file) => {
-                            setImportFile(file);
-                            return false;
-                        }}
-                        onRemove={() => setImportFile(null)}
-                        fileList={importFile ? [importFile] : []}
-                        maxCount={1}
-                        accept=".csv"
-                    >
-                        <Button icon={<UploadOutlined />}>Select CSV File</Button>
-                    </Upload>
-                </div>
-            </Modal>
-            
-            {/* Import DP Statement Modal (SIPs) */}
-            <Modal
-                title="Import SIP DP Statement"
-                open={importDpModalOpen}
-                onCancel={() => { 
-                    setImportDpModalOpen(false); 
-                    setImportFile(null); 
-                    setImportMemberId(null); 
-                    setImportDpSymbol(null);
-                }}
-                onOk={handleDpImportSubmit}
-                confirmLoading={uploadDpMutation.isPending}
-                okText="Import DP Statement"
-            >
-                <p>Reconcile SIPs with official DP Statements to get exact dates, NAVs, and DP charges.</p>
-                <div style={{ marginBottom: 16, marginTop: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Select Member:</label>
-                    <Select
-                        placeholder="Select Member"
-                        showSearch
-                        optionFilterProp="label"
-                        style={{ width: '100%' }}
-                        onChange={setImportMemberId}
-                        value={importMemberId}
-                        options={(members || []).map(m => ({ value: m.id, label: m.name }))}
-                    />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Select Symbol:</label>
-                    <Select
-                        placeholder="Search SIP/Mutual Fund..."
-                        showSearch
-                        optionFilterProp="label"
-                        style={{ width: '100%' }}
-                        onChange={setImportDpSymbol}
-                        value={importDpSymbol}
-                        options={(pricesData || []).map(p => ({
-                            value: p.symbol,
-                            label: `${p.symbol} — ${p.name}`,
-                        }))}
-                    />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>DP Format:</label>
-                    <Select
-                        style={{ width: '100%' }}
-                        value={importDpFormat}
-                        onChange={setImportDpFormat}
-                        options={[
-                            { value: 'NIBLSF', label: 'NIBLSF (CSV Format)' },
-                            { value: 'NMBSBFE', label: 'NMBSBFE (PDF Format)' },
-                            { value: 'NEW_NI31', label: 'NI31 (Excel Format)' }
-                        ]}
-                    />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                        Statement File ({importDpFormat === 'NIBLSF' ? 'CSV' : importDpFormat === 'NEW_NI31' ? 'XLSX' : 'PDF'}):
-                    </label>
-                    <Upload
-                        beforeUpload={(file) => {
-                            setImportFile(file);
-                            return false;
-                        }}
-                        onRemove={() => setImportFile(null)}
-                        fileList={importFile ? [importFile] : []}
-                        maxCount={1}
-                        accept={importDpFormat === 'NIBLSF' ? ".csv" : importDpFormat === 'NEW_NI31' ? ".xlsx" : ".pdf"}
-                    >
-                        <Button icon={<UploadOutlined />}>Select File</Button>
-                    </Upload>
-                </div>
-            </Modal>
-            
-            {/* Import Native Portfolio CSV Modal */}
-            <Modal
-                title={activeTab === 'equity' ? 'Import Equity Portfolio Backup' : 'Import SIP Portfolio Backup'}
-                open={nativeImportModalOpen}
-                onCancel={() => { setNativeImportModalOpen(false); setImportFile(null); }}
-                onOk={handleNativeImportSubmit}
-                confirmLoading={nativeImportMutation.isPending}
-                okText="Restore"
-            >
-                <p>
-                    Restore your {activeTab === 'equity' ? 'Equity' : 'SIP'} transactions from a CSV backup.
-                    This will preserve all manual rates, fees, and remarks exactly as they were exported.
-                </p>
-                <div style={{ marginBottom: 16, marginTop: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>Select Portfolio CSV:</label>
-                    <Upload
-                        beforeUpload={(file) => {
-                            setImportFile(file);
-                            return false;
-                        }}
-                        onRemove={() => setImportFile(null)}
-                        fileList={importFile ? [importFile] : []}
-                        maxCount={1}
-                        accept=".csv"
-                    >
-                        <Button icon={<UploadOutlined />}>Select CSV File</Button>
-                    </Upload>
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem' }}>
-                    Note: This will skip transactions that already exist (matched by Date, Symbol, Type, and Quantity).
-                </div>
-            </Modal>
+            <AddEditTransactionModal 
+                open={modalOpen} 
+                onClose={() => { setModalOpen(false); setEditingTxn(null); }} 
+                editingTxn={editingTxn} 
+                members={members} 
+                companiesData={companiesData} 
+                activeTab={activeTab} 
+            />
+            <ImportMeroShareModal 
+                open={importModalOpen} 
+                onClose={() => setImportModalOpen(false)} 
+                members={members} 
+            />
+            <ImportDpStatementModal 
+                open={importDpModalOpen} 
+                onClose={() => setImportDpModalOpen(false)} 
+                members={members} 
+                pricesData={pricesData} 
+            />
+            <ImportNativePortfolioModal 
+                open={nativeImportModalOpen} 
+                onClose={() => setNativeImportModalOpen(false)} 
+                activeTab={activeTab} 
+            />
         </div>
     );
 }

@@ -16,10 +16,10 @@ function Settings() {
         try {
             message.loading({ content: 'Preparing market data export...', key: 'exporting' });
             const res = await exportMarketData();
-            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/zip' }));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', 'market_data_export.json.gz');
+            link.setAttribute('download', 'market_data_export.zip');
             document.body.appendChild(link);
             link.click();
             link.parentNode.removeChild(link);
@@ -36,8 +36,7 @@ function Settings() {
         try {
             await importMarketData(file);
             onSuccess("Ok");
-            message.success({ content: 'Market data imported successfully. Refreshing...', key: 'importing' });
-            setTimeout(() => window.location.reload(), 1500);
+            message.success({ content: 'Market data import started in background. This will take a few minutes.', key: 'importing' });
         } catch (e) {
             onError(e);
             message.error({ content: e?.response?.data?.detail || 'Failed to import market data', key: 'importing' });
@@ -264,7 +263,7 @@ function Settings() {
                         <Upload 
                             customRequest={handleImportData} 
                             showUploadList={false} 
-                            accept=".gz,.json"
+                            accept=".zip"
                         >
                             <Button type="primary" danger loading={importing} icon={<UploadOutlined />}>
                                 Upload & Restore Data

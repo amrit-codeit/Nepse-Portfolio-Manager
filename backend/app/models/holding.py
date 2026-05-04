@@ -1,6 +1,6 @@
 """Holding model — current share holdings per member."""
 
-from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey, String
+from sqlalchemy import Column, Integer, Float, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from app.database import Base
@@ -28,6 +28,10 @@ class Holding(Base):
 
     updated_at = Column(DateTime, default=lambda: datetime.now(
         timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (
+        UniqueConstraint("member_id", "symbol", name="uix_member_symbol"),
+    )
 
     # Relationships
     member = relationship("Member", back_populates="holdings")

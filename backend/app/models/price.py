@@ -91,6 +91,10 @@ class IssuePrice(Base):
     price = Column(Float, nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    __table_args__ = (
+        UniqueConstraint("symbol", "issue_type", name="uix_symbol_issue_type"),
+    )
+
     def __repr__(self):
         return f"<IssuePrice(symbol='{self.symbol}', type='{self.issue_type}', price={self.price})>"
 

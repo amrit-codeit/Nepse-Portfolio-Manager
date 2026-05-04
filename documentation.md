@@ -54,7 +54,7 @@ backend (FastAPI)
 
 ### Runtime behavior
 
-- In development, the frontend runs on `:3055` and the backend on `:6767`.
+- In development, both the frontend and backend read the active ports from the single root `.env` file (`PORT` and `VITE_PORT`). By default, the frontend runs on `:3055` and the backend on `:6767`.
 - In production-style local use, FastAPI can serve the built frontend from `frontend/dist` if that folder exists.
 - The backend currently requires `MASTER_PASSWORD` to already be a bcrypt hash at startup. If it is missing or plaintext-like, the process exits.
 
@@ -97,7 +97,7 @@ Relevant files:
 
 ## 5. Configuration
 
-Configuration is loaded from `backend/.env` through `pydantic-settings`.
+Configuration is loaded from the root `.env` file through `pydantic-settings` to ensure consistent settings across backend, frontend, and startup scripts.
 
 Important settings in [backend/app/config.py](D:/Projects/Portfolio/backend/app/config.py):
 
@@ -468,7 +468,7 @@ Relevant files:
 
 - SQLite is still the only database.
 - No automated test suite exists in the repository.
-- Some large frontend files remain monolithic, especially `Transactions.jsx`, `Holdings.jsx`, `Prices.jsx`, `Dashboard.jsx`, and `TradingDesk.jsx`.
+- Some large frontend files remain monolithic (like `Prices.jsx`, `Dashboard.jsx`, and `TradingDesk.jsx`), although recent refactoring has modularized `Holdings.jsx` and `Transactions.jsx` into smaller sub-components inside `frontend/src/components/`.
 - Several pages and helpers exist but are not wired into the live app shell.
 - Scraper reliability depends on third-party site structure.
 

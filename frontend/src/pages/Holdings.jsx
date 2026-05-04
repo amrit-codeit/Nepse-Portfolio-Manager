@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Table, Select, Input, Tag, Button, Row, Col, Tooltip, Dropdown, Tabs, Statistic, Empty } from 'antd';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Table, Select, Input, Tag, Button, Row, Col, Tooltip, Dropdown, Tabs, Statistic, Empty, message } from 'antd';
 import {
     SearchOutlined,
     DownloadOutlined,
@@ -21,427 +21,12 @@ const { Text, Title, Paragraph } = Typography;
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
-function formatNPR(value) {
-    if (value === null || value === undefined) return '—';
-    return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
-}
-
-function TransactionHistory({ memberId, symbol }) {
-    const { data: transactions, isLoading } = useQuery({
-        queryKey: ['transactions-history', memberId, symbol],
-        queryFn: () => getTransactions({ member_id: memberId, symbol, limit: 1000 }).then(r => r.data.transactions),
-        enabled: !!symbol,
-    });
-
-    const columns = [
-        { title: 'Date', dataIndex: 'txn_date', key: 'date', width: 120 },
-        {
-            title: 'Type',
-            dataIndex: 'txn_type',
-            key: 'type',
-            render: (type) => {
-                let color = 'default';
-                if (['BUY', 'IPO', 'RIGHT'].includes(type)) color = 'green';
-                if (['SELL'].includes(type)) color = 'red';
-                if (['BONUS'].includes(type)) color = 'blue';
-                return <Tag color={color}>{type}</Tag>;
-            }
-        },
-        { title: 'Qty', dataIndex: 'quantity', key: 'qty', align: 'right' },
-        {
-            title: 'Rate',
-            dataIndex: 'rate',
-            key: 'rate',
-            align: 'right',
-            render: (v) => v ? v.toFixed(3) : '—'
-        },
-        {
-            title: 'Total Cost',
-            dataIndex: 'total_cost',
-            key: 'cost',
-            align: 'right',
-            render: (v) => v ? v.toLocaleString() : '—'
-        },
-        {
-            title: 'Tax WACC',
-            dataIndex: 'tax_wacc',
-            key: 'tax_wacc',
-            align: 'right',
-            render: (v) => v ? <strong>{v.toFixed(3)}</strong> : '—'
-        },
-        { title: 'Source', dataIndex: 'source', key: 'source', render: (s) => <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>{s}</span> },
-    ];
-
-    return (
-        <Table
-            columns={columns}
-            dataSource={transactions || []}
-            rowKey="id"
-            loading={isLoading}
-            pagination={false}
-            size="small"
-            style={{ margin: '8px 0', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}
-        />
-    );
-}
-
-function DividendHistory({ memberId, symbol }) {
-    const { data: dividends, isLoading } = useQuery({
-        queryKey: ['dividends', memberId, symbol],
-        queryFn: () => getDividends({ member_id: memberId, symbol, eligible_only: true }).then(r => r.data),
-        enabled: !!symbol && !!memberId,
-    });
-
-    if (!dividends || dividends.length === 0) return null;
-
-    const columns = [
-        { title: 'Fiscal Year', dataIndex: 'fiscal_year', key: 'fy' },
-        { title: 'Book Close', dataIndex: 'book_close_date', key: 'bcd', render: v => v || '—' },
-        { title: 'Cash Div %', dataIndex: 'cash_dividend_percent', key: 'pct', render: v => `${v}%`, align: 'right' },
-        { title: 'Bonus Div %', dataIndex: 'bonus_dividend_percent', key: 'bonus_pct', render: v => `${v}%`, align: 'right' },
-        { title: 'Eligible Qty', dataIndex: 'eligible_quantity', key: 'qty', align: 'right' },
-        { title: 'Net Amount (Rs)', dataIndex: 'total_cash_amount', key: 'amount', align: 'right', render: v => formatNPR(v) },
-    ];
-
-    return (
-        <div style={{ marginTop: 12 }}>
-            <h5 style={{ marginBottom: 8, color: 'var(--accent-green)' }}><TrophyOutlined /> Eligible Cash Dividends</h5>
-            <Table
-                columns={columns}
-                dataSource={dividends}
-                rowKey="id"
-                loading={isLoading}
-                pagination={false}
-                size="small"
-                style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}
-            />
-        </div>
-    );
-}
-
-/* ─── Closed Positions Tab ─────────────────────────── */
-function ClosedPositionsTab({ memberId }) {
-    const [search, setSearch] = useState('');
-
-    const params = useMemo(() => {
-        const p = {};
-        if (memberId) p.member_id = memberId;
-        return p;
-    }, [memberId]);
-
-    const { data: closedPositions, isLoading } = useQuery({
-        queryKey: ['closed-positions', params],
-        queryFn: () => getClosedPositions(params).then(r => r.data),
-    });
-
-    const filtered = useMemo(() => {
-        if (!closedPositions) return [];
-        const s = search.toLowerCase();
-        return closedPositions.filter(c =>
-            !s || c.symbol?.toLowerCase().includes(s) || c.member_name?.toLowerCase().includes(s)
-        );
-    }, [closedPositions, search]);
-
-    // Summary cards
-    const summaryStats = useMemo(() => {
-        if (!filtered.length) return { totalPnl: 0, totalInvested: 0, totalReceived: 0, count: 0, best: null, worst: null };
-        const totalPnl = filtered.reduce((s, c) => s + c.net_pnl, 0);
-        const totalInvested = filtered.reduce((s, c) => s + c.total_buy_cost, 0);
-        const totalReceived = filtered.reduce((s, c) => s + c.total_sell_proceeds, 0);
-        const sorted = [...filtered].sort((a, b) => b.net_pnl - a.net_pnl);
-        return {
-            totalPnl,
-            totalInvested,
-            totalReceived,
-            count: filtered.length,
-            best: sorted[0],
-            worst: sorted[sorted.length - 1],
-        };
-    }, [filtered]);
-
-    const columns = [
-        {
-            title: 'Member', dataIndex: 'member_name', key: 'member', width: 120,
-            render: (name) => <span style={{ fontWeight: 500 }}>{name}</span>,
-            sorter: (a, b) => (a.member_name || '').localeCompare(b.member_name || ''),
-        },
-        {
-            title: 'Symbol', dataIndex: 'symbol', key: 'symbol', width: 100,
-            render: (v) => <span style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>{v}</span>,
-            sorter: (a, b) => a.symbol.localeCompare(b.symbol),
-        },
-        {
-            title: 'Sector', dataIndex: 'sector', key: 'sector', width: 140,
-            render: (s) => s ? <Tag color="purple">{s}</Tag> : <Tag>Others</Tag>,
-        },
-        {
-            title: 'Total Invested', dataIndex: 'total_buy_cost', key: 'invested', align: 'right',
-            render: formatNPR,
-            sorter: (a, b) => a.total_buy_cost - b.total_buy_cost,
-        },
-        {
-            title: 'Total Received', dataIndex: 'total_sell_proceeds', key: 'received', align: 'right',
-            render: formatNPR,
-            sorter: (a, b) => a.total_sell_proceeds - b.total_sell_proceeds,
-        },
-        {
-            title: 'Dividends', dataIndex: 'dividend_income', key: 'dividends', align: 'right',
-            render: (v) => v > 0 ? formatNPR(v) : '—',
-            sorter: (a, b) => a.dividend_income - b.dividend_income,
-        },
-        {
-            title: (
-                <Tooltip title="Net Profit/Loss = Sell Proceeds - Buy Cost + Dividends">
-                    Net P&L
-                </Tooltip>
-            ),
-            dataIndex: 'net_pnl', key: 'pnl', align: 'right',
-            render: (v) => (
-                <span style={{
-                    fontWeight: 600,
-                    color: v > 0 ? 'var(--accent-green)' : v < 0 ? 'var(--accent-red)' : 'var(--text-secondary)',
-                }}>
-                    {formatNPR(v)}
-                </span>
-            ),
-            sorter: (a, b) => a.net_pnl - b.net_pnl,
-            defaultSortOrder: 'descend',
-        },
-        {
-            title: 'P&L %', dataIndex: 'pnl_pct', key: 'pnl_pct', align: 'right', width: 90,
-            render: (v) => (
-                <span className={`glow-badge ${v >= 0 ? 'green' : 'red'}`}>
-                    {v >= 0 ? '+' : ''}{v?.toFixed(3)}%
-                </span>
-            ),
-            sorter: (a, b) => a.pnl_pct - b.pnl_pct,
-        },
-        {
-            title: (
-                <Tooltip title="Extended Internal Rate of Return">
-                    XIRR
-                </Tooltip>
-            ),
-            dataIndex: 'xirr', key: 'xirr', align: 'right', width: 90,
-            render: (v) => v ? (
-                <span style={{ fontWeight: 600, color: v >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                    {v >= 0 ? '+' : ''}{v}%
-                </span>
-            ) : '—',
-            sorter: (a, b) => (a.xirr || 0) - (b.xirr || 0),
-        },
-        {
-            title: (
-                <Tooltip title="Duration from first buy to last sell">
-                    Held
-                </Tooltip>
-            ),
-            dataIndex: 'holding_days', key: 'holding_days', align: 'right', width: 90,
-            render: (v) => {
-                if (!v) return '—';
-                if (v > 365) return `${(v / 365).toFixed(3)}y`;
-                return `${v}d`;
-            },
-            sorter: (a, b) => a.holding_days - b.holding_days,
-        },
-    ];
-
-    if (!closedPositions?.length && !isLoading) {
-        return <Empty description="No closed positions found. Stocks that have been fully sold will appear here." style={{ marginTop: 60 }} />;
-    }
-
-    return (
-        <div>
-            {/* Summary Cards */}
-            <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
-                <Col xs={24} sm={12} lg={6}>
-                    <div className={`stat-card ${summaryStats.totalPnl >= 0 ? 'green' : 'red'}`}>
-                        <div className="stat-label"><CheckCircleOutlined /> Total Realized P&L</div>
-                        <div className="stat-value" style={{ color: summaryStats.totalPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-                            {formatNPR(summaryStats.totalPnl)}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                            Across {summaryStats.count} closed positions
-                        </div>
-                    </div>
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
-                    <div className="stat-card">
-                        <div className="stat-label">Total Invested</div>
-                        <div className="stat-value">{formatNPR(summaryStats.totalInvested)}</div>
-                    </div>
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
-                    <div className="stat-card green">
-                        <div className="stat-label"><TrophyOutlined /> Best Trade</div>
-                        <div className="stat-value" style={{ fontSize: 18 }}>
-                            {summaryStats.best ? `${summaryStats.best.symbol}` : '—'}
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--accent-green)' }}>
-                            {summaryStats.best ? formatNPR(summaryStats.best.net_pnl) : ''}
-                        </div>
-                    </div>
-                </Col>
-                <Col xs={24} sm={12} lg={6}>
-                    <div className="stat-card red">
-                        <div className="stat-label"><ArrowDownOutlined /> Worst Trade</div>
-                        <div className="stat-value" style={{ fontSize: 18 }}>
-                            {summaryStats.worst && summaryStats.worst.net_pnl < 0 ? summaryStats.worst.symbol : '—'}
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--accent-red)' }}>
-                            {summaryStats.worst && summaryStats.worst.net_pnl < 0 ? formatNPR(summaryStats.worst.net_pnl) : 'No losing trades'}
-                        </div>
-                    </div>
-                </Col>
-            </Row>
-
-            {/* Search */}
-            <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
-                <Input
-                    placeholder="Search symbol or member..."
-                    prefix={<SearchOutlined />}
-                    style={{ width: 250 }}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    allowClear
-                />
-            </div>
-
-            <Table
-                className="portfolio-table"
-                columns={columns}
-                dataSource={filtered}
-                rowKey={(record) => `${record.member_id}-${record.symbol}`}
-                loading={isLoading}
-                pagination={{ defaultPageSize: 50, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
-                scroll={{ x: 1100 }}
-                size="middle"
-                expandable={{
-                    expandedRowRender: (record) => (
-                        <div style={{ padding: '0 48px' }}>
-                            <h4 style={{ marginBottom: 12 }}><HistoryOutlined /> Transaction History for {record.symbol} ({record.member_name})</h4>
-                            <TransactionHistory memberId={record.member_id} symbol={record.symbol} />
-                            <DividendHistory memberId={record.member_id} symbol={record.symbol} />
-                        </div>
-                    ),
-                    rowExpandable: () => true,
-                }}
-                rowClassName={(record) =>
-                    record.net_pnl > 0 ? 'row-positive' : record.net_pnl < 0 ? 'row-negative' : ''
-                }
-            />
-        </div>
-    );
-}
-
-
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { message } from 'antd';
-
-/* ─── Averaging Down Calculator Modal ──────────────── */
-function AveragingCalculatorModal({ visible, onCancel, holding }) {
-    const [form] = Form.useForm();
-    const [results, setResults] = useState(null);
-
-    const onValuesChange = (_, allValues) => {
-        if (!holding) return;
-        const newQty = allValues.qty || 0;
-        const newRate = allValues.rate || 0;
-        
-        const totalQty = holding.current_qty + newQty;
-        const totalInvestment = holding.total_investment + (newQty * newRate);
-        const newWacc = totalInvestment / totalQty;
-        
-        // Calculate New YoC (assuming dividend amount per share remains constant)
-        const dps = holding.yoc ? (holding.yoc * holding.wacc / 100) : 0;
-        const newYoC = newWacc > 0 ? (dps / newWacc * 100) : 0;
-        
-        setResults({
-            newWacc,
-            totalQty,
-            totalValue: totalQty * (holding.ltp || newRate),
-            newYoC,
-            waccReduction: holding.wacc - newWacc
-        });
-    };
-
-    if (!holding) return null;
-
-    const isOvervalued = holding.graham_number && (results?.newRate || holding.ltp) > holding.graham_number;
-
-    return (
-        <Modal
-            title={<><CalculatorOutlined /> Averaging Down Calculator: {holding.symbol}</>}
-            open={visible}
-            onCancel={onCancel}
-            footer={null}
-            width={450}
-        >
-            <Alert 
-                type={holding.is_fundamental_risk ? "error" : "info"}
-                showIcon
-                message={holding.is_fundamental_risk ? "High Fundamental Risk!" : "Graham Analysis"}
-                description={
-                    holding.is_fundamental_risk 
-                    ? `Sector-specific risks detected (NPL/Reserves). Adding more might be risky.`
-                    : `Fair Value (Graham): Rs. ${holding.graham_number?.toFixed(3) || 'N/A'}`
-                }
-                style={{ marginBottom: 20 }}
-            />
-
-            {isOvervalued && (
-                <Alert 
-                    type="warning"
-                    showIcon
-                    icon={<WarningOutlined />}
-                    message="Overvaluation Warning"
-                    description="Current price is above Graham's Number. You are averaging up in a premium zone."
-                    style={{ marginBottom: 20 }}
-                />
-            )}
-
-            <Form form={form} layout="vertical" onValuesChange={onValuesChange}>
-                <Row gutter={16}>
-                    <Col span={12}>
-                        <Form.Item label="Quantity to Buy" name="qty">
-                            <InputNumber style={{ width: '100%' }} min={1} placeholder="Units" />
-                        </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                        <Form.Item label="At Rate" name="rate">
-                            <InputNumber style={{ width: '100%' }} min={1} placeholder="Price" defaultValue={holding.ltp} />
-                        </Form.Item>
-                    </Col>
-                </Row>
-            </Form>
-
-            {results && (
-                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 20, borderRadius: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <Text type="secondary">New WACC</Text>
-                        <Text strong style={{ fontSize: 18, color: 'var(--accent-secondary)' }}>
-                            Rs. {results.newWacc.toFixed(3)}
-                            {results.waccReduction > 0 && (
-                                <Text style={{ fontSize: 12, color: 'var(--accent-green)', marginLeft: 8 }}>
-                                    (-{results.waccReduction.toFixed(3)})
-                                </Text>
-                            )}
-                        </Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <Text type="secondary">New Projected YoC</Text>
-                        <Text strong style={{ color: 'var(--accent-primary)' }}>{results.newYoC.toFixed(3)}%</Text>
-                    </div>
-                    <Divider style={{ margin: '12px 0' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text type="secondary">Total Quantity</Text>
-                        <Text strong>{results.totalQty}</Text>
-                    </div>
-                </div>
-            )}
-        </Modal>
-    );
-}
+import { formatNPR } from '../utils/formatters';
+import TransactionHistory from '../components/holdings/TransactionHistory';
+import DividendHistory from '../components/holdings/DividendHistory';
+import ClosedPositionsTab from '../components/holdings/ClosedPositionsTab';
+import AveragingCalculatorModal from '../components/holdings/AveragingCalculatorModal';
+import SectionErrorBoundary from '../components/SectionErrorBoundary';
 
 /* ─── Main Holdings Component ──────────────────────── */
 function Holdings() {
@@ -784,28 +369,32 @@ function Holdings() {
             />
 
             {isClosedTab ? (
-                <ClosedPositionsTab memberId={memberId} />
+                <SectionErrorBoundary>
+                    <ClosedPositionsTab memberId={memberId} />
+                </SectionErrorBoundary>
             ) : (
                 <div className="portfolio-table">
-                    <Table
-                        columns={activeTab === 'equity' ? equityColumns : sipColumns}
-                        dataSource={filtered}
-                        rowKey="id"
-                        loading={isLoading}
-                        pagination={{ defaultPageSize: 50, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
-                        scroll={{ x: 1100 }}
-                        size="middle"
-                        expandable={{
-                            expandedRowRender: (record) => (
-                                <div style={{ padding: '0 48px' }}>
-                                    <h4 style={{ marginBottom: 12 }}><HistoryOutlined /> Transaction History for {record.symbol} ({record.member_name})</h4>
-                                    <TransactionHistory memberId={record.member_id} symbol={record.symbol} />
-                                    <DividendHistory memberId={record.member_id} symbol={record.symbol} />
-                                </div>
-                            ),
-                            rowExpandable: () => true,
-                        }}
-                    />
+                    <SectionErrorBoundary>
+                        <Table
+                            columns={activeTab === 'equity' ? equityColumns : sipColumns}
+                            dataSource={filtered}
+                            rowKey="id"
+                            loading={isLoading}
+                            pagination={{ defaultPageSize: 50, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
+                            scroll={{ x: 1100 }}
+                            size="middle"
+                            expandable={{
+                                expandedRowRender: (record) => (
+                                    <div style={{ padding: '0 48px' }}>
+                                        <h4 style={{ marginBottom: 12 }}><HistoryOutlined /> Transaction History for {record.symbol} ({record.member_name})</h4>
+                                        <TransactionHistory memberId={record.member_id} symbol={record.symbol} />
+                                        <DividendHistory memberId={record.member_id} symbol={record.symbol} />
+                                    </div>
+                                ),
+                                rowExpandable: () => true,
+                            }}
+                        />
+                    </SectionErrorBoundary>
                 </div>
             )}
 

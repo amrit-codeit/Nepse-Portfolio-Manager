@@ -99,9 +99,6 @@ def recalculate_holdings(db: Session, member_id: int, symbol: str):
     wacc = round(total_cost / current_qty, 3) if current_qty > 0 else 0.0
     tax_wacc = round(tax_total_cost / current_qty, 3) if current_qty > 0 else 0.0
 
-    wacc = round(total_cost / current_qty, 3) if current_qty > 0 else 0.0
-    tax_wacc = round(tax_total_cost / current_qty, 3) if current_qty > 0 else 0.0
-
     holding = (
         db.query(Holding)
         .filter(Holding.member_id == member_id, Holding.symbol == symbol)
@@ -170,7 +167,7 @@ def calculate_xirr(cashflows: list[tuple[date, float]]) -> float:
         except Exception:
             continue
             
-    return None
+    return 0.0
 
 
 def get_xirr_for_holding(db: Session, member_id: int, symbol: str, current_value: float) -> float:
