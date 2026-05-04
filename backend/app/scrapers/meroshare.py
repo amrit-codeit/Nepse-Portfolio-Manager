@@ -99,9 +99,9 @@ def sync_meroshare_for_member(db: Session, member: Member) -> dict:
             except OSError:
                 pass
 
-    driver = create_headless_driver(download_dir=download_dir)
-
+    driver = None
     try:
+        driver = create_headless_driver(download_dir=download_dir)
         log_diag(f"Logging into MeroShare for {member.name} (DP: {dp})...")
         driver.get("https://meroshare.cdsc.com.np/#/login")
         wait = WebDriverWait(driver, 25)
@@ -165,13 +165,15 @@ def sync_meroshare_for_member(db: Session, member: Member) -> dict:
         except TimeoutException:
             # Check if there are any error messages on the page
             # MED-09: Save diagnostics to temp directory
-            ss_path = os.path.join(tempfile.gettempdir(), "meroshare_login_failed.png")
-            html_path = os.path.join(tempfile.gettempdir(), "meroshare_page.html")
-            
+            ss_path = os.path.join(tempfile.gettempdir(),
+                                   "meroshare_login_failed.png")
+            html_path = os.path.join(
+                tempfile.gettempdir(), "meroshare_page.html")
+
             driver.save_screenshot(ss_path)
             with open(html_path, "w", encoding="utf-8") as f:
                 f.write(driver.page_source)
-            
+
             print(f"Diagnostics saved to {ss_path} and {html_path}")
             error_msg = driver.execute_script("""
                 var alerts = document.querySelectorAll('.alert, .error-msg, .toast-message, .invalid-feedback, .text-danger');

@@ -113,6 +113,14 @@ def fetch_and_update(db: Session = None):
                         IssuePrice.issue_type == type_name
                     ).first()
 
+                    # Fallback check in local session cache to avoid IntegrityError 
+                    # if the same symbol appears twice in the JSON payload
+                    if not record:
+                        for obj in db.new:
+                            if isinstance(obj, IssuePrice) and obj.symbol == symbol and obj.issue_type == type_name:
+                                record = obj
+                                break
+
                     if record:
                         if record.price != price:
                             record.price = price

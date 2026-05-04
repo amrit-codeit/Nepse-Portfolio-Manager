@@ -22,9 +22,11 @@ def require_master_password(x_master_password: str = Header(..., alias="X-Master
     """FastAPI dependency that enforces master password on sensitive endpoints."""
     try:
         if not bcrypt.checkpw(x_master_password.encode('utf-8'), settings.MASTER_PASSWORD.encode('utf-8')):
-            raise HTTPException(status_code=401, detail="Invalid master password")
+            raise HTTPException(
+                status_code=401, detail="Invalid master password")
     except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid master password format")
+        raise HTTPException(
+            status_code=401, detail="Invalid master password format")
     return True
 
 
@@ -45,13 +47,15 @@ def create_member(data: MemberCreate, db: Session = Depends(get_db)):
     """Add a new family member."""
     existing = db.query(Member).filter(Member.name == data.name).first()
     if existing:
-        raise HTTPException(status_code=400, detail=f"Member '{data.name}' already exists")
+        raise HTTPException(
+            status_code=400, detail=f"Member '{data.name}' already exists")
 
     member = Member(name=data.name, display_name=data.display_name)
     db.add(member)
     db.commit()
     db.refresh(member)
     return MemberResponse.model_validate(member)
+
 
 @router.post("/verify-password")
 def verify_password(data: VerifyPasswordRequest):
@@ -96,15 +100,17 @@ def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTask
             member = Member(name=item.owner)
             db.add(member)
             db.flush()
-        
+
         # Create or update credentials
-        existing_cred = db.query(MeroshareCredential).filter(MeroshareCredential.member_id == member.id).first()
+        existing_cred = db.query(MeroshareCredential).filter(
+            MeroshareCredential.member_id == member.id).first()
         if existing_cred:
             existing_cred.dp = item.dp
             existing_cred.username = item.username
             existing_cred.password_encrypted = encrypt_value(item.password)
             existing_cred.crn = encrypt_value(item.crn) if item.crn else None
-            existing_cred.txn_pin = encrypt_value(item.txn_pin) if item.txn_pin else None
+            existing_cred.txn_pin = encrypt_value(
+                item.txn_pin) if item.txn_pin else None
             existing_cred.apply_unit = item.apply_unit
         else:
             new_cred = MeroshareCredential(
@@ -117,7 +123,7 @@ def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTask
                 apply_unit=item.apply_unit
             )
             db.add(new_cred)
-        
+
         count += 1
 
     db.commit()
@@ -184,7 +190,8 @@ def set_credentials(member_id: int, data: CredentialCreate, background_tasks: Ba
         raise HTTPException(status_code=404, detail="Member not found")
 
     # Remove existing credentials if any
-    existing = db.query(MeroshareCredential).filter(MeroshareCredential.member_id == member_id).first()
+    existing = db.query(MeroshareCredential).filter(
+        MeroshareCredential.member_id == member_id).first()
     if existing:
         db.delete(existing)
         db.flush()
@@ -211,10 +218,12 @@ def set_credentials(member_id: int, data: CredentialCreate, background_tasks: Ba
 @router.get("/{member_id}/credentials", response_model=CredentialResponse)
 def get_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Get credentials for a member."""
-    cred = db.query(MeroshareCredential).filter(MeroshareCredential.member_id == member_id).first()
+    cred = db.query(MeroshareCredential).filter(
+        MeroshareCredential.member_id == member_id).first()
     if not cred:
-        raise HTTPException(status_code=404, detail="No credentials found for this member")
-    
+        raise HTTPException(
+            status_code=404, detail="No credentials found for this member")
+
     # Decrypt password for editing (only because user requested)
     resp = CredentialResponse.model_validate(cred)
     # We add password manually to the response or just allow it in Edit view
@@ -225,10 +234,11 @@ def get_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends
 def get_decrypted_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Get full credentials including decrypted password for editing.
     Requires X-Master-Password header (CRIT-01 fix)."""
-    cred = db.query(MeroshareCredential).filter(MeroshareCredential.member_id == member_id).first()
+    cred = db.query(MeroshareCredential).filter(
+        MeroshareCredential.member_id == member_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="No credentials found")
-    
+
     return {
         "dp": cred.dp,
         "username": cred.username,
@@ -242,7 +252,8 @@ def get_decrypted_credentials(member_id: int, db: Session = Depends(get_db), _au
 @router.delete("/{member_id}/credentials", status_code=204)
 def delete_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
     """Delete credentials for a member."""
-    cred = db.query(MeroshareCredential).filter(MeroshareCredential.member_id == member_id).first()
+    cred = db.query(MeroshareCredential).filter(
+        MeroshareCredential.member_id == member_id).first()
     if not cred:
         raise HTTPException(status_code=404, detail="No credentials found")
     db.delete(cred)
