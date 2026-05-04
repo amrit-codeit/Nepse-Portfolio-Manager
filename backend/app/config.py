@@ -1,12 +1,25 @@
 """Application configuration using pydantic-settings."""
 import os
+import sys
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
 from dotenv import load_dotenv
 
 # Force load .env from the project root
 env_path = Path(__file__).parent.parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
+
+# ---- Self-healing bootstrap ----
+# Reuse the same bootstrap script that setup.bat uses.
+# This guarantees .env exists with all required keys before Settings() runs,
+# even if setup.bat was skipped, interrupted, or run on a different machine.
+sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+try:
+    from bootstrap_env import ensure_env
+    ensure_env(env_path)
+except Exception as e:
+    print(f"[WARN] bootstrap_env failed ({e}), continuing with whatever .env exists...")
+
+load_dotenv(dotenv_path=env_path, override=True)
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables / .env file."""
@@ -23,7 +36,7 @@ class Settings(BaseSettings):
     ENCRYPTION_KEY: str = ""
 
     # Password for protecting credential editing in the frontend
-    MASTER_PASSWORD: str
+    MASTER_PASSWORD: str = ""
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3055", "http://127.0.0.1:3055", "http://localhost:5173", "http://127.0.0.1:5173"]

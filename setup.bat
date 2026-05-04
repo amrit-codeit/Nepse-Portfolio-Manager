@@ -36,20 +36,24 @@ if !errorlevel! neq 0 (
 )
 
 :: --- Python ---
-:: NOTE: Must use --version, not `where`. Windows ships a fake python.exe
-:: alias in WindowsApps that `where` finds but isn't real Python.
-python --version >nul 2>&1
-if !errorlevel! neq 0 (
-    python3 --version >nul 2>&1
-    if !errorlevel! neq 0 (
-        echo [INSTALLING] Python 3.12...
-        winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
-        set "NEED_PATH_REFRESH=1"
-    ) else (
-        echo [OK] Python found ^(as python3^).
+:: NOTE: Must use a compatible Python version (3.10-3.12) because numba fails on newer versions.
+echo [INFO] Checking for compatible Python version ^(3.10 to 3.12^)...
+set "PY_CMD="
+for %%C in ("py -3.12" "py -3.11" "py -3.10" python python3) do (
+    %%~C -c "import sys; sys.exit(0 if sys.version_info.major==3 and sys.version_info.minor in [10, 11, 12] else 1)" >nul 2>&1
+    if !errorlevel! equ 0 (
+        set "PY_CMD=%%~C"
+        goto :PY_FOUND_INITIAL
     )
+)
+:PY_FOUND_INITIAL
+
+if "!PY_CMD!"=="" (
+    echo [INSTALLING] Compatible Python not found. Installing Python 3.12...
+    winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+    set "NEED_PATH_REFRESH=1"
 ) else (
-    echo [OK] Python found.
+    echo [OK] Compatible Python found: !PY_CMD!
 )
 
 :: --- Node.js ---
@@ -72,17 +76,16 @@ if "!NEED_PATH_REFRESH!"=="1" (
 :: --- Detect working Python command ---
 echo.
 set "PY_CMD="
-python --version >nul 2>&1
-if !errorlevel! equ 0 (
-    set "PY_CMD=python"
-) else (
-    python3 --version >nul 2>&1
+for %%C in ("py -3.12" "py -3.11" "py -3.10" python python3) do (
+    %%~C -c "import sys; sys.exit(0 if sys.version_info.major==3 and sys.version_info.minor in [10, 11, 12] else 1)" >nul 2>&1
     if !errorlevel! equ 0 (
-        set "PY_CMD=python3"
+        set "PY_CMD=%%~C"
+        goto :PY_FOUND_FINAL
     )
 )
+:PY_FOUND_FINAL
 if "!PY_CMD!"=="" (
-    echo [ERROR] Python is not reachable. Please restart your PC and run setup.bat again.
+    echo [ERROR] Compatible Python ^(3.10 to 3.12^) is not reachable. Please restart your PC and run setup.bat again.
     goto :FAIL
 )
 echo [OK] Python = !PY_CMD!
@@ -133,6 +136,14 @@ if !errorlevel! neq 0 (
     goto :FAIL
 )
 
+if exist "venv" (
+    venv\Scripts\python.exe -c "import sys; sys.exit(0 if sys.version_info.major==3 and sys.version_info.minor in [10, 11, 12] else 1)" >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo [INFO] Existing virtual environment has an incompatible Python version. Recreating...
+        rmdir /s /q "venv"
+    )
+)
+
 if not exist "venv" (
     !PY_CMD! -m venv venv
     if !errorlevel! neq 0 (
@@ -156,34 +167,14 @@ echo [OK] Backend dependencies installed.
 echo.
 echo [3/4] Configuring environment...
 
-if not exist "..\.env" (
-    if exist "..\.env.example" (
-        copy "..\.env.example" "..\.env" >nul
-    ) else (
-        echo DEBUG=True> "..\.env"
-        echo DATABASE_URL=sqlite:///./portfolio.db>> "..\.env"
-        echo ENCRYPTION_KEY=your_encryption_key_here>> "..\.env"
-        echo PORT=6767>> "..\.env"
-        echo VITE_PORT=3055>> "..\.env"
-    )
-
-    :: Generate encryption key
-    for /f "tokens=*" %%a in ('venv\Scripts\python.exe -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"') do set "NEW_KEY=%%a"
-
-    :: Install bcrypt (not in requirements.txt) and generate default password hash
-    venv\Scripts\pip.exe install bcrypt --quiet >nul 2>&1
-    for /f "tokens=*" %%b in ('venv\Scripts\python.exe -c "import bcrypt; print(bcrypt.hashpw(b'admin123', bcrypt.gensalt()).decode())"') do set "HASHED_PASS=%%b"
-
-    :: Write values into .env
-    powershell -NoProfile -Command "(Get-Content '..\.env') -replace 'your_encryption_key_here', '!NEW_KEY!' | Set-Content -Encoding ASCII '..\.env'"
-    echo.>> "..\.env"
-    echo MASTER_PASSWORD=!HASHED_PASS!>> "..\.env"
-
-    echo [OK] .env created with secure defaults.
-    echo      Default master password: admin123 ^(change it in Settings^)
-) else (
-    echo [OK] .env already exists, skipping.
+:: Use a dedicated Python script to handle .env generation reliably.
+:: This avoids fragile batch for/f parsing and silent failures.
+venv\Scripts\python.exe scripts\bootstrap_env.py "..\.env"
+if !errorlevel! neq 0 (
+    echo [ERROR] Failed to configure .env file. See errors above.
+    goto :FAIL
 )
+echo      TIP: Default master password is admin123 ^(change it in Settings^)
 
 :: ============================================================
 :: PHASE 5: Frontend Build
