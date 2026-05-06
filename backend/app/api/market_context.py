@@ -112,13 +112,23 @@ def get_market_context(db: Session = Depends(get_db)):
     - Market health verdict
     """
     # 1. NEPSE Composite Index
-    nepse_rows = (
+    nepse_rows_raw = (
         db.query(IndexHistory)
-        .filter(IndexHistory.index_id == 12)
-        .order_by(IndexHistory.date.desc())
-        .limit(250)
+        .filter(IndexHistory.index_id.in_([12, 0]))
+        .order_by(IndexHistory.date.desc(), IndexHistory.index_id.desc())
+        .limit(300) # Fetch more to allow for deduping
         .all()
     )
+    
+    # Deduplicate by date, prioritizing official records (index_id 12)
+    seen_dates = set()
+    nepse_rows = []
+    for r in nepse_rows_raw:
+        if r.date not in seen_dates:
+            nepse_rows.append(r)
+            seen_dates.add(r.date)
+            if len(nepse_rows) >= 250:
+                break
     nepse_rows = nepse_rows[::-1]  # chronological
     nepse_tech = _compute_index_technicals(nepse_rows)
 
@@ -398,7 +408,24 @@ def get_extended_stock_technicals(symbol: str, db: Session = Depends(get_db)):
     # Relative Strength (RS) vs NEPSE (60-Day Alpha)
     rs_trend = "UNKNOWN"
     rs_alpha = None
-    nepse_prices = db.query(IndexHistory).filter(IndexHistory.index_id == 12).order_by(IndexHistory.date.desc()).limit(250).all()
+    
+    nepse_prices_raw = (
+        db.query(IndexHistory)
+        .filter(IndexHistory.index_id.in_([12, 0]))
+        .order_by(IndexHistory.date.desc(), IndexHistory.index_id.desc())
+        .limit(300)
+        .all()
+    )
+    
+    # Deduplicate
+    seen_dates = set()
+    nepse_prices = []
+    for r in nepse_prices_raw:
+        if r.date not in seen_dates:
+            nepse_prices.append(r)
+            seen_dates.add(r.date)
+            if len(nepse_prices) >= 250:
+                break
     if len(df) >= 60 and len(nepse_prices) >= 60:
         nepse_prices = nepse_prices[::-1]
         stock_rtn_60d = (close - float(df.iloc[-60]['close'])) / float(df.iloc[-60]['close'])

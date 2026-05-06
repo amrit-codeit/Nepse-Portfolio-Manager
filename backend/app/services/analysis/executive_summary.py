@@ -31,6 +31,193 @@ def _parse_metric(val, default=0):
             return default
     return default
 
+def get_pe_bands(sector: str) -> dict:
+    s = (sector or "").lower()
+    if "mutual fund" in s: return {"low": 1, "base": 1, "high": 1.1}
+    if "life insurance" in s: return {"low": 20, "base": 30, "high": 50}
+    if "insurance" in s: return {"low": 8, "base": 12, "high": 18}
+    if "development bank" in s: return {"low": 6, "base": 9, "high": 13}
+    if "bank" in s or "finance" in s: return {"low": 6, "base": 9, "high": 12}
+    if "hydro" in s: return {"low": 15, "base": 22, "high": 35}
+    if "manufacturing" in s or "processing" in s: return {"low": 7, "base": 9, "high": 11}
+    if "microfinance" in s: return {"low": 8, "base": 11, "high": 16}
+    if "hotel" in s or "tourism" in s: return {"low": 12, "base": 18, "high": 28}
+    if "trading" in s: return {"low": 8, "base": 12, "high": 18}
+    return {"low": 8, "base": 12, "high": 18}
+
+def dividend_quality_score(cash_pct: float, bonus_pct: float, eps_growth_pct: float) -> int:
+    eps_g = max(eps_growth_pct if eps_growth_pct is not None else 0.1, 0.1)
+    bonus = bonus_pct or 0
+    cash = cash_pct or 0
+    
+    if bonus > 0:
+        dilution_ratio = bonus / eps_g
+        if dilution_ratio > 10: return -10
+        elif dilution_ratio > 5: return -5
+            
+    if cash >= 10: return 10
+    elif cash >= 5: return 5
+    return 0
+
+
+SCORING_ACTION_LABELS = {
+    "BUY": "Attractive Entry",
+    "ACCUMULATE": "Add on Strength",
+    "HOLD": "Fair Value — Hold",
+    "REDUCE": "Overvalued — Reduce",
+    "EXIT": "Exit — Thesis Broken",
+    "AVOID": "Avoid",
+}
+
+
+def _scoring_action_label(action_verdict: str) -> str:
+    return SCORING_ACTION_LABELS.get(action_verdict, "Fair Value — Hold")
+
+
+def _pe_band_status(live_pe: float | None, sector: str) -> dict:
+    bands = get_pe_bands(sector)
+    pe = _parse_metric(live_pe, None)
+    high = bands["high"]
+    base = bands["base"]
+
+    if pe is None or pe <= 0:
+        status = "UNKNOWN"
+    elif pe <= bands["low"]:
+        status = "CHEAP"
+    elif pe <= high:
+        status = "FAIR"
+    elif pe <= high * 1.5:
+        status = "EXPENSIVE"
+    else:
+        status = "EXTREME"
+
+    return {
+        "live_pe": round(pe, 3) if pe is not None else None,
+        "sector_base_pe": float(base),
+        "sector_high_pe": float(high),
+        "pe_band_status": status,
+    }
+
+
+def _sector_pe_valuation_score(live_pe: float | None, sector: str) -> tuple[int, str, bool]:
+    """Return valuation points, display label, and whether the metric passed."""
+    pe_ctx = _pe_band_status(live_pe, sector)
+    pe = pe_ctx["live_pe"]
+    base = pe_ctx["sector_base_pe"]
+    high = pe_ctx["sector_high_pe"]
+    status = pe_ctx["pe_band_status"]
+
+    if pe is None:
+        return 0, "P/E valuation unavailable", False
+    if status == "CHEAP":
+        return 20, f"Cheap vs sector P/E band ({pe}x vs {base}x base)", True
+    if status == "FAIR":
+        return 12, f"Fair sector P/E ({pe}x vs {high}x ceiling)", True
+    if status == "EXPENSIVE":
+        return 0, f"Expensive sector P/E ({pe}x vs {high}x ceiling)", False
+    return -10, f"Extreme sector P/E ({pe}x vs {high}x ceiling)", False
+
+
+def _forward_return_gate(forward_return_pct: float | None) -> str:
+    if forward_return_pct is None:
+        return "UNKNOWN"
+    if forward_return_pct >= 12:
+        return "STRONG"
+    if forward_return_pct >= 5:
+        return "ACCEPTABLE"
+    if forward_return_pct >= 0:
+        return "WEAK"
+    return "NEGATIVE"
+
+
+def _sector_quality_gate_from_summary(summary_data: dict) -> tuple[str, list[str], bool]:
+    sector = (summary_data.get("sector") or "").lower()
+    metrics = summary_data.get("sector_metrics", {}) or {}
+    health_score = summary_data.get("health_score") or 0
+    profit_trend = str(summary_data.get("profit_trend") or "")
+    capital_trend = str(summary_data.get("capital_trend") or "")
+    reasons = []
+    hard_fail = False
+
+    npl = metrics.get("npl")
+    car = metrics.get("car")
+    solvency = metrics.get("solvency_ratio")
+    claim_ratio = metrics.get("claim_ratio")
+    current_ratio = metrics.get("current_ratio")
+    gross_margin = metrics.get("gross_margin")
+    reserves = metrics.get("reserves")
+    debt_to_equity = metrics.get("debt_to_equity")
+
+    is_bank = any(x in sector for x in ["bank", "finance", "microfinance"])
+    if is_bank:
+        if npl is not None and npl > 10:
+            reasons.append(f"NPL dangerous at {round(npl, 2)}%")
+            hard_fail = True
+        elif npl is not None and npl >= 3:
+            reasons.append(f"NPL elevated at {round(npl, 2)}%")
+        if car is not None and car < 11:
+            reasons.append(f"CAR weak at {round(car, 2)}%")
+            hard_fail = True
+
+    elif "insurance" in sector:
+        if solvency is not None and solvency < 1.0:
+            reasons.append(f"Solvency below hard floor at {round(solvency, 2)}x")
+            hard_fail = True
+        elif solvency is not None and solvency < 1.5:
+            reasons.append(f"Solvency weak at {round(solvency, 2)}x")
+        if claim_ratio is not None and claim_ratio > 90:
+            reasons.append(f"Claim ratio high at {round(claim_ratio, 2)}%")
+            hard_fail = True
+
+    elif "hydro" in sector:
+        if reserves is not None and reserves < 0:
+            reasons.append("Negative reserves in hydropower balance sheet")
+            hard_fail = True
+        if debt_to_equity is not None and debt_to_equity > 3:
+            reasons.append(f"Debt load elevated at {round(debt_to_equity, 2)}x equity")
+
+    elif any(x in sector for x in ["manufacturing", "processing"]):
+        if current_ratio is not None and current_ratio < 1:
+            reasons.append(f"Current ratio weak at {round(current_ratio, 2)}x")
+            hard_fail = True
+        if gross_margin is not None and gross_margin < 10:
+            reasons.append(f"Gross margin thin at {round(gross_margin, 2)}%")
+
+    if health_score < 35:
+        reasons.append("Low fundamental-health score")
+    if "Declining" in profit_trend or "Volatile" in profit_trend:
+        reasons.append("Weak profit trajectory")
+    if "Declining" in capital_trend:
+        reasons.append("Weak capital trend")
+
+    if hard_fail:
+        return "FAIL", reasons, True
+    if reasons:
+        return "CAUTION", reasons, False
+    return ("PASS" if health_score >= 60 else "CAUTION"), ["No immediate quality failure detected"], False
+
+
+def _build_score_context(summary_data: dict, pe_ctx: dict, quality_gate: str, quality_reasons: list[str], forward_gate: str) -> str:
+    score = summary_data.get("health_score") or 0
+    pe = pe_ctx.get("live_pe")
+    high = pe_ctx.get("sector_high_pe")
+    pe_status = pe_ctx.get("pe_band_status")
+    dividend_pts = summary_data.get("dividend_quality_points")
+
+    if quality_gate == "FAIL":
+        return f"Quality FAIL — {quality_reasons[0]}"
+    if pe_status == "EXTREME" and pe is not None and high is not None:
+        return f"Quality {quality_gate} but valuation extreme — P/E {round(pe, 1)}x vs sector ceiling {round(high, 1)}x"
+    if forward_gate == "NEGATIVE":
+        return "Forward return gate NEGATIVE — valuation or growth assumptions imply downside risk"
+    if quality_gate == "CAUTION" and quality_reasons:
+        return quality_reasons[0]
+    if dividend_pts is not None and dividend_pts < 0:
+        return "Bonus-heavy payout is dilutive relative to earnings growth"
+    if score >= 70 and pe_status in ["CHEAP", "FAIR"] and forward_gate in ["ACCEPTABLE", "STRONG"]:
+        return "Strong fundamentals, fair valuation, clean dividend profile"
+    return f"Balanced profile — quality {quality_gate}, valuation {pe_status.lower()}, forward return {forward_gate.lower()}"
+
 
 def calculate_executive_summary(db: Session, symbol: str, member_id: int | None = None) -> dict:
     """
@@ -512,59 +699,22 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
             score_breakdown.append(
                 {"label": "Stagnant/Declining Profit", "pts": 0, "met": False})
 
-    # 3. VALUATION FIT (20 pts) - Sector Dependent, with Graham as secondary only
+    # 3. VALUATION FIT (20 pts) - Sector-anchored P/E, with PBV/Graham as fallback only
     pbv = (ltp / bvps) if ltp and bvps else 5
-    if any(x in sector_lower for x in ["bank", "finance", "microfinance"]):
-        # PBV vs ROE scatter approach
-        roe_val = roe_ttm if roe_ttm is not None else 0
-        if pbv < 1.5 and roe_val > 0.10:
-            score += 20
-            score_breakdown.append(
-                {"label": f"Strong PBV ({round(pbv, 2)}) vs ROE", "pts": 20, "met": True})
-        elif pbv < 2.5 and roe_val > 0.05:
-            score += 10
-            score_breakdown.append(
-                {"label": f"Fair PBV ({round(pbv, 2)}) vs ROE", "pts": 10, "met": True})
-        else:
-            score_breakdown.append(
-                {"label": f"Overvalued PBV ({round(pbv, 2)})", "pts": 0, "met": False})
-    elif "hydro" in sector_lower:
-        if pbv < 2:
-            score += 20
-            score_breakdown.append(
-                {"label": f"PBV < 2x ({round(pbv, 2)})", "pts": 20, "met": True})
-        else:
-            score_breakdown.append(
-                {"label": f"High PBV ({round(pbv, 2)})", "pts": 0, "met": False})
-    elif "insurance" in sector_lower:
-        roe_val = roe_ttm if roe_ttm is not None else 0
-        if pbv < 2.5 and roe_val > 0.12:
-            score += 20
-            score_breakdown.append(
-                {"label": f"Strong PBV ({round(pbv, 2)}) vs ROE", "pts": 20, "met": True})
-        elif pbv < 3.5 and roe_val > 0.08:
-            score += 10
-            score_breakdown.append(
-                {"label": f"Fair PBV ({round(pbv, 2)}) vs ROE", "pts": 10, "met": True})
-        else:
-            score_breakdown.append(
-                {"label": f"Rich Insurance Valuation ({round(pbv, 2)})", "pts": 0, "met": False})
+    pe_valuation_pts, pe_valuation_label, pe_valuation_met = _sector_pe_valuation_score(pe_ratio, sector)
+    pe_vs_sector = _pe_band_status(pe_ratio, sector)
+
+    if pe_ratio and pe_ratio > 0:
+        score += pe_valuation_pts
+        score_breakdown.append(
+            {"label": pe_valuation_label, "pts": pe_valuation_pts, "met": pe_valuation_met})
     else:
-        pe_val = pe_ratio if pe_ratio and pe_ratio > 0 else None
         roe_val = roe_ttm if roe_ttm is not None else 0
-        if pe_val is not None and pe_val <= 12 and (roe_val > 0.12 or (np_growth is not None and np_growth > 10)):
-            score += 20
-            score_breakdown.append(
-                {"label": f"Strong Earnings Valuation (P/E {round(pe_val, 2)})", "pts": 20, "met": True})
-        elif pbv < 1.8 and roe_val > 0.10:
+        if pbv < 1.8 and roe_val > 0.10:
             score += 20
             score_breakdown.append(
                 {"label": f"Strong PBV ({round(pbv, 2)}) vs ROE", "pts": 20, "met": True})
-        elif pe_val is not None and pe_val <= 18 and (roe_val > 0.08 or (npm is not None and npm > 0.10)):
-            score += 10
-            score_breakdown.append(
-                {"label": f"Fair Earnings Valuation (P/E {round(pe_val, 2)})", "pts": 10, "met": True})
-        elif graham_number and ltp and ltp < graham_number and (pe_val is None or pe_val <= 20):
+        elif graham_number and ltp and ltp < graham_number:
             score += 10
             score_breakdown.append(
                 {"label": "Below Graham Value (secondary check)", "pts": 10, "met": True})
@@ -647,6 +797,18 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
     else:
         score_breakdown.append(
             {"label": "Weak Capital Strength", "pts": 0, "met": False})
+
+    div_quality_pts = dividend_quality_score(cash_div_pct, bonus_div_pct, eps_growth)
+    if div_quality_pts:
+        score += div_quality_pts
+        score_breakdown.append({
+            "label": (
+                "Cash dividend quality" if div_quality_pts > 0
+                else "Bonus dilution exceeds earnings growth"
+            ),
+            "pts": div_quality_pts,
+            "met": div_quality_pts > 0,
+        })
 
     # =========================================================
 
@@ -765,26 +927,98 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
         "reasons": technical_timing_reasoning,
     }
 
+    sector_metrics_payload = {
+        # Banking / Finance / Microfinance
+        "npl": npl,
+        "car": car,
+        "cost_of_funds": cost_of_funds,
+        "cd_ratio": cd_ratio,
+        "base_rate": base_rate,
+        "interest_spread": interest_spread,
+        "distributable_profit": distributable_profit,
+        "deposits": deposits,
+        "loans_advances": loans_advances,
+        "net_interest_income": net_interest_income,
+        # Insurance (Life + Non-Life)
+        "solvency_ratio": solvency_ratio,
+        "net_premium": net_premium,
+        "gross_premium": gross_premium,
+        "net_claim": net_claim,
+        "claim_ratio": claim_ratio,
+        "insurance_fund": insurance_fund,
+        "catastrophic_reserve": catastrophic_reserve,
+        "total_investment": total_investment,
+        "investment_income": investment_income,
+        "mgmt_expenses": mgmt_expenses,
+        # Common / Hydro / Manufacturing / Investment
+        "reserves": reserves,
+        "total_equity": total_equity,
+        "total_assets": total_assets,
+        "borrowings": borrowings,
+        "revenue": revenue,
+        "gross_profit": gross_profit,
+        "gross_margin": gross_margin,
+        "operating_profit": operating_profit,
+        "current_ratio": current_ratio,
+        "debt_to_equity": debt_to_equity,
+    }
+
+    scoring_preview = {
+        "sector": sector,
+        "ltp": ltp,
+        "pe_ratio": pe_ratio,
+        "pb_ratio": pb_ratio,
+        "peg_ratio": peg_ratio,
+        "roe_ttm": round(roe_ttm * 100, 3) if roe_ttm else None,
+        "eps_growth_yoy": eps_growth,
+        "graham_discount_pct": graham_discount_pct,
+        "profit_trend": profit_trend,
+        "capital_trend": capital_trend,
+        "dividend_yield": dividend_yield,
+        "cash_dividend_pct": cash_div_pct,
+        "bonus_dividend_pct": bonus_div_pct,
+        "sector_metrics": sector_metrics_payload,
+        "health_score": score,
+        "dividend_quality_points": div_quality_pts,
+    }
+    expected_return_for_score = _estimate_expected_return_proxy(scoring_preview)
+    forward_return_gate = expected_return_for_score["forward_return_band"]
+
+    if forward_return_gate == "NEGATIVE":
+        score -= 20
+        score = min(score, 45)
+        score_breakdown.append(
+            {"label": "Negative forward return gate", "pts": -20, "met": False})
+    elif forward_return_gate == "WEAK":
+        score -= 10
+        score_breakdown.append(
+            {"label": "Weak forward return gate", "pts": -10, "met": False})
+    elif forward_return_gate == "STRONG":
+        score += 5
+        score_breakdown.append(
+            {"label": "Strong forward return gate", "pts": 5, "met": True})
+
+    if pe_vs_sector["live_pe"] is not None and pe_vs_sector["live_pe"] > pe_vs_sector["sector_high_pe"] * 2:
+        score = min(score, 45)
+        score_breakdown.append(
+            {"label": "Extreme valuation hard cap", "pts": 0, "met": False})
+
+    score = max(0, min(100, round(score)))
+
     # --- Final Valuation Conclusion ---
-    action = "Fairly Priced"
-    if score >= 80:
-        action = "Deep Value"
-    elif score <= 20 and (profit_trend in ["Declining", "Volatile"] or capital_trend == "Declining"):
-        action = "Speculative Premium"
-    elif score > 60:
-        action = "Undervalued"
-    elif score < 40:
-        action = "Overvalued"
+    action = "Fair Value — Hold"
 
     # --- Unified Position Action Logic ---
     action_verdict = "AVOID"
     action_reasoning = []
     portfolio_context = None
+    has_position = False
 
     if member_id:
         holding = db.query(Holding).filter(
             Holding.symbol == symbol, Holding.member_id == member_id).first()
         if holding and holding.current_qty > 0:
+            has_position = True
             current_value = holding.current_qty * ltp if ltp else 0
             unrealized_pnl = current_value - holding.total_investment
             pnl_pct = (unrealized_pnl / holding.total_investment) * \
@@ -894,6 +1128,59 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
             if score_breakdown and len(score_breakdown) > 0 and not score_breakdown[-1].get("met"):
                 action_reasoning.append(score_breakdown[-1].get("label"))
 
+    if not has_position:
+        action_reasoning = []
+        if score >= 75 and forward_return_gate in ["ACCEPTABLE", "STRONG"]:
+            action_verdict = "BUY"
+            action_reasoning.append(f"High health score ({score}) with {forward_return_gate.lower()} forward return.")
+        elif score >= 73 and forward_return_gate in ["ACCEPTABLE", "STRONG"]:
+            action_verdict = "ACCUMULATE"
+            action_reasoning.append(f"Constructive health score ({score}) with {forward_return_gate.lower()} forward return.")
+        elif score >= 50:
+            action_verdict = "HOLD"
+            action_reasoning.append(f"Fair-to-watch profile (Score: {score}). Wait for better risk/reward.")
+        else:
+            action_verdict = "AVOID"
+            action_reasoning.append(f"Weak risk/reward profile (Score: {score}). Better opportunities exist.")
+
+    gate_summary = {
+        **scoring_preview,
+        "health_score": score,
+        "profit_trend": profit_trend,
+        "capital_trend": capital_trend,
+        "sector_metrics": sector_metrics_payload,
+        "dividend_quality_points": div_quality_pts,
+    }
+    quality_gate, quality_gate_reasons, hard_quality_fail = _sector_quality_gate_from_summary(gate_summary)
+
+    # Gate 1 — forward return override
+    if forward_return_gate == "NEGATIVE":
+        if action_verdict in ["BUY", "ACCUMULATE"]:
+            action_verdict = "HOLD"
+            action_reasoning.append("Forward return gate is NEGATIVE; bullish action blocked.")
+        if action_verdict == "HOLD" and score < 70:
+            action_verdict = "REDUCE" if has_position else "AVOID"
+            action_reasoning.append("Forward return gate is NEGATIVE and health score is below 70.")
+
+    # Gate 2 — sector quality hard override
+    if hard_quality_fail:
+        action_verdict = "EXIT" if has_position else "AVOID"
+        action_reasoning.append(f"Sector quality gate FAIL: {quality_gate_reasons[0]}")
+
+    # Gate 3 — extreme valuation override
+    if pe_vs_sector["live_pe"] is not None and pe_vs_sector["live_pe"] > pe_vs_sector["sector_high_pe"] * 2:
+        score = min(score, 45)
+        action_verdict = "REDUCE" if has_position else "AVOID"
+        action_reasoning.append(
+            f"Extreme valuation: P/E {pe_vs_sector['live_pe']}x exceeds 2x sector ceiling {pe_vs_sector['sector_high_pe']}x."
+        )
+
+    action = _scoring_action_label(action_verdict)
+    gate_summary["health_score"] = score
+    quality_gate, quality_gate_reasons, hard_quality_fail = _sector_quality_gate_from_summary(gate_summary)
+    score_context = _build_score_context(gate_summary, pe_vs_sector, quality_gate, quality_gate_reasons, forward_return_gate)
+    value_decision_framework = _build_value_decision_framework(gate_summary, expected_return_for_score)
+
     return {
         "symbol": symbol,
         "sector": sector,
@@ -942,6 +1229,11 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
         "score_breakdown": score_breakdown,
         "action": action,  # Kept for backward compatibility
         "action_verdict": action_verdict,
+        "scoring_action": action,
+        "score_context": score_context,
+        "forward_return_gate": forward_return_gate,
+        "expected_return_framework": expected_return_for_score,
+        "value_decision_framework": value_decision_framework,
         "action_reasoning": action_reasoning,
         "technical_timing_guidance": technical_timing_guidance,
         "portfolio_context": portfolio_context,
@@ -951,41 +1243,7 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
         "quarterly_profits": quarterly_profits[:8],
         "quarterly_reserves": quarterly_reserves[:8],
         # Sector-specific metrics — all sectors covered
-        "sector_metrics": {
-            # Banking / Finance / Microfinance
-            "npl": npl,
-            "car": car,
-            "cost_of_funds": cost_of_funds,
-            "cd_ratio": cd_ratio,
-            "base_rate": base_rate,
-            "interest_spread": interest_spread,
-            "distributable_profit": distributable_profit,
-            "deposits": deposits,
-            "loans_advances": loans_advances,
-            "net_interest_income": net_interest_income,
-            # Insurance (Life + Non-Life)
-            "solvency_ratio": solvency_ratio,
-            "net_premium": net_premium,
-            "gross_premium": gross_premium,
-            "net_claim": net_claim,
-            "claim_ratio": claim_ratio,
-            "insurance_fund": insurance_fund,
-            "catastrophic_reserve": catastrophic_reserve,
-            "total_investment": total_investment,
-            "investment_income": investment_income,
-            "mgmt_expenses": mgmt_expenses,
-            # Common / Hydro / Manufacturing / Investment
-            "reserves": reserves,
-            "total_equity": total_equity,
-            "total_assets": total_assets,
-            "borrowings": borrowings,
-            "revenue": revenue,
-            "gross_profit": gross_profit,
-            "gross_margin": gross_margin,
-            "operating_profit": operating_profit,
-            "current_ratio": current_ratio,
-            "debt_to_equity": debt_to_equity,
-        },
+        "sector_metrics": sector_metrics_payload,
         "ext_tech": ext_tech
     }
 
@@ -1076,7 +1334,15 @@ def _estimate_valuation_change_potential(summary_data: dict) -> dict:
     assumption_note = "Use conservative sector anchoring; avoid false precision."
     peg_precedence = False
 
-    if "microfinance" in sector_lower and pb and pb > 0:
+    if pe and pe > 0:
+        bands = get_pe_bands(summary_data.get("sector"))
+        anchor_low, anchor_base, anchor_high = bands["low"], bands["base"], bands["high"]
+        anchor_family = "Sector P/E earnings-multiple cycle"
+        peg_precedence = peg is not None and peg > 0
+        potential = ((anchor_base / pe) - 1) * 100
+        basis = f"P/E normalization toward sector base {round(anchor_base, 2)}x"
+        assumption_note = "Sector P/E anchors are conservative NEPSE bands; extreme multiples should dominate the return proxy."
+    elif "microfinance" in sector_lower and pb and pb > 0:
         anchor_family = "Microfinance P/B anchored to ROE with provisioning-cycle caution"
         if roe_pct is None:
             anchor_low, anchor_base, anchor_high = 0.9, 1.2, 1.5
@@ -1199,6 +1465,11 @@ def _estimate_expected_return_proxy(summary_data: dict) -> dict:
     valuation_ctx = _estimate_valuation_change_potential(summary_data)
     eps_growth = summary_data.get("eps_growth_yoy")
     profit_trend = summary_data.get("profit_trend")
+    supplied_forward_return = (
+        summary_data.get("forward_return_pct")
+        if summary_data.get("forward_return_pct") is not None
+        else summary_data.get("rough_forward_return_proxy_pct")
+    )
 
     if eps_growth is not None:
         growth_component = round(eps_growth, 3)
@@ -1221,7 +1492,12 @@ def _estimate_expected_return_proxy(summary_data: dict) -> dict:
 
     cash_yield = distribution["dilution_aware_yield_pct"]
     valuation_component = valuation_ctx["valuation_change_potential_pct"] or 0.0
-    rough_forward_return = round(growth_component + cash_yield + valuation_component, 3)
+    rough_forward_return = round(
+        supplied_forward_return
+        if supplied_forward_return is not None
+        else growth_component + cash_yield + valuation_component,
+        3
+    )
 
     return {
         "growth_component_pct": growth_component,
@@ -1239,10 +1515,10 @@ def _estimate_expected_return_proxy(summary_data: dict) -> dict:
         },
         "rough_forward_return_proxy_pct": rough_forward_return,
         "forward_return_band": (
-            "Attractive" if rough_forward_return >= 15
-            else "Workable" if rough_forward_return >= 8
-            else "Low" if rough_forward_return >= 0
-            else "Negative"
+            "STRONG" if rough_forward_return >= 12
+            else "ACCEPTABLE" if rough_forward_return >= 5
+            else "WEAK" if rough_forward_return >= 0
+            else "NEGATIVE"
         ),
         "horizon_note": "Rough 12-24 month forward return proxy, not a forecast",
     }
@@ -1278,44 +1554,13 @@ def _estimate_liquidity_slippage_buffer(summary_data: dict, ext_tech: dict) -> d
 
 
 def _build_value_decision_framework(summary_data: dict, expected_return_ctx: dict) -> dict:
-    sector_metrics = summary_data.get("sector_metrics", {}) or {}
-    health_score = summary_data.get("health_score") or 0
-    profit_trend = str(summary_data.get("profit_trend") or "")
-    capital_trend = str(summary_data.get("capital_trend") or "")
     forward_return = expected_return_ctx.get("rough_forward_return_proxy_pct")
-    quality_reasons = []
-
-    if health_score < 35:
-        quality_reasons.append("Low fundamental-health score")
-    if "Declining" in profit_trend or "Volatile" in profit_trend:
-        quality_reasons.append("Weak profit trajectory")
-    if "Declining" in capital_trend:
-        quality_reasons.append("Weak capital trend")
-    if sector_metrics.get("npl") is not None and sector_metrics.get("npl") > 8:
-        quality_reasons.append("Critical NPL stress")
-    if sector_metrics.get("solvency_ratio") is not None and sector_metrics.get("solvency_ratio") < 1.5:
-        quality_reasons.append("Weak solvency cover")
-    if sector_metrics.get("current_ratio") is not None and sector_metrics.get("current_ratio") < 1:
-        quality_reasons.append("Tight liquidity position")
-
-    if quality_reasons:
-        quality_gate = "FAIL" if health_score < 35 or len(quality_reasons) >= 2 else "CAUTION"
-    else:
-        quality_gate = "PASS" if health_score >= 60 else "CAUTION"
-
-    if forward_return is None:
-        return_gate = "UNKNOWN"
-    elif forward_return >= 15:
-        return_gate = "STRONG"
-    elif forward_return >= 8:
-        return_gate = "ACCEPTABLE"
-    elif forward_return >= 0:
-        return_gate = "WEAK"
-    else:
-        return_gate = "NEGATIVE"
+    quality_gate, quality_reasons, _ = _sector_quality_gate_from_summary(summary_data)
+    return_gate = expected_return_ctx.get("forward_return_band") or _forward_return_gate(forward_return)
 
     peg_category = _categorize_peg(summary_data.get("peg_ratio"))
     growth_sector = any(x in (summary_data.get("sector") or "").lower() for x in ["hydro", "manufacturing", "processing", "hotel", "tourism", "investment"])
+    pe_vs_sector = _pe_band_status(summary_data.get("pe_ratio"), summary_data.get("sector"))
 
     return {
         "decision_hierarchy": [
@@ -1328,6 +1573,7 @@ def _build_value_decision_framework(summary_data: dict, expected_return_ctx: dic
         "quality_gate": quality_gate,
         "quality_gate_reasons": quality_reasons or ["No immediate quality failure detected"],
         "forward_return_gate": return_gate,
+        "pe_vs_sector": pe_vs_sector,
         "reconciliation_rule": (
             "Verdict must follow quality gate plus forward return gate. Cheap valuation alone cannot override a failed quality gate."
         ),
@@ -1488,7 +1734,8 @@ def _build_value_input(summary_data: dict) -> dict:
         "adt_20_days": summary_data.get("ext_tech", {}).get("adt_20", 0),
         "health_score": summary_data["health_score"],
         "action_verdict": summary_data.get("action_verdict", "HOLD"),
-        "scoring_action": summary_data.get("action", "HOLD"),
+        "scoring_action": summary_data.get("scoring_action") or _scoring_action_label(summary_data.get("action_verdict", "HOLD")),
+        "score_context": summary_data.get("score_context"),
         "action_reasoning": summary_data.get("action_reasoning", []),
         "technical_timing_guidance": summary_data.get("technical_timing_guidance"),
         "expected_return_framework": expected_return_ctx,

@@ -153,13 +153,9 @@ def get_historical_prices(
 
 @router.get("/index/latest")
 def get_latest_nepse_index(db: Session = Depends(get_db)):
-    """Fetch the most recent NEPSE index record, prioritizing Live status if available."""
-    # First priority: Look for the Live index updated by the live scraper
-    r = db.query(IndexHistory).filter(IndexHistory.index_id == 0).order_by(IndexHistory.date.desc()).first()
-    
-    # Second priority: Fallback to the official historical index record
-    if not r:
-        r = db.query(IndexHistory).filter(IndexHistory.index_id == 12).order_by(IndexHistory.date.desc()).first()
+    """Fetch the most recent NEPSE index record, prioritizing official records if same date."""
+    r = db.query(IndexHistory).filter(IndexHistory.index_id.in_([12, 0]))\
+          .order_by(IndexHistory.date.desc(), IndexHistory.index_id.desc()).first()
         
     if not r:
         return {"error": "No index data found"}
@@ -179,24 +175,33 @@ def get_nepse_index(
     end_date: Optional[date_type] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Fetch historical NEPSE index data."""
-    query = db.query(IndexHistory).filter(IndexHistory.index_id == 12)
+    """Fetch historical NEPSE index data, merging official and live records."""
+    # Fetch both official (12) and live (0) index records
+    query = db.query(IndexHistory).filter(IndexHistory.index_id.in_([12, 0]))
     
     if start_date:
         query = query.filter(IndexHistory.date >= start_date)
     if end_date:
         query = query.filter(IndexHistory.date <= end_date)
         
-    records = query.order_by(IndexHistory.date.desc()).all()
-    return [
-        {
-            "date": r.date,
-            "close": r.close,
-            "open": r.open,
-            "high": r.high,
-            "low": r.low,
-            "change": r.change,
-            "percent_change": r.percent_change,
-            "turnover": r.turnover
-        } for r in records
-    ]
+    # Order by date desc, then by index_id desc (so 12 comes before 0 for the same date)
+    records = query.order_by(IndexHistory.date.desc(), IndexHistory.index_id.desc()).all()
+    
+    # Deduplicate by date, prioritizing official records (index_id 12)
+    seen_dates = set()
+    merged_data = []
+    for r in records:
+        if r.date not in seen_dates:
+            merged_data.append({
+                "date": r.date,
+                "close": r.close,
+                "open": r.open,
+                "high": r.high,
+                "low": r.low,
+                "change": r.change,
+                "percent_change": r.percent_change,
+                "turnover": r.turnover
+            })
+            seen_dates.add(r.date)
+            
+    return merged_data

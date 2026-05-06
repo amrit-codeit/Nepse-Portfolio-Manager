@@ -76,10 +76,15 @@ class PortfolioHistoryService:
             prices_map[p.date][p.symbol] = p.close
 
         indices = self.db.query(IndexHistory).filter(
-            IndexHistory.index_name == "NEPSE Index",
+            IndexHistory.index_name.in_(["NEPSE Index", "NEPSE Index (Live)"]),
             IndexHistory.date >= start_date
-        ).all()
-        index_map = {idx.date: idx.close for idx in indices}
+        ).order_by(IndexHistory.date.asc(), IndexHistory.index_id.desc()).all()
+        
+        index_map = {}
+        for idx in indices:
+            # Prioritize official index (ID 12) over live index (ID 0) for the same date
+            if idx.date not in index_map:
+                index_map[idx.date] = idx.close
 
         # 4. Build the set of relevant dates (trading days + transaction days)
         # PERF FIX: Skip weekends/holidays — only iterate dates with actual data
