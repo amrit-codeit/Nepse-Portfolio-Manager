@@ -289,7 +289,7 @@ export default function StockAnalysis() {
                         loading={scrapeMut.isPending}
                         title="Refresh Technical Data"
                     >
-                        Scrape
+                        Refresh
                     </Button>
                 )}
                 {symbol && tech && (

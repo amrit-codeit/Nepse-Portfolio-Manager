@@ -80,7 +80,7 @@ export default function MemberSelector({ members = [], onChange }) {
     
     const queryClient = useQueryClient();
 
-    const { data: groupsData, isLoading } = useQuery({
+    const { data: groupsData } = useQuery({
         queryKey: ['groups'],
         queryFn: () => getGroups().then(r => r.data),
     });

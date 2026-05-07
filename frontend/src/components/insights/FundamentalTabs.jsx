@@ -323,7 +323,7 @@ export default function FundamentalTabs({
                 <ExperimentOutlined style={{ fontSize: 48, opacity: 0.12, marginBottom: 16, display: 'block' }} />
                 <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>No Fundamental Data</div>
                 <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 500, margin: '0 auto' }}>
-                    Click "Scrape Latest Data" above to fetch fundamentals for this symbol.
+                    Click "Refresh Analysis" above to update fundamentals for this symbol.
                 </p>
             </Card>
         );

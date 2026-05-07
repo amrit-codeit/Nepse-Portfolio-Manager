@@ -6,6 +6,7 @@ from datetime import date
 from app.database import get_db
 from app.models.transaction import Transaction, TransactionType, TransactionSource
 from app.models.company import Company
+from app.models.holding import Holding
 from app.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionResponse, TransactionListResponse
 from app.services.fee_calculator import calculate_buy_costs, calculate_sell_costs, get_fee_value
 from app.services.portfolio_engine import recalculate_holdings
@@ -91,8 +92,6 @@ def create_transaction(data: TransactionCreate, db: Session = Depends(get_db)):
             manual_dp=manual_dp, manual_broker=data.broker_commission, manual_sebon=data.sebon_fee)
 
     elif txn_type_up == TransactionType.SELL.value and amount:
-        from app.models.holding import Holding
-        from app.models.transaction import TransactionType
         holding = db.query(Holding).filter(
             Holding.member_id == data.member_id, Holding.symbol == symbol).first()
         wacc = holding.wacc if holding else 0
@@ -302,8 +301,6 @@ def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depen
             txn.cgt = 0
             txn.total_cost = fees["total_cost"]
         elif txn.txn_type == TransactionType.SELL.value:
-            from app.models.holding import Holding
-            from app.models.transaction import TransactionType
             holding = db.query(Holding).filter(
                 Holding.member_id == txn.member_id,
                 Holding.symbol == txn.symbol
@@ -359,7 +356,7 @@ def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depen
         return TransactionResponse.model_validate(txn)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="An internal error occurred during update.")
+        raise HTTPException(status_code=500, detail=f"An internal error occurred during update: {str(e)}")
 
 
 @router.delete("/{txn_id}", status_code=204)

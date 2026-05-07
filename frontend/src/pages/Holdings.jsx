@@ -15,12 +15,9 @@ import {
     AlertOutlined,
     RocketOutlined,
 } from '@ant-design/icons';
-import { getHoldings, getMembers, getTransactions, getMergedPrices, getClosedPositions, syncDividends, getDividends } from '../services/api';
+import { getHoldings, getMembers, syncDividends } from '../services/api';
 import { Modal, Form, InputNumber, Divider, Space, Typography, Alert } from 'antd';
 const { Text, Title, Paragraph } = Typography;
-import * as XLSX from 'xlsx';
-import Papa from 'papaparse';
-
 import { formatNPR } from '../utils/formatters';
 import TransactionHistory from '../components/holdings/TransactionHistory';
 import DividendHistory from '../components/holdings/DividendHistory';
@@ -47,11 +44,6 @@ function Holdings() {
         queryFn: () => getHoldings({ member_id: memberId }).then(r => r.data),
     });
 
-    const { data: pricesData } = useQuery({
-        queryKey: ['prices'],
-        queryFn: () => getMergedPrices().then(r => r.data),
-    });
-
     const isLoading = isHoldingsLoading;
 
     // Dynamically derive sectors from holdings
@@ -74,13 +66,6 @@ function Holdings() {
         const matchesTab = activeTab === 'equity' ? !isMutualFund : isMutualFund;
         return matchesSearch && matchesSector && matchesTab;
     });
-
-    // Summary Calculations
-    const totalInv = filtered.reduce((s, r) => s + (r.total_investment || 0), 0);
-    const totalVal = filtered.reduce((s, r) => s + (r.current_value || 0), 0);
-    const totalTaxProfit = filtered.reduce((s, r) => s + (r.tax_profit || 0), 0);
-    const totalPnl = totalVal - totalInv;
-    const pnlPct = totalInv > 0 ? (totalPnl / totalInv * 100).toFixed(3) : 0;
 
     const commonColumns = [
         {
@@ -255,7 +240,8 @@ function Holdings() {
         }));
     };
 
-    const handleExportExcel = () => {
+    const handleExportExcel = async () => {
+        const XLSX = await import('xlsx');
         const dataForExport = getExportData();
         const ws = XLSX.utils.json_to_sheet(dataForExport);
         const wb = XLSX.utils.book_new();
@@ -263,7 +249,8 @@ function Holdings() {
         XLSX.writeFile(wb, "portfolio_holdings.xlsx");
     };
 
-    const handleExportCSV = () => {
+    const handleExportCSV = async () => {
+        const Papa = (await import('papaparse')).default;
         const csv = Papa.unparse(getExportData());
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -284,13 +271,13 @@ function Holdings() {
     const syncDivMutation = useMutation({
         mutationFn: syncDividends,
         onSuccess: (res) => {
-            message.success(res.data.message || 'Dividends synced successfully');
+            message.success(res.data.message || 'Dividends refreshed successfully');
             queryClient.invalidateQueries(['dividends']);
             queryClient.invalidateQueries(['holdings']);
             queryClient.invalidateQueries(['closed-positions']);
         },
         onError: (e) => {
-            message.error('Failed to sync dividends');
+            message.error('Failed to refresh dividends');
             console.error(e);
         }
     });
@@ -346,7 +333,7 @@ function Holdings() {
                             onClick={() => syncDivMutation.mutate()}
                             loading={syncDivMutation.isPending}
                         >
-                            Sync Dividends
+                            Refresh Dividends
                         </Button>
                         <Dropdown menu={{ items: exportItems }} disabled={filtered.length === 0}>
                             <Button type="primary" icon={<DownloadOutlined />}>

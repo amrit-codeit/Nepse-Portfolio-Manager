@@ -5,9 +5,6 @@ import {
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, SearchOutlined, EditOutlined, DownloadOutlined, ImportOutlined, UploadOutlined, SyncOutlined } from '@ant-design/icons';
 import api, { getTransactions, deleteTransaction, getMembers, getCompanies, getMergedPrices } from '../services/api';
-import dayjs from 'dayjs';
-import * as XLSX from 'xlsx';
-import Papa from 'papaparse';
 import AddEditTransactionModal from '../components/transactions/AddEditTransactionModal';
 import ImportMeroShareModal from '../components/transactions/ImportMeroShareModal';
 import ImportDpStatementModal from '../components/transactions/ImportDpStatementModal';
@@ -73,12 +70,12 @@ function Transactions() {
 
     const syncIssuePricesMutation = useMutation({
         mutationFn: () => api.post('/scraper/issues'),
-        onSuccess: (res) => {
-            message.success('Historical IPO/Right/FPO prices synced and filled.');
+        onSuccess: () => {
+            message.success('Historical IPO/Right/FPO prices refreshed and filled.');
             queryClient.invalidateQueries({ queryKey: ['transactions'] });
             queryClient.invalidateQueries({ queryKey: ['holdings'] });
         },
-        onError: (err) => message.error(err.response?.data?.detail || 'Failed to sync issue prices'),
+        onError: (err) => message.error(err.response?.data?.detail || 'Failed to refresh issue prices'),
     });
 
     const isSip = (txn) => {
@@ -286,7 +283,8 @@ function Transactions() {
         });
     };
 
-    const handleExportExcel = (groupName) => {
+    const handleExportExcel = async (groupName) => {
+        const XLSX = await import('xlsx');
         const dataForExport = getExportData(groupName === 'equity' ? equityTransactions : sipTransactions);
         const ws = XLSX.utils.json_to_sheet(dataForExport);
         const wb = XLSX.utils.book_new();
@@ -294,7 +292,8 @@ function Transactions() {
         XLSX.writeFile(wb, `portfolio_transactions_${groupName}.xlsx`);
     };
 
-    const handleExportCSV = (groupName) => {
+    const handleExportCSV = async (groupName) => {
+        const Papa = (await import('papaparse')).default;
         const csv = Papa.unparse(getExportData(groupName === 'equity' ? equityTransactions : sipTransactions));
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
@@ -305,9 +304,9 @@ function Transactions() {
         document.body.removeChild(link);
     };
 
-    const handleExportBoth = () => {
-        handleExportCSV('equity');
-        handleExportCSV('sips');
+    const handleExportBoth = async () => {
+        await handleExportCSV('equity');
+        await handleExportCSV('sips');
     };
 
     const exportItems = [
@@ -325,24 +324,6 @@ function Transactions() {
             key: 'csv_both',
             label: 'Export Both (CSV)',
             onClick: handleExportBoth,
-        },
-    ];
-
-    const deleteMutation = useMutation({
-        mutationFn: deleteTransaction,
-        onSuccess: () => {
-            message.success('Transaction deleted');
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['holdings'] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
-        },
-    });
-
-    return (
-        <div className="animate-in">
-            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <h1>Transactions</h1>
                     <p className="subtitle">All share transactions across members</p>
                 </div>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>

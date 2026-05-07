@@ -15,7 +15,7 @@ import {
 } from '@ant-design/icons';
 import {
     getCompanies, getInsights, getDividends, scrapeInsights,
-    getMembers, getStockDetail, getSymbolsList, getHistoricalPrices,
+    getMembers, getStockDetail,
     getMarketContext, getExtendedTechnicals
 } from '../services/api';
 import ExecutiveSummary from '../components/insights/ExecutiveSummary';
@@ -43,22 +43,6 @@ const pnlColor = (val) => {
     if (val == null || val === 0) return 'var(--text-secondary)';
     return val > 0 ? 'var(--accent-green)' : 'var(--accent-red)';
 };
-
-function getRSIColor(rsi) {
-    if (rsi >= 70) return '#d63031';
-    if (rsi >= 60) return '#e17055';
-    if (rsi >= 40) return '#00b894';
-    if (rsi >= 30) return '#0984e3';
-    return '#6c5ce7';
-}
-
-function getRSILabel(rsi) {
-    if (rsi >= 70) return 'Overbought';
-    if (rsi >= 60) return 'Approaching Overbought';
-    if (rsi >= 40) return 'Neutral';
-    if (rsi >= 30) return 'Approaching Oversold';
-    return 'Oversold';
-}
 
 const PIE_COLORS = ['#818cf8', '#34d399', '#fbbf24', '#f87171', '#38bdf8', '#a78bfa'];
 
@@ -96,7 +80,7 @@ function Stock360View({ selectedSymbol, companies, selectedMember, memberName })
 
     // Portfolio context — stock detail for logged-in portfolio
     const params = selectedMember ? { member_id: selectedMember } : {};
-    const { data: portfolioDetail, isLoading: detailLoading } = useQuery({
+    const { data: portfolioDetail } = useQuery({
         queryKey: ['stockDetail', selectedSymbol, params],
         queryFn: () => getStockDetail(selectedSymbol, params).then(r => r.data),
         enabled: !!selectedSymbol,
@@ -115,16 +99,16 @@ function Stock360View({ selectedSymbol, companies, selectedMember, memberName })
         enabled: !!selectedSymbol,
     });
 
-    // Scrape mutation
+    // Refresh latest technical and fundamental data for this symbol.
     const scrapeInsightsMut = useMutation({
         mutationFn: () => scrapeInsights(selectedSymbol),
         onSuccess: () => {
-            message.success(`Successfully fetched latest data for ${selectedSymbol}`);
+            message.success(`Refreshed latest analysis data for ${selectedSymbol}`);
             refetchInsights();
             queryClient.invalidateQueries(['dividends-history', selectedSymbol]);
             queryClient.invalidateQueries(['stockDetail', selectedSymbol]);
         },
-        onError: (err) => message.error(err.response?.data?.error || 'Failed to fetch latest data.'),
+        onError: (err) => message.error(err.response?.data?.error || 'Failed to refresh latest data.'),
     });
 
     const tech = insightsData?.technicals;
@@ -170,12 +154,6 @@ function Stock360View({ selectedSymbol, companies, selectedMember, memberName })
         if (b.total_sold > 0) data.push({ name: 'Sold', value: b.total_sold });
         if (b.total_transferred_out > 0) data.push({ name: 'Transferred Out', value: b.total_transferred_out });
         return data;
-    }, [detail]);
-
-    // Dividend chart data from portfolio detail
-    const divChartData = useMemo(() => {
-        if (!detail?.dividend_history?.length) return [];
-        return [...detail.dividend_history].reverse().map(d => ({ fy: d.fiscal_year, cash: d.cash_pct, bonus: d.bonus_pct, amount: d.cash_amount }));
     }, [detail]);
 
     // Transaction table columns (from ScripDetail)
@@ -232,7 +210,7 @@ function Stock360View({ selectedSymbol, companies, selectedMember, memberName })
             ) : insightsData?.error ? (
                 <Card className="stat-card" style={{ textAlign: 'center', padding: '40px 20px' }}>
                     <p style={{ fontSize: 16, fontWeight: 600 }}>{insightsData.error}</p>
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Sync historical prices first.</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Refresh historical prices first.</p>
                 </Card>
             ) : (
                 <TechnicalTabs 
@@ -323,7 +301,7 @@ function Stock360View({ selectedSymbol, companies, selectedMember, memberName })
                             <div style={{ fontSize: 28, fontWeight: 700 }}>{tech ? formatNPR(tech.ltp) : '—'}</div>
                         </div>
                         <Button type="primary" icon={<SyncOutlined spin={scrapeInsightsMut.isPending} />} onClick={() => scrapeInsightsMut.mutate()} loading={scrapeInsightsMut.isPending}>
-                            Scrape Latest
+                            Refresh Analysis
                         </Button>
                     </div>
                 </div>

@@ -152,7 +152,7 @@ export default function ApplyIPO() {
                         onClick={handleFetchOpenIPOs}
                         loading={isFetching}
                     >
-                        Fetch Open Issues
+                        Refresh Open IPOs
                     </Button>
                 </div>
 

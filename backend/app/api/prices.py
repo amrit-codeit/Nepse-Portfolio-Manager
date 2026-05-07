@@ -114,6 +114,10 @@ def get_merged_prices(
         if updated_at is None:
             updated_at = r.nav_updated_at
 
+        turnover = None
+        if price is not None and r.volume is not None:
+            turnover = price * r.volume
+
         merged_data.append({
             "symbol": r.symbol,
             "name": r.name,
@@ -127,6 +131,7 @@ def get_merged_prices(
             "open_price": r.open_price,
             "prev_close": r.prev_close,
             "volume": r.volume,
+            "turnover": turnover,
             "updated_at": updated_at
         })
 

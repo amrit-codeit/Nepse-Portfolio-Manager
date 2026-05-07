@@ -24,7 +24,7 @@ function Settings() {
             link.click();
             link.parentNode.removeChild(link);
             message.success({ content: 'Market data exported successfully', key: 'exporting' });
-        } catch (e) {
+        } catch {
             message.error({ content: 'Failed to export market data', key: 'exporting' });
         }
     };
@@ -103,7 +103,7 @@ function Settings() {
     const dpConfigs = (feeConfig || []).filter(c => c.key.includes('dp_') || c.key.includes('name_transfer'));
     const cgtConfigs = (feeConfig || []).filter(c => c.key.startsWith('cgt_'));
 
-    const renderConfigTable = (configs, title) => (
+    const renderConfigTable = (configs) => (
             <Table
                 style={{ marginTop: 12 }}
                 dataSource={configs}
@@ -196,7 +196,7 @@ function Settings() {
             <Alert
                 type="info" showIcon icon={<ClockCircleOutlined />}
                 message="Automated Scheduler Active"
-                description="Scrapers run automatically during NEPSE trading hours (Sun–Thu). Price data refreshes every 5 min, index snapshots every 15 min, NAV daily at 17:30, and dividends/fundamentals weekly on Sundays."
+                description="Market data refresh jobs run automatically during NEPSE trading hours (Sun-Thu). Price data refreshes every 5 min, index snapshots every 15 min, NAV daily at 17:30, and dividends/fundamentals weekly on Sundays."
                 style={{ marginBottom: 16 }}
             />
             <Table
@@ -211,7 +211,7 @@ function Settings() {
                         render: (s) => <Tooltip title={s}>{statusIcon(s)}</Tooltip>,
                     },
                     {
-                        title: 'Scraper', dataIndex: 'scraper_name', key: 'scraper_name',
+                        title: 'Data Job', dataIndex: 'scraper_name', key: 'scraper_name',
                         render: (n) => <Tag>{n}</Tag>,
                     },
                     {
@@ -289,22 +289,22 @@ function Settings() {
         {
             key: 'broker',
             label: '📊 Broker Commissions',
-            children: renderConfigTable(brokerConfigs, 'Broker commission tiers based on trade volume.'),
+            children: renderConfigTable(brokerConfigs),
         },
         {
             key: 'sebon',
             label: '🏛️ SEBON Fees',
-            children: renderConfigTable(sebonConfigs, 'Regulatory board fee rates.'),
+            children: renderConfigTable(sebonConfigs),
         },
         {
             key: 'dp',
             label: '💳 DP & Transfer',
-            children: renderConfigTable(dpConfigs, 'Depository Participant and Name Transfer charges.'),
+            children: renderConfigTable(dpConfigs),
         },
         {
             key: 'cgt',
             label: '💰 Capital Gains Tax',
-            children: renderConfigTable(cgtConfigs, 'Tax brackets for individual and corporate investors.'),
+            children: renderConfigTable(cgtConfigs),
         }
     ];
 

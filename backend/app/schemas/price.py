@@ -56,6 +56,7 @@ class MergedPriceResponse(BaseModel):
     open_price: Optional[float] = None
     prev_close: Optional[float] = None
     volume: Optional[int] = None
+    turnover: Optional[float] = None
     updated_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Table,
@@ -10,37 +10,154 @@ import {
     notification,
     message,
     Tabs,
-    Select,
-    DatePicker,
     Card,
-    Empty
+    Segmented
 } from 'antd';
 import {
     SearchOutlined,
     SyncOutlined,
     ReloadOutlined,
     InfoCircleOutlined,
-    FundOutlined,
     HistoryOutlined,
     LineChartOutlined
 } from '@ant-design/icons';
-import { getMergedPrices, scrapePrices, scrapeNav, getHistoricalPrices, getCompanies, syncHistory, getAllIssues, scrapeIssues, scrapeCompanies, getNepseIndex, scrapeIndex } from '../services/api';
+import { getMergedPrices, scrapePrices, scrapeNav, getAllIssues, scrapeIssues, scrapeCompanies, getNepseIndex, scrapeIndex } from '../services/api';
 import dayjs from 'dayjs';
 import FreshnessTag from '../components/FreshnessTag';
-
-const { RangePicker } = DatePicker;
 
 function formatNPR(value) {
     if (value === null || value === undefined) return '—';
     return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
 }
 
+function formatPrice(value) {
+    if (value === null || value === undefined) return '-';
+    return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatNumber(value) {
+    if (value === null || value === undefined) return '-';
+    return Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 });
+}
+
+function formatMoney(value) {
+    if (value === null || value === undefined) return '-';
+    return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function getTurnover(record) {
+    if (record.turnover !== null && record.turnover !== undefined) return Number(record.turnover);
+    if (record.price !== null && record.price !== undefined && record.volume !== null && record.volume !== undefined) {
+        return Number(record.price) * Number(record.volume);
+    }
+    return null;
+}
+
+function MarketContextTile({ title, options, activeMetric, onMetricChange, rows, columns, accent }) {
+    const [expanded, setExpanded] = useState(false);
+    const visibleRows = expanded ? rows.slice(0, 10) : rows.slice(0, 5);
+
+    return (
+        <Card
+            size="small"
+            className="filter-card"
+            style={{ height: '100%' }}
+            styles={{ body: { padding: 16 } }}
+        >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+                <div>
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 2 }}>Market Context</div>
+                    <h3 style={{ margin: 0, fontSize: 18, color: accent }}>{title}</h3>
+                </div>
+                <Segmented size="small" value={activeMetric} onChange={onMetricChange} options={options} />
+            </div>
+
+            <div className="portfolio-table" style={{ borderRadius: 8, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr>
+                            {columns.map((column) => (
+                                <th
+                                    key={column.key}
+                                    style={{
+                                        padding: '8px 10px',
+                                        textAlign: column.align || 'left',
+                                        fontSize: 11,
+                                        color: 'var(--text-secondary)',
+                                        background: 'var(--bg-tertiary)',
+                                        textTransform: 'uppercase',
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    {column.title}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {visibleRows.length ? visibleRows.map((row) => (
+                            <tr key={`${activeMetric}-${row.symbol}`}>
+                                {columns.map((column) => (
+                                    <td
+                                        key={column.key}
+                                        style={{
+                                            padding: '9px 10px',
+                                            textAlign: column.align || 'left',
+                                            borderTop: '1px solid var(--border-color)',
+                                            color: column.color?.(row) || 'var(--text-primary)',
+                                            fontWeight: column.key === 'symbol' ? 700 : 500,
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {column.render ? column.render(row) : row[column.key]}
+                                    </td>
+                                ))}
+                            </tr>
+                        )) : (
+                            <tr>
+                                <td colSpan={columns.length} style={{ padding: 18, textAlign: 'center', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)' }}>
+                                    No market data available.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            {rows.length > 5 && (
+                <Button type="link" size="small" style={{ paddingLeft: 0, marginTop: 8 }} onClick={() => setExpanded(prev => !prev)}>
+                    {expanded ? 'View less' : 'View more'}
+                </Button>
+            )}
+        </Card>
+    );
+}
+
 function LivePricesTab({ prices, isLoading, isFetching, search, setSearch, refreshMutation }) {
+    const [moverMetric, setMoverMetric] = useState('gainers');
+    const [activityMetric, setActivityMetric] = useState('turnover');
+
     const filtered = (prices || []).filter(p =>
         !search ||
         p.symbol.toLowerCase().includes(search.toLowerCase()) ||
         p.name.toLowerCase().includes(search.toLowerCase())
     );
+    const liveStocks = (prices || []).filter((p) => p.price !== null && p.price !== undefined && (p.volume || p.change !== null || p.change_pct !== null));
+    const gainers = liveStocks
+        .filter((p) => Number(p.change_pct) > 0)
+        .sort((a, b) => Number(b.change_pct || 0) - Number(a.change_pct || 0));
+    const losers = liveStocks
+        .filter((p) => Number(p.change_pct) < 0)
+        .sort((a, b) => Number(a.change_pct || 0) - Number(b.change_pct || 0));
+    const topVolume = liveStocks
+        .filter((p) => Number(p.volume || 0) > 0)
+        .sort((a, b) => Number(b.volume || 0) - Number(a.volume || 0));
+    const topTurnover = liveStocks
+        .filter((p) => Number(getTurnover(p) || 0) > 0)
+        .sort((a, b) => Number(getTurnover(b) || 0) - Number(getTurnover(a) || 0));
+    const moverRows = moverMetric === 'gainers' ? gainers : losers;
+    const activityRows = activityMetric === 'turnover' ? topTurnover : topVolume;
+    const moverColor = moverMetric === 'gainers' ? 'var(--accent-green)' : 'var(--accent-red)';
 
     const columns = [
         {
@@ -157,6 +274,19 @@ function LivePricesTab({ prices, isLoading, isFetching, search, setSearch, refre
             sorter: (a, b) => (a.volume || 0) - (b.volume || 0),
         },
         {
+            title: 'Turnover',
+            dataIndex: 'turnover',
+            key: 'turnover',
+            align: 'right',
+            width: 140,
+            render: (_, record) => {
+                const turnover = getTurnover(record);
+                return turnover ? formatNPR(turnover) : '-';
+            },
+            sorter: (a, b) => (getTurnover(a) || 0) - (getTurnover(b) || 0),
+            responsive: ['lg'],
+        },
+        {
             title: 'Last Updated',
             dataIndex: 'updated_at',
             key: 'updated_at',
@@ -192,6 +322,59 @@ function LivePricesTab({ prices, isLoading, isFetching, search, setSearch, refre
                 </Button>
             </div>
 
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 20 }}>
+                <MarketContextTile
+                    title={moverMetric === 'gainers' ? 'Top Gainers' : 'Top Losers'}
+                    options={[
+                        { label: 'Top Gainers', value: 'gainers' },
+                        { label: 'Top Losers', value: 'losers' },
+                    ]}
+                    activeMetric={moverMetric}
+                    onMetricChange={setMoverMetric}
+                    rows={moverRows}
+                    accent={moverColor}
+                    columns={[
+                        { key: 'symbol', title: 'Symbol' },
+                        { key: 'price', title: 'LTP', align: 'right', render: (row) => formatPrice(row.price) },
+                        {
+                            key: 'change',
+                            title: 'Pt. Change',
+                            align: 'right',
+                            color: () => moverColor,
+                            render: (row) => `${Number(row.change || 0) > 0 ? '+' : ''}${formatPrice(row.change || 0)}`,
+                        },
+                        {
+                            key: 'change_pct',
+                            title: '% Change',
+                            align: 'right',
+                            color: () => moverColor,
+                            render: (row) => `${Number(row.change_pct || 0) > 0 ? '+' : ''}${formatPrice(row.change_pct || 0)}`,
+                        },
+                    ]}
+                />
+                <MarketContextTile
+                    title={activityMetric === 'turnover' ? 'Top Turnover' : 'Top Volume'}
+                    options={[
+                        { label: 'Top Turnover', value: 'turnover' },
+                        { label: 'Top Volume', value: 'volume' },
+                    ]}
+                    activeMetric={activityMetric}
+                    onMetricChange={setActivityMetric}
+                    rows={activityRows}
+                    accent="var(--accent-blue)"
+                    columns={[
+                        { key: 'symbol', title: 'Symbol' },
+                        {
+                            key: activityMetric,
+                            title: activityMetric === 'turnover' ? 'Turnover' : 'Volume',
+                            align: 'right',
+                            render: (row) => activityMetric === 'turnover' ? formatMoney(getTurnover(row)) : formatNumber(row.volume),
+                        },
+                        { key: 'price', title: 'LTP', align: 'right', render: (row) => formatPrice(row.price) },
+                    ]}
+                />
+            </div>
+
             <div className="portfolio-table">
                 <Table
                     columns={columns}
@@ -222,7 +405,7 @@ function IssuesSubTab() {
         mutationFn: async () => {
             await scrapeCompanies();
             await scrapeIssues();
-            await scrapeIndex(); // Scrapes NEPSE & Sector indices based on new mapping
+            await scrapeIndex();
         },
         onSuccess: () => {
             message.success('Issues, Companies, and Indices updated successfully.');
@@ -231,7 +414,7 @@ function IssuesSubTab() {
             queryClient.invalidateQueries(['nepseIndex']);
         },
         onError: (err) => {
-            message.error(err.response?.data?.error || 'Failed to sync market metadata.');
+            message.error(err.response?.data?.error || 'Failed to refresh market metadata.');
         }
     });
 
@@ -290,7 +473,7 @@ function IssuesSubTab() {
                         onClick={() => fetchUnifiedMut.mutate()}
                         loading={fetchUnifiedMut.isPending}
                     >
-                        Sync Issues, Companies & Indices
+                        Refresh Market Metadata
                     </Button>
                 </div>
             </Card>
@@ -304,7 +487,7 @@ function IssuesSubTab() {
                     pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
                     scroll={{ x: 800 }}
                     size="middle"
-                    locale={{ emptyText: 'No issues found. Click "Fetch Issues & Companies" to begin syncing.' }}
+                    locale={{ emptyText: 'No issues found. Click "Refresh Market Metadata" to update issues and company data.' }}
                 />
             </div>
         </Space>
@@ -322,11 +505,11 @@ function NepseIndexSubTab() {
     const fetchIndexMut = useMutation({
         mutationFn: () => scrapeIndex(),
         onSuccess: (res) => {
-            message.success(res.data?.message || 'NEPSE Index records synced successfully.');
+            message.success(res.data?.message || 'NEPSE Index records refreshed successfully.');
             queryClient.invalidateQueries(['nepseIndex']);
         },
         onError: (err) => {
-            message.error(err.response?.data?.error || 'Failed to sync NEPSE Index data.');
+            message.error(err.response?.data?.error || 'Failed to refresh NEPSE Index data.');
         }
     });
 
@@ -405,8 +588,16 @@ function NepseIndexSubTab() {
             <Card size="small" className="filter-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ color: 'var(--text-secondary)' }}>
-                        Historical NEPSE Index Daily Close Data
+                        Historical NEPSE Index daily close data
                     </div>
+                    <Button
+                        type="primary"
+                        icon={<SyncOutlined spin={fetchIndexMut.isPending} />}
+                        onClick={() => fetchIndexMut.mutate()}
+                        loading={fetchIndexMut.isPending}
+                    >
+                        Refresh Index Data
+                    </Button>
                 </div>
             </Card>
 
@@ -419,7 +610,7 @@ function NepseIndexSubTab() {
                     pagination={{ defaultPageSize: 20, showSizeChanger: true, pageSizeOptions: ['20', '50', '100'] }}
                     scroll={{ x: 1000 }}
                     size="middle"
-                    locale={{ emptyText: 'No index data found. Click "Sync Index Data".' }}
+                    locale={{ emptyText: 'No index data found. Click "Refresh Index Data".' }}
                 />
             </div>
         </Space>

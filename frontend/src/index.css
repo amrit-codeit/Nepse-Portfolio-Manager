@@ -87,6 +87,8 @@ body {
   gap: 12px;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-color);
+  min-height: 73px;
+  overflow: hidden;
 }
 
 .logo-icon {
@@ -116,6 +118,32 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 500;
+}
+
+.app-sider-collapsed .logo-container {
+  justify-content: center;
+  padding: 18px 0;
+}
+
+.app-sider-collapsed .logo-copy,
+.app-sider-collapsed .sidebar-footer {
+  display: none;
+}
+
+.sidebar-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.15);
+}
+
+.route-loading {
+  min-height: calc(100vh - 96px);
+  display: grid;
+  place-items: center;
 }
 
 /* ===== Stat Cards ===== */

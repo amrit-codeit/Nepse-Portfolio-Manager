@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, Spin, Card, Row, Col, Tooltip, Tag } from 'antd';
 import {
@@ -29,7 +29,7 @@ function Dashboard() {
         queryFn: () => getMembers().then(r => r.data),
     });
 
-    const members = membersData || [];
+    const members = useMemo(() => membersData || [], [membersData]);
 
     // Build query params from context
     const summaryParams = useMemo(() => {
@@ -120,7 +120,7 @@ function Dashboard() {
             equityValue: eqVal,
             sipValue: sipVal 
         };
-    }, [summary, pricesData]);
+    }, [summary]);
 
     const displaySummary = topLevelTab === 'equity' ? splitSummary.equity : splitSummary.sip;
 
@@ -190,7 +190,7 @@ function Dashboard() {
         );
 
         return items;
-    }, [displaySummary, isLoading, selectedContext, members, handleTabChange, topLevelTab]);
+    }, [displaySummary, isLoading, selectedContext, members, handleTabChange, topLevelTab, pricesData]);
 
     const eqPct = splitSummary.totalValue > 0 ? (splitSummary.equityValue / splitSummary.totalValue * 100).toFixed(3) : 0;
     const sipPct = splitSummary.totalValue > 0 ? (splitSummary.sipValue / splitSummary.totalValue * 100).toFixed(3) : 0;
@@ -234,7 +234,7 @@ function Dashboard() {
                                     </div>
                                 </>
                             ) : (
-                                <div style={{ fontSize: 14, color: 'var(--text-muted)', opacity: 0.5 }}>Sync index data to see latest status</div>
+                                <div style={{ fontSize: 14, color: 'var(--text-muted)', opacity: 0.5 }}>Refresh index data to see latest status</div>
                             )}
                         </div>
                     </div>
@@ -360,7 +360,7 @@ function Dashboard() {
                 activeKey={activeTab}
                 onChange={handleTabChange}
                 items={tabItems}
-                destroyInactiveTabPane={false}
+                destroyOnHidden={false}
             />
         </div>
     );

@@ -45,7 +45,7 @@ function MacroPulse() {
       message.success('Macro data refreshed successfully');
       queryClient.invalidateQueries({ queryKey: ['economy-macro'] });
     },
-    onError: (e) => message.error(e?.response?.data?.detail || 'Scrape failed'),
+    onError: (e) => message.error(e?.response?.data?.detail || 'Refresh failed'),
   });
 
   if (isLoading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" tip="Loading macro data..." /></div>;
@@ -58,7 +58,7 @@ function MacroPulse() {
         showIcon
         message={is404 ? 'No Macro Data Yet' : 'Failed to Load'}
         description={is404
-          ? 'Click the Refresh button to scrape the latest macroeconomic indicators from NepseAlpha.'
+          ? 'Click Refresh Data to update the latest macroeconomic indicators from NepseAlpha.'
           : (error?.response?.data?.detail || 'An unexpected error occurred.')
         }
         action={
@@ -374,7 +374,7 @@ function AlternativesComparison() {
       {results && results.results && results.results.length > 0 && !loading && (
         <div>
           <Row gutter={[16, 16]}>
-            {results.results.map((r, idx) => {
+            {results.results.map((r) => {
               const isWinner = r.is_winner;
               const returnPositive = r.total_return_pct >= 0;
               const barWidth = maxAmount > 0 ? Math.max((r.final_amount / maxAmount) * 100, 5) : 100;

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Select, Spin, Alert, Row, Col, Tag, Typography, Button, message, Tabs, Tooltip } from 'antd';
 import { RiseOutlined, AimOutlined, BarChartOutlined, LineChartOutlined, ThunderboltOutlined, SyncOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
@@ -227,7 +227,7 @@ export default function LiveTechnicals({ symbol: propSymbol }) {
                             onClick={() => scrapeMut.mutate()}
                             loading={scrapeMut.isPending}
                         >
-                            Scrape
+                            Refresh
                         </Button>
                     )}
                 </div>
@@ -245,7 +245,7 @@ export default function LiveTechnicals({ symbol: propSymbol }) {
 
             {isLoading && (
                 <div style={{ textAlign: 'center', padding: '60px 0' }}>
-                    <Spin size="large" tip="Fetching live technicals..." />
+                    <Spin size="large" tip="Loading technicals..." />
                 </div>
             )}
 
@@ -258,7 +258,7 @@ export default function LiveTechnicals({ symbol: propSymbol }) {
                     style={{ marginBottom: 24 }} 
                     action={
                         <Button size="small" type="primary" ghost onClick={() => scrapeMut.mutate()} loading={scrapeMut.isPending}>
-                            Scrape Now
+                            Refresh Now
                         </Button>
                     }
                 />

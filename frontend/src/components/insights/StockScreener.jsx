@@ -373,7 +373,7 @@ export default function StockScreener({ onSelectSymbol }) {
             {/* Table */}
             {(loadingCached || scanMutation.isPending) ? (
                 <div style={{ textAlign: 'center', padding: '80px 0' }}>
-                    <Spin size="large" tip={scanMutation.isPending ? "Scraping NepseAlpha live data..." : "Loading screener data..."} />
+                    <Spin size="large" tip={scanMutation.isPending ? "Refreshing live market data..." : "Loading screener data..."} />
                 </div>
             ) : filteredStocks.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 0' }}>

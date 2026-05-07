@@ -23,27 +23,27 @@ createRoot(document.getElementById('root')).render(
           theme={{
             algorithm: theme.darkAlgorithm,
             token: {
-              colorPrimary: '#6C5CE7',
-              colorBgContainer: '#1a1a2e',
-              colorBgElevated: '#16213e',
-              colorBgLayout: '#0f0f23',
-              colorBorder: '#2a2a4a',
-              colorText: '#e0e0ff',
-              colorTextSecondary: '#8888aa',
-              borderRadius: 10,
+              colorPrimary: '#818cf8',
+              colorBgContainer: '#121214',
+              colorBgElevated: '#18181b',
+              colorBgLayout: '#09090b',
+              colorBorder: '#27272a',
+              colorText: '#f4f4f5',
+              colorTextSecondary: '#a1a1aa',
+              borderRadius: 8,
               fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
             },
             components: {
               Table: {
-                headerBg: '#16213e',
-                rowHoverBg: '#1a1a3e',
+                headerBg: '#18181b',
+                rowHoverBg: 'rgba(255,255,255,0.03)',
               },
               Card: {
-                colorBgContainer: '#1a1a2e',
+                colorBgContainer: '#121214',
               },
               Menu: {
-                darkItemBg: '#0f0f23',
-                darkSubMenuItemBg: '#0f0f23',
+                darkItemBg: '#121214',
+                darkSubMenuItemBg: '#121214',
               },
             },
           }}

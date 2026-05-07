@@ -193,7 +193,7 @@ export default function ScripDetail() {
   const symbols = symbolsData || [];
 
   // Fetch stock detail
-  const { data: detail, isLoading: detailLoading, isError } = useQuery({
+  const { data: detail, isLoading: detailLoading } = useQuery({
     queryKey: ['stockDetail', selectedSymbol, memberParams],
     queryFn: () => getStockDetail(selectedSymbol, memberParams).then(r => r.data),
     enabled: !!selectedSymbol,

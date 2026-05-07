@@ -104,7 +104,7 @@ export default function AddEditTransactionModal({
             } else {
                 message.info(`No stored ${currentType || 'issue'} price found for ${symbol}`);
             }
-        } catch (err) {
+        } catch {
             message.error('Failed to fetch issue price');
         }
     };
@@ -211,10 +211,10 @@ export default function AddEditTransactionModal({
                             <Button
                                 size="small"
                                 onClick={handleFetchIssuePrice}
-                                title="Fetch IPO/Right/FPO Price"
+                                title="Find IPO/Right/FPO Price"
                                 style={{ height: 32 }}
                             >
-                                Fetch
+                                Fill Price
                             </Button>
                         </div>
                     </Form.Item>

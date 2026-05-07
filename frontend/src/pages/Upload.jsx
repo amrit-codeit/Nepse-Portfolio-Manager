@@ -1,14 +1,14 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-    Card, message, Button, Alert, List, Tag, Tabs, Table, Modal, Popconfirm,
+    Card, message, Button, Tag, Tabs, Table, Modal, Popconfirm,
     Form, Input, InputNumber, Space, Checkbox, Tooltip, Dropdown, Select
 } from 'antd';
 import {
     SyncOutlined, LockOutlined, EditOutlined,
     ImportOutlined, ExportOutlined, UserOutlined, DownloadOutlined,
     SafetyCertificateOutlined, KeyOutlined,
-    TranslationOutlined, NumberOutlined, DeleteOutlined, PlusOutlined,
+    NumberOutlined, DeleteOutlined, PlusOutlined,
     CheckCircleOutlined, CloseCircleOutlined
 } from '@ant-design/icons';
 import {
@@ -16,10 +16,6 @@ import {
     exportCredentials, importCredentials, setCredentials,
     getDecryptedCredentials, createMember, deleteMember
 } from '../services/api';
-import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
-
-const { TabPane } = Tabs;
 const { Option } = Select;
 
 const DP_OPTIONS = ["AAKASH CAPITAL LIMITED (19000)", "AAKASHBHAIRAB SECURITIES LIMITED (20600)", "ABC SECURITIES PRIVATE LIMITED (13200)", "AGRAWAL SECURITIES PRIVATE LIMITED (12300)", "AGRICULTURAL DEVELOPMENT BANK LIMITED (17200)", "APPLE SECURITIES PVT. LTD. (22300)", "ARUN SECURITIES PVT. LTD. (21800)", "ARYATARA INVESTMENT AND SECURITIES PRIVATE LIMITED (11900)", "ASIAN CAPITAL LIMITED (17500)", "ASIAN SECURITIES PRIVATE LIMITED (14700)", "BENI SECURITIES PVT. LTD. (23200)", "BHOLE GANESH SECURITIES LIMITED. (19100)", "BHRIKUTI STOCK BROKING COMPANY PRIVATE LIMITED (15000)", "BLUE CHIP SECURITIES LIMITED (20700)", "BRILLIANT SECURITIES PVT. LTD. (15600)", "CAPITAL HUB PVT. LTD. (20900)", "CAPITAL MAX SECURITIES LIMITED (19500)", "CITIZENS BANK INTERNATIONAL LIMITED (11700)", "CREATIVE SECURITIES PRIVATE LIMITED (13300)", "CRYSTAL KANCHANJUNGHA SECURITIES PVT. LTD (13400)", "DAKSHINKALI INVESTMENT AND SECURITIES PRIVATE LIMITED (12000)", "DEEVYAA  SECURITIES & STOCK HOUSE PRIVATE LIMITED (14500)", "DIPSHIKHA DHITOPATRA KAROBAR COMPANY (P.) LTD. (11300)", "DYNAMIC MONEY MANAGERS SECURITIES PRIVATE LIMITED (14900)", "ELITE MERCHANT CAPITAL LIMITED (20300)", "ELITE STOCK HOUSE LIMITED (19800)", "EVEREST BANK LTD. (10800)", "GARIMA CAPITAL LIMITED (17600)", "GARIMA SECURITIES LIMITED (21900)", "GLOBAL IME BANK LIMITED (11100)", "GLOBAL IME BANK LIMITED (12200)", "GLOBAL IME CAPITAL LIMITED (11200)", "GUHESWORI MERCHANT BANKING & FINANCE LIMITED (16200)", "GURKHAS FINANCE LIMITED (18000)", "HATEMALO FINANCIAL SERVICES PRIVATE LIMITED (20500)", "HIMALAYA SECURITIES BANKER LIMITED (22900)", "HIMALAYAN BROKERAGE COMPANY LIMITED (19600)", "HIMALAYAN CAPITAL LIMITED (10100)", "HIMALAYAN CAPITAL LIMITED (17700)", "HIMALAYAN INVESTMENT BANKER LIMITED (22800)", "ICFC FINANCE LIMITED (17400)", "IMPERIAL SECURITIES COMPANY LIMITED (13100)", "INDEX SECURITIES LIMITED (20000)", "INDIRA SECURITIES PVT. LTD. (20800)", "INFINITY SECURITIES LIMITED (19900)", "INVESTMENT MANAGEMENT NEPAL PVT. LTD. (23100)", "JF SECURITIES COMPANY PVT. LTD. (23300)", "JYOTI BIKASH BANK LIMITED (17900)", "K.B.L. SECURITIES LIMITED. (22000)", "KALASH STOCK MARKET PVT. LTD. (20100)", "KALIKA SECURITIES PVT. LTD. (18700)", "KAMANA SEWA BIKAS BANK LIMITED. (18200)", "KOHINOOR INVESTMENT & SECURITIES PRIVATE LIMITED (14300)", "KUMARI BANK LIMITED (15200)", "KUMARI BANK LIMITED (16300)", "LAXMI SUNRISE CAPITAL LIMITED (12400)", "LAXMI SUNRISE CAPITAL LIMITED (10700)", "LINCH STOCK MARKET  LIMITED (13800)", "MACHHAPUCHCHHRE BANK LIMITED (16100)", "MACHHAPUCHCHHRE CAPITAL LIMITED (14100)", "MACHHAPUCHCHHRE SECURITIES LTD. (21400)", "MAGNET SECURITIES AND INVESTMENT COMPANY PVT. LTD. (22200)", "MAHALAXMI BIKAS BANK LIMITED (16700)", "MANJUSHREE FINANCE LIMITED (18900)", "MARKET SECURITIES EXCHANGE COMPANY PVT. LTD (13600)", "MILKY WAY SHARE BROKER COMPANY LTD. (21600)", "MIYO SECURITIES PRIVATE LIMITED (19700)", "MONEY WORLD SHARE EXCHANGE PVT. LTD. (21100)", "MUKTINATH CAPITAL LIMITED (12500)", "NAASA SECURITIES COMPANY LTD (15900)", "NABIL BANK LIMITED (16800)", "NABIL BANK LIMITED (15100)", "NABIL INVESTMENT BANKING LTD. (10400)", "NAGARIK STOCK DEALER COMPANY LIMITED (20400)", "NATIONAL CAPITAL LIMITED (23400)", "NEPAL BANK LIMITED (15700)", "NEPAL DP LIMITED (15500)", "NEPAL INVESTMENT AND SECURITIES TRADING PVT. LTD. (23500)", "NEPAL LIFE CAPITAL LIMITED (16400)", "NEPAL SBI BANK LIMITED (15300)", "NEPAL STOCK HOUSE PRIVATE LIMITED (11500)", "NIC ASIA BANK LIMITED (13700)", "NIMB ACE CAPITAL LIMITED (10600)", "NIMB ACE CAPITAL LIMITED (10200)", "NIMB ACE CAPITAL LIMITED (17300)", "NMB CAPITAL LIMITED (11000)", "ONLINE SECURITIES LIMITED (11800)", "OPAL SECURITIES INVESTMENT PVT. LTD. (21200)", "OXFORD SECURITIES PVT. LTD. (17000)", "PAHI INVESTMENT PVT. LTD. (21300)", "PRABHU BANK LIMITED (13900)", "PRABHU BANK LIMITED (16000)", "PRABHU CAPITAL LIMITED (12600)", "PRAGYAN SECURITIES PVT. LTD. (22600)", "PREMIER SECURITIES COMPANY LIMITED (14800)", "PRIME COMMERCIAL BANK LIMITED (15400)", "PRIME COMMERCIAL BANK LIMITED (16900)", "PRIMO SECURITIES PRIVATE LIMITED (12800)", "PROGRESSIVE FINANCE LIMITED (18600)", "PROPERTY WIZARD LIMITED (19400)", "PROVIDENT MERCHANT BANKING LIMITED (16600)", "R.B.B. SECURITIES COMPANY LTD. (23000)", "RBB MERCHANT BANKING LIMITED (16500)", "ROADSHOW SECURITIES LTD. (22100)", "S.P.S.A. SECURITIES LTD. (21500)", "SAJILO BROKER LIMITED (21700)", "SAMPANNA CAPITAL AND ADVISORY NEPAL LIMITED (18100)", "SANI SECURITIES COMPANY LIMITED (14400)", "SANIMA BANK LTD (15800)", "SANIMA SECURITIES LIMITED (22400)", "SECURED SECURITIES LIMITED (11600)", "SEWA SECURITIES PRIVATE LIMITED (12700)", "SHANGRI-LA DEVELOPMENT BANK LIMITED (18400)", "SHAREPRO SECURITIES PVT.LTD. (19200)", "SHINE RESUNGA DEVELOPMENT BANK LIMITED (18500)", "SHREE INVESTMENT AND FINANCE CO. LTD. (18800)", "SHREE KRISHNA SECURITIES LIMITED (12900)", "SHUBHAKAMANA SECURITIES PVT. LTD. (20200)", "SIDDHARTHA CAPITAL LIMITED (10900)", "SIPLA SECURITIES PRIVATE LIMITED (14600)", "SOUTH ASIAN BULLS PRIVATE LIMITED (13000)", "SRI HARI SECURITIES PVT. LTD. (14000)", "STOXKARTS SECURITIES LIMITED (21000)", "SUMERU  SECURITIES  PRIVATE  LIMITED (14200)", "SUN SECURITIES PVT. LTD. (19300)", "SUNDHARA SECURITIES LIMITED (17800)", "SUNLIFE CAPITAL LIMITED (22500)", "SWARNALAXMI SECURITIES PVT. LTD. (18300)", "TRADEMOW SECURITIES PVT. LTD. (22700)", "TRISHAKTI SECURITIES LIMITED (11400)", "TRISHUL SECURITIES & INVESTMENT LIMITED (17100)", "VISION SECURITIES PVT. LTD (13500)"];
@@ -29,7 +25,6 @@ function Upload() {
     const [isAuthenticated, setIsAuthenticated] = useState(!!sessionStorage.getItem('masterAuth'));
     const [passwordInput, setPasswordInput] = useState('');
     const [selectedMemberIds, setSelectedMemberIds] = useState([]);
-    const [syncResults, setSyncResults] = useState(null);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [addMemberModalVisible, setAddMemberModalVisible] = useState(false);
     const [currentMember, setCurrentMember] = useState(null);
@@ -42,25 +37,6 @@ function Upload() {
     const { data: members, isLoading: membersLoading } = useQuery({
         queryKey: ['members'],
         queryFn: () => getMembers().then(r => r.data),
-    });
-
-    // Mutations
-    const syncMutation = useMutation({
-        mutationFn: (ids) => syncMeroshare(ids),
-        onSuccess: (res) => {
-            setSyncResults(res.data);
-            if (res.data.status === 'success') {
-                message.success(res.data.message);
-            } else {
-                message.warning('Sync completed with some notifications.');
-            }
-            queryClient.invalidateQueries({ queryKey: ['transactions'] });
-            queryClient.invalidateQueries({ queryKey: ['holdings'] });
-            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
-        },
-        onError: (err) => {
-            message.error(err.response?.data?.detail || 'Sync failed');
-        },
     });
 
     const verifyMutation = useMutation({
@@ -176,7 +152,7 @@ function Upload() {
             const res = await getDecryptedCredentials(member.id);
             form.setFieldsValue(res.data);
             setEditModalVisible(true);
-        } catch (err) {
+        } catch {
             // If no credentials yet, just open empty
             form.resetFields();
             setEditModalVisible(true);
@@ -189,6 +165,7 @@ function Upload() {
 
     const handleExportExcel = async () => {
         try {
+            const XLSX = await import('xlsx');
             const res = await exportCredentials();
             if (!res.data || res.data.length === 0) {
                 message.warning('No credentials found to export');
@@ -206,6 +183,7 @@ function Upload() {
 
     const handleExportCSV = async () => {
         try {
+            const Papa = await import('papaparse');
             const res = await exportCredentials();
             if (!res.data || res.data.length === 0) {
                 message.warning('No credentials found to export');
@@ -227,14 +205,18 @@ function Upload() {
 
     const handleExportSyncResults = () => {
         if (!overallResults || overallResults.length === 0) return;
-        const csv = Papa.unparse(overallResults);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', `sync_results_${dayjs().format('YYYY-MM-DD_HHmm')}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        import('papaparse').then((module) => {
+            const Papa = module.default;
+            const csv = Papa.unparse(overallResults);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
+            link.setAttribute('download', `sync_results_${stamp}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
     };
 
     const exportItems = [
@@ -257,7 +239,7 @@ function Upload() {
         if (!file) return;
 
         console.log('Importing file:', file.name);
-        Papa.parse(file, {
+        import('papaparse').then((module) => module.default.parse(file, {
             header: true,
             skipEmptyLines: true,
             complete: (results) => {
@@ -285,7 +267,7 @@ function Upload() {
                 console.error('CSV Parse Error:', err);
                 message.error('Failed to parse CSV file');
             }
-        });
+        }));
         e.target.value = null; // Reset file input
     };
 
@@ -403,9 +385,12 @@ function Upload() {
                 onChange={setActiveTab}
                 className="custom-tabs"
                 style={{ marginTop: 24 }}
-            >
-                <TabPane tab={<Space><SyncOutlined /> MeroShare Sync</Space>} key="sync">
-                    <Card style={{ borderRadius: 16 }}>
+                items={[
+                    {
+                        key: 'sync',
+                        label: <Space><SyncOutlined /> MeroShare Sync</Space>,
+                        children: (
+                            <Card style={{ borderRadius: 16 }}>
 
                         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Space size="middle">
@@ -441,38 +426,47 @@ function Upload() {
                             </div>
                         )}
 
-                        <List
-                            loading={membersLoading}
-                            dataSource={members}
-                            style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid var(--border-color)' }}
-                            renderItem={item => (
-                                <List.Item style={{ padding: '16px 24px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                        <Checkbox
-                                            disabled={!item.has_credentials}
-                                            checked={selectedMemberIds.includes(item.id)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setSelectedMemberIds([...selectedMemberIds, item.id]);
-                                                } else {
-                                                    setSelectedMemberIds(selectedMemberIds.filter(id => id !== item.id));
-                                                }
-                                            }}
-                                        />
-                                        <div style={{ marginLeft: 16 }}>
-                                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                                                {item.display_name || item.name}
-                                            </div>
-                                            {!item.has_credentials && (
-                                                <div style={{ fontSize: 12, color: 'var(--accent-red)' }}>
-                                                    Credentials not configured
+                        <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 12, border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                            {membersLoading ? (
+                                <div style={{ padding: '20px 24px', color: 'var(--text-secondary)' }}>Loading members...</div>
+                            ) : members?.length ? (
+                                members.map((item, index) => (
+                                    <div
+                                        key={item.id}
+                                        style={{
+                                            padding: '16px 24px',
+                                            borderBottom: index === members.length - 1 ? 'none' : '1px solid var(--border-color)',
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                            <Checkbox
+                                                disabled={!item.has_credentials}
+                                                checked={selectedMemberIds.includes(item.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedMemberIds([...selectedMemberIds, item.id]);
+                                                    } else {
+                                                        setSelectedMemberIds(selectedMemberIds.filter(id => id !== item.id));
+                                                    }
+                                                }}
+                                            />
+                                            <div style={{ marginLeft: 16 }}>
+                                                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                                    {item.display_name || item.name}
                                                 </div>
-                                            )}
+                                                {!item.has_credentials && (
+                                                    <div style={{ fontSize: 12, color: 'var(--accent-red)' }}>
+                                                        Credentials not configured
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </List.Item>
+                                ))
+                            ) : (
+                                <div style={{ padding: '20px 24px', color: 'var(--text-secondary)' }}>No members found.</div>
                             )}
-                        />
+                        </div>
 
                         {overallResults.length > 0 && (
                             <div style={{ marginTop: 24 }}>
@@ -482,47 +476,54 @@ function Upload() {
                                         Export Results (CSV)
                                     </Button>
                                 </div>
-                                <List
-                                    size="small"
-                                    dataSource={overallResults}
-                                    renderItem={item => (
-                                        <List.Item>
-                                            <div style={{ width: '100%' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                                    <strong>{item.name}</strong>
-                                                    <Tag color={item.status === 'success' ? 'green' : 'red'}>
-                                                        {item.status.toUpperCase()}
-                                                    </Tag>
-                                                </div>
-                                                <div style={{ fontSize: 13 }}>
-                                                    {item.status === 'success' ? (
-                                                        item.message || `Created: ${item.created} | Skipped: ${item.skipped}`
-                                                    ) : (
-                                                        <span style={{ color: 'var(--accent-red)' }}>{item.reason}</span>
-                                                    )}
-                                                </div>
+                                <div style={{ border: '1px solid var(--border-color)', borderRadius: 8, overflow: 'hidden' }}>
+                                    {overallResults.map((item, index) => (
+                                        <div
+                                            key={`${item.name}-${index}`}
+                                            style={{
+                                                padding: '12px 16px',
+                                                borderBottom: index === overallResults.length - 1 ? 'none' : '1px solid var(--border-color)',
+                                            }}
+                                        >
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                                <strong>{item.name}</strong>
+                                                <Tag color={item.status === 'success' ? 'green' : 'red'}>
+                                                    {item.status.toUpperCase()}
+                                                </Tag>
                                             </div>
-                                        </List.Item>
-                                    )}
-                                />
+                                            <div style={{ fontSize: 13 }}>
+                                                {item.status === 'success' ? (
+                                                    item.message || `Created: ${item.created} | Skipped: ${item.skipped}`
+                                                ) : (
+                                                    <span style={{ color: 'var(--accent-red)' }}>{item.reason}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
-                    </Card>
-                </TabPane>
-
-                <TabPane tab={<Space><UserOutlined /> Members</Space>} key="creds">
-                    <Card style={{ borderRadius: 16 }} bodyStyle={{ padding: 0 }}>
-                        <Table
-                            loading={membersLoading}
-                            dataSource={members}
-                            columns={credColumns}
-                            rowKey="id"
-                            pagination={false}
-                            style={{ borderRadius: 16, overflow: 'hidden' }}
-                        />
-                    </Card>
-                </TabPane>
-            </Tabs>
+                            </Card>
+                        ),
+                    },
+                    {
+                        key: 'creds',
+                        label: <Space><UserOutlined /> Members</Space>,
+                        children: (
+                            <Card style={{ borderRadius: 16 }} styles={{ body: { padding: 0 } }}>
+                                <Table
+                                    loading={membersLoading}
+                                    dataSource={members}
+                                    columns={credColumns}
+                                    rowKey="id"
+                                    pagination={false}
+                                    style={{ borderRadius: 16, overflow: 'hidden' }}
+                                />
+                            </Card>
+                        ),
+                    },
+                ]}
+            />
 
             {/* Add Member Modal */}
             <Modal
