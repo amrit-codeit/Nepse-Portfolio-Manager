@@ -20,7 +20,7 @@ export default function About() {
                     Nepse Portfolio Manager
                 </Title>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Tag color="blue" bordered={false} style={{ borderRadius: 4 }}>v1.7.0-Stable</Tag>
+                    <Tag color="blue" bordered={false} style={{ borderRadius: 4 }}>v1.8.0-Stable</Tag>
                     <Text type="secondary" style={{ fontSize: 13 }}>Enterprise-grade performance tracking for the Nepali Stock Market.</Text>
                 </div>
             </div>
@@ -71,6 +71,7 @@ export default function About() {
                         <List
                             size="small"
                             dataSource={[
+                                { date: 'May 09, 2026', version: 'v1.8.0', msg: 'System import/export, transaction expressions, and major performance optimizations.' },
                                 { date: 'May 03, 2026', version: 'v1.7.0', msg: 'Integrated Macro Pulse and Alternatives Comparison dashboard with AI Context.' },
                                 { date: 'Apr 28, 2026', version: 'v1.6.0', msg: 'Added AI Portfolio Context Awareness and Trade Intel integration.' },
                                 { date: 'Apr 26, 2026', version: 'v1.5.0', msg: 'Integrated Multi-Provider Cloud AI (Groq, Nvidia).' },

@@ -58,7 +58,7 @@ function GroupModal({ open, onClose, onSave, members, editGroup }) {
                 onChange={setSelectedIds}
                 style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
             >
-                {(members || []).map(m => (
+                {(Array.isArray(members) ? members : []).map(m => (
                     <Checkbox key={m.id} value={m.id}>
                         {m.display_name || m.name}
                     </Checkbox>
@@ -181,7 +181,7 @@ export default function MemberSelector({ members = [], onChange }) {
             {/* Individual Member Chips */}
             {mode === 'individual' && (
                 <div className="member-selector" style={{ marginTop: 12 }}>
-                    {members.map(m => (
+                    {(Array.isArray(members) ? members : []).map(m => (
                         <div
                             key={m.id}
                             className={`member-chip ${selectedId === m.id ? 'active' : ''}`}
@@ -196,7 +196,7 @@ export default function MemberSelector({ members = [], onChange }) {
             {/* Group Chips */}
             {mode === 'groups' && (
                 <div className="member-selector" style={{ marginTop: 12 }}>
-                    {groups.map(g => (
+                    {(Array.isArray(groups) ? groups : []).map(g => (
                         <div
                             key={g.id}
                             className={`group-chip ${selectedId === g.id ? 'active' : ''}`}

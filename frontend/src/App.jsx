@@ -88,7 +88,6 @@ const Economy = lazyWithRetry(() => import('./pages/Economy'));
 const About = lazyWithRetry(() => import('./pages/About'));
 const Members = lazyWithRetry(() => import('./pages/Members'));
 const ScripDetail = lazyWithRetry(() => import('./pages/ScripDetail'));
-const Calculator = lazyWithRetry(() => import('./pages/Calculator'));
 
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
@@ -96,7 +95,6 @@ const menuItems = [
   { key: '/transactions', icon: <SwapOutlined />, label: 'Transactions' },
   { key: '/prices', icon: <BankOutlined />, label: 'Prices' },
   { key: '/insights', icon: <StockOutlined />, label: 'Stock Explorer' },
-  { key: '/calculator', icon: <CalculatorOutlined />, label: 'Calculator' },
   { key: '/trading', icon: <ThunderboltOutlined />, label: 'Trading Desk' },
   { key: '/economy', icon: <GlobalOutlined />, label: 'Economy' },
   { key: '/apply-ipo', icon: <ThunderboltOutlined />, label: 'Apply IPO' },
@@ -201,7 +199,6 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/members" element={<Members />} />
-                <Route path="/calculator" element={<Calculator />} />
                 <Route path="/scrip/:symbol" element={<ScripDetail />} />
               </Routes>
             </Suspense>

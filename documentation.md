@@ -54,7 +54,7 @@ backend (FastAPI)
 
 ### Runtime behavior
 
-- In development, both the frontend and backend read the active ports from the single root `.env` file (`PORT` and `VITE_PORT`). By default, the frontend runs on `:3055` and the backend on `:6767`.
+- In development, both the frontend and backend read the active ports from the single root `.env` file (`PORT` and `VITE_PORT`). By default, the unified application proxy runs on `:8080`.
 - In production-style local use, FastAPI can serve the built frontend from `frontend/dist` if that folder exists.
 - The backend currently requires `MASTER_PASSWORD` to already be a bcrypt hash at startup. If it is missing or plaintext-like, the process exits.
 
@@ -187,6 +187,7 @@ All routers are mounted directly in [backend/app/main.py](D:/Projects/Portfolio/
 | `market_context.py` | `/api/market` | Market context, technicals, backtesting |
 | `trading.py` | `/api/trading` | Trade setups, signals, journal, stats |
 | `notifications.py` | `/api/notifications` | Unread notifications and mark-as-read status |
+| `system.py` | `/api/system` | Global market data export and chunked ZIP-of-JSONL import |
 
 ### Health and static routes
 

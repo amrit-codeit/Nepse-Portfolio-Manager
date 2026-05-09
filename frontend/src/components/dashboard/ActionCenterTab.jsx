@@ -81,7 +81,7 @@ export default function ActionCenterTab({ summary, context, isSipMode }) {
     const [savedTargetWeights, setSavedTargetWeights] = useState({});
 
     const holdings = useMemo(() => (
-        (summary?.holdings || []).map(h => ({
+        (Array.isArray(summary?.holdings) ? summary.holdings : []).map(h => ({
             ...h,
             target_weight: savedTargetWeights[h.id] ?? h.target_weight,
             ...(Object.prototype.hasOwnProperty.call(tempTargetWeights, h.id)

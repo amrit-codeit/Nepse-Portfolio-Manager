@@ -260,7 +260,8 @@ export default function OverviewTab({ summary, context, members, onTabChange, is
 
     // Sorted holdings — ALL of them, not just top 10
     const sortedHoldings = useMemo(() => {
-        const list = [...(summary?.holdings || [])];
+        if (!summary?.holdings || !Array.isArray(summary.holdings)) return [];
+        const list = [...summary.holdings];
         list.sort((a, b) => {
             const aVal = a[sortField] || 0;
             const bVal = b[sortField] || 0;

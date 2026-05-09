@@ -29,7 +29,7 @@ function Dashboard() {
         queryFn: () => getMembers().then(r => r.data),
     });
 
-    const members = useMemo(() => membersData || [], [membersData]);
+    const members = useMemo(() => Array.isArray(membersData) ? membersData : [], [membersData]);
 
     // Build query params from context
     const summaryParams = useMemo(() => {
@@ -59,7 +59,7 @@ function Dashboard() {
 
     // Split summary by equity vs SIP using backend-provided segmented data
     const splitSummary = useMemo(() => {
-        if (!summary) return { equity: null, sip: null, totalValue: 0, equityValue: 0, sipValue: 0 };
+        if (!summary || typeof summary !== 'object') return { equity: null, sip: null, totalValue: 0, equityValue: 0, sipValue: 0 };
         const sips = [];
         const eqs = [];
         let eqInv = 0, eqVal = 0, eqPnl = 0, eqTax = 0;
@@ -69,7 +69,8 @@ function Dashboard() {
             return h.instrument === 'Open-End Mutual Fund';
         };
 
-        (summary.holdings || []).forEach(h => {
+        const safeHoldings = Array.isArray(summary.holdings) ? summary.holdings : [];
+        safeHoldings.forEach(h => {
             if (isSip(h)) {
                 sips.push(h);
                 sipInv += (h.total_investment || 0);

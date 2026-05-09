@@ -94,7 +94,7 @@ export default function PerformanceTab({ summary, context, members, isSipMode, p
 
     // Investment vs Current Value per member
     const memberComparison = useMemo(() => {
-        if (!summary?.holdings) return [];
+        if (!summary?.holdings || !Array.isArray(summary.holdings)) return [];
         const memberMap = {};
         summary.holdings.forEach(h => {
             const name = h.member_name || 'Unknown';

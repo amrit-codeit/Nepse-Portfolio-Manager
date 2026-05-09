@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-05-09
+### Added
+- **Global Data Import/Export**: Introduced a chunked ZIP-of-JSONL import/export system in `system.py` for infinite SQLite scalability and easy bootstrap/sharing of market data.
+- **Transaction Expression Engine**: Added support for math expressions in transaction amounts (e.g., `=3*4`) and auto-filling from previous entries.
+- **Improved UI/UX**: Redesigned transaction history actions with intuitive icons, merged Calculator directly into the Trading Desk, and decoupled auth guards that broke Dashboard stability.
+
+### Changed
+- **Unified Application Port**: Moved the default proxy application port from 8000/5173 to `8080` to prevent local environment conflicts.
+- **NEPSE Health Scoring**: Re-architected the fundamental scoring engine with sector P/E bands, dividend quality limits, and forward return proxies to prevent overvalued stocks from achieving high scores.
+
+### Fixed
+- **Dashboard Performance**: Removed O(N) fundamental analysis loop in `get_portfolio_summary`, reducing DB queries by over 250+ per load and significantly speeding up the dashboard.
+- **Transaction DB Conflicts**: Refactored `get_next_transaction_id` to reliably calculate global maximums, resolving `UNIQUE constraint failed` errors on bulk operations.
+- **CGT Calculation**: Corrected logic to use tax-adjusted WACC instead of standard WACC for tax calculations on loss-making trades.
+
 ## [1.7.0] - 2026-05-03
 ### Added
 - **Economy & Alternatives Dashboard**: New global dashboard tracking macroeconomic indicators, monetary regime signals, and sector rotation advice based on interest rates.

@@ -64,6 +64,7 @@ backend/
       market_context.py  market context, extended technicals, backtests
       trading.py         trade setups, signals, journal, stats
       notifications.py   unread notifications and mark-as-read status
+      system.py          import/export system for market data
     models/
       member.py          Member, MeroshareCredential, MemberGroup
       company.py         Company
@@ -224,3 +225,15 @@ Do not assume the app only has the early core routers. The active backend includ
 - Several large frontend files are still monolithic.
 
 When in doubt, read the code path end to end before making assumptions.
+
+---
+
+## Update Practices
+
+To keep the repository clean and version numbers meaningful, follow these practices when applying updates:
+
+1. **Avoid Minor Version Bumps for Trivial Changes**: Do not bump versions in `changelog.md` or `documentation.md` for simple bug fixes, typo corrections, or small refactors. Reserve version bumps for grouped, significant feature additions or major architectural shifts.
+2. **Batch Documentation Updates**: When performing multi-step tasks, update `documentation.md`, `skill.md`, and `changelog.md` only once at the end of the feature development cycle, rather than sequentially after every minor step.
+3. **Keep `skill.md` Concise**: `skill.md` is meant to be a quick operational map. When adding new modules, ensure they fit the brief format (e.g., just the file name and a 3-5 word description).
+4. **Use "Unreleased" in Changelog**: For ongoing development, log changes under an `## [Unreleased]` block at the top of `changelog.md`. Only convert this to a versioned release (e.g., `## [1.9.0]`) when finalizing a major milestone.
+5. **Sync Architecture Diagrams**: When introducing a new top-level router, service, or model, update both `documentation.md`'s API table and `skill.md`'s architecture map simultaneously.

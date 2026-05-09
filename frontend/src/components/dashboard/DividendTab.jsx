@@ -94,7 +94,8 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
             key: 'yield_on_cost',
             align: 'right',
             render: (_, record) => {
-                const holding = summary?.holdings?.find(h => h.symbol === record.symbol && h.member_id === record.member_id);
+                const holdingsList = Array.isArray(summary?.holdings) ? summary.holdings : [];
+                const holding = holdingsList.find(h => h.symbol === record.symbol && h.member_id === record.member_id);
                 if (holding && holding.total_investment > 0) {
                     const yieldVal = (record.total_cash_amount / holding.total_investment) * 100;
                     return <span style={{ color: 'var(--accent-blue)', fontWeight: 600 }}>{yieldVal.toFixed(3)}%</span>;
@@ -139,7 +140,8 @@ export default function DividendTab({ summary, context, isSipMode, pricesData })
                 totalBonusShares += d.bonus_shares;
             }
             // Compute yield on cost for each record
-            const holding = summary?.holdings?.find(h => h.symbol === d.symbol && h.member_id === d.member_id);
+            const holdingsList = Array.isArray(summary?.holdings) ? summary.holdings : [];
+            const holding = holdingsList.find(h => h.symbol === d.symbol && h.member_id === d.member_id);
             if (holding && holding.total_investment > 0 && d.total_cash_amount > 0) {
                 totalYoc += (d.total_cash_amount / holding.total_investment) * 100;
                 yocCount++;

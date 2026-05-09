@@ -41,7 +41,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
 
     // Top 3 holdings by value
     const topHoldings = useMemo(() => {
-        if (!summary?.holdings) return [];
+        if (!summary?.holdings || !Array.isArray(summary.holdings)) return [];
         return [...summary.holdings]
             .sort((a, b) => (b.current_value || 0) - (a.current_value || 0))
             .slice(0, 3)
@@ -58,7 +58,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
 
     // Sector concentration
     const sectorData = useMemo(() => {
-        if (!summary?.holdings) return [];
+        if (!summary?.holdings || !Array.isArray(summary.holdings)) return [];
         const sectorMap = {};
         summary.holdings.forEach(h => {
             const sector = (h.sector && h.sector.trim()) || 'Other';
@@ -314,7 +314,7 @@ export default function RiskTab({ summary, context, members, isSipMode }) {
                     </div>
                     <Table 
                         columns={matrixColumns} 
-                        dataSource={summary.holdings} 
+                        dataSource={Array.isArray(summary?.holdings) ? summary.holdings : []} 
                         rowKey="id" 
                         pagination={{ defaultPageSize: 15, showSizeChanger: true, pageSizeOptions: ['15', '50', '100'] }} 
                         size="middle" 

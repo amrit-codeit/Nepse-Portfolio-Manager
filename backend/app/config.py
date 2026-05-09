@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables / .env file."""
 
     APP_NAME: str = "Nepal Portfolio Manager"
-    APP_VERSION: str = "1.0.0"
+    APP_VERSION: str = "1.8.0"
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"  # H-3: structlog log level
 

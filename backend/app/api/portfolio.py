@@ -8,9 +8,7 @@ from app.schemas.holding import HoldingResponse, PortfolioSummary
 from app.services.portfolio_engine import get_portfolio_summary
 from app.models.holding import Holding
 
-from app.api.auth import verify_token
-
-router = APIRouter(prefix="/api/v1/portfolio", tags=["Portfolio"], dependencies=[Depends(verify_token)])
+router = APIRouter(prefix="/api/v1/portfolio", tags=["Portfolio"])
 
 
 @router.get("/summary", response_model=PortfolioSummary)

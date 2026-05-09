@@ -18,7 +18,7 @@ from app.models.dividend import DividendIncome
 from app.schemas.holding import HoldingResponse, PortfolioSummary
 from app.services.analysis.fundamental import calculate_graham_number, is_overvalued, analyze_sector_risk
 from app.services.analysis.technical import is_technical_downtrend
-from app.services.analysis.executive_summary import calculate_executive_summary
+from app.services.analysis.executive_summary import get_pe_bands
 from app.api.economy import macro_snapshot
 import pandas as pd
 import pandas_ta as ta
@@ -685,7 +685,8 @@ def get_portfolio_summary(
         import logging
         logging.getLogger(__name__).warning(f"Failed to calculate advanced risk metrics: {e}")
 
-    # Portfolio Enhancements (P3)
+    # Portfolio Enhancements (P3) — PERF FIX: lightweight inline health score
+    # instead of calling the expensive calculate_executive_summary per holding
     sector_totals = {}
     weighted_health_sum = 0.0
     valid_health_weight = 0.0
@@ -696,15 +697,36 @@ def get_portfolio_summary(
             
         sector_totals[h.sector] = sector_totals.get(h.sector, 0) + val
         
-        try:
-            # Calculate health score for each holding
-            exec_sum = calculate_executive_summary(db, h.symbol)
-            if exec_sum and "health_score" in exec_sum:
-                score = exec_sum["health_score"]
-                weighted_health_sum += score * val
-                valid_health_weight += val
-        except Exception:
-            pass
+        # Lightweight health score approximation using already-loaded data
+        hs = 50  # baseline
+        ov = overview_map.get(h.symbol)
+        if ov:
+            # ROE boost
+            if ov.roe_ttm and ov.roe_ttm > 0.15: hs += 15
+            elif ov.roe_ttm and ov.roe_ttm > 0.08: hs += 8
+            # P/E valuation
+            pe = ov.pe_ratio
+            if pe and pe > 0:
+                bands = get_pe_bands(h.sector or "")
+                if pe <= bands["low"]: hs += 10
+                elif pe <= bands["high"]: hs += 5
+                elif pe > bands["high"] * 1.5: hs -= 15
+                else: hs -= 5
+            # EPS positivity
+            if ov.eps_ttm and ov.eps_ttm > 0: hs += 5
+        # Dividend boost
+        hdiv = div_map.get((h.member_id, h.symbol), 0)
+        if hdiv > 0 and h.total_investment > 0:
+            dy = (hdiv / h.total_investment) * 100
+            if dy >= 3: hs += 10
+            elif dy >= 1: hs += 5
+        # Technical trend
+        tdata = tech_map.get(h.symbol, {})
+        if tdata.get("sma_200") and h.ltp and h.ltp > tdata["sma_200"]: hs += 5
+        # Clamp
+        hs = max(0, min(100, hs))
+        weighted_health_sum += hs * val
+        valid_health_weight += val
 
     sector_allocation = {}
     if total_current_value > 0:
