@@ -33,6 +33,41 @@ export default function TransactionHistory({ memberId, symbol }) {
             render: (v) => v ? v.toFixed(3) : '—'
         },
         {
+            title: 'Commission',
+            dataIndex: 'broker_commission',
+            key: 'broker_commission',
+            align: 'right',
+            render: (v) => v ? v.toLocaleString() : '-'
+        },
+        {
+            title: 'DP Charge',
+            dataIndex: 'dp_charge',
+            key: 'dp_charge',
+            align: 'right',
+            render: (v) => v ? v.toLocaleString() : '-'
+        },
+        {
+            title: 'SEBON',
+            dataIndex: 'sebon_fee',
+            key: 'sebon_fee',
+            align: 'right',
+            render: (v) => v ? v.toLocaleString() : '-'
+        },
+        {
+            title: 'CGT',
+            dataIndex: 'cgt',
+            key: 'cgt',
+            align: 'right',
+            render: (v) => v ? v.toLocaleString() : '-'
+        },
+        {
+            title: 'Transfer Fee',
+            dataIndex: 'name_transfer_fee',
+            key: 'name_transfer_fee',
+            align: 'right',
+            render: (v) => v ? v.toLocaleString() : '-'
+        },
+        {
             title: 'Total Cost',
             dataIndex: 'total_cost',
             key: 'cost',

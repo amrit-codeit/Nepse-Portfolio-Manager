@@ -21,7 +21,7 @@ import {
     HistoryOutlined,
     LineChartOutlined
 } from '@ant-design/icons';
-import { getMergedPrices, scrapePrices, scrapeNav, getAllIssues, scrapeIssues, scrapeCompanies, getNepseIndex, scrapeIndex } from '../services/api';
+import { getMergedPrices, scrapePrices, scrapeNav, getAllIssues, scrapeIssues, scrapeCompanies, getNepseIndex, scrapeIndex, scrapeNepseIndex } from '../services/api';
 import dayjs from 'dayjs';
 import FreshnessTag from '../components/FreshnessTag';
 
@@ -407,11 +407,14 @@ function IssuesSubTab() {
             await scrapeIssues();
             await scrapeIndex();
         },
-        onSuccess: () => {
+        onSuccess: async () => {
             message.success('Issues, Companies, and Indices updated successfully.');
-            queryClient.invalidateQueries(['allIssues']);
-            queryClient.invalidateQueries(['companies']);
-            queryClient.invalidateQueries(['nepseIndex']);
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['allIssues'] }),
+                queryClient.invalidateQueries({ queryKey: ['companies'] }),
+                queryClient.invalidateQueries({ queryKey: ['nepseIndex'] }),
+            ]);
+            await queryClient.refetchQueries({ queryKey: ['nepseIndex'], type: 'active' });
         },
         onError: (err) => {
             message.error(err.response?.data?.error || 'Failed to refresh market metadata.');
@@ -503,13 +506,20 @@ function NepseIndexSubTab() {
     });
 
     const fetchIndexMut = useMutation({
-        mutationFn: () => scrapeIndex(),
-        onSuccess: (res) => {
+        mutationFn: async () => {
+            const res = await scrapeNepseIndex();
+            if (res.data?.status === 'failed') {
+                throw new Error(res.data?.error || 'Index refresh failed');
+            }
+            return res;
+        },
+        onSuccess: async (res) => {
             message.success(res.data?.message || 'NEPSE Index records refreshed successfully.');
-            queryClient.invalidateQueries(['nepseIndex']);
+            await queryClient.invalidateQueries({ queryKey: ['nepseIndex'] });
+            await queryClient.refetchQueries({ queryKey: ['nepseIndex'], type: 'active' });
         },
         onError: (err) => {
-            message.error(err.response?.data?.error || 'Failed to refresh NEPSE Index data.');
+            message.error(err.response?.data?.error || err.message || 'Failed to refresh NEPSE Index data.');
         }
     });
 
@@ -588,7 +598,7 @@ function NepseIndexSubTab() {
             <Card size="small" className="filter-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ color: 'var(--text-secondary)' }}>
-                        Historical NEPSE Index daily close data
+                        Official NEPSE Index historical OHLC data
                     </div>
                     <Button
                         type="primary"

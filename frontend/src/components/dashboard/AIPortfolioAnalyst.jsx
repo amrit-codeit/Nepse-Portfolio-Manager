@@ -40,14 +40,14 @@ function getSectionIcon(headerText) {
 /** Highlights numeric values and key terms inside analysis text */
 function highlightText(text) {
     if (!text) return null;
-    const parts = text.split(/(\b(?:Rs\.?\s*)?[\d,]+\.?\d*%?\b|(?:STRONG BUY|BUY|ACCUMULATE|HOLD|REDUCE|SELL|WAIT|BULLISH|BEARISH|OVERBOUGHT|OVERSOLD|NEUTRAL|DO NOT BUY|EXCELLENT|GOOD|NEEDS WORK|HIGH RISK))/gi);
+    const parts = text.split(/(\b(?:Rs\.?\s*)?[\d,]+\.?\d*%?\b|(?:STRONG BUY|BUY|ACCUMULATE|WATCHLIST|HOLD|REDUCE|SELL|WAIT|BULLISH|BEARISH|OVERBOUGHT|OVERSOLD|NEUTRAL|DO NOT BUY|EXCELLENT|GOOD|NEEDS WORK|HIGH RISK))/gi);
     
     return parts.map((part, i) => {
         if (/^(?:Rs\.?\s*)?[\d,]+\.?\d*%?$/.test(part)) {
             return <span key={i} style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{part}</span>;
         }
         const upper = part.toUpperCase();
-        if (['STRONG BUY', 'BUY', 'ACCUMULATE', 'BULLISH', 'EXCELLENT', 'GOOD'].includes(upper)) {
+        if (['STRONG BUY', 'BUY', 'ACCUMULATE', 'WATCHLIST', 'BULLISH', 'EXCELLENT', 'GOOD'].includes(upper)) {
             return <span key={i} style={{ fontWeight: 700, color: '#00b894', background: 'rgba(0,184,148,0.08)', padding: '1px 5px', borderRadius: 4 }}>{part}</span>;
         }
         if (['SELL', 'REDUCE', 'BEARISH', 'DO NOT BUY', 'HIGH RISK'].includes(upper)) {

@@ -10,7 +10,10 @@ from app.schemas.price import MergedPriceResponse, PriceHistoryResponse
 from typing import List, Optional
 from datetime import date as date_type
 
-router = APIRouter(prefix="/api/prices", tags=["Prices"])
+router = APIRouter(prefix="/api/v1/prices", tags=["Prices"])
+
+OFFICIAL_NEPSE_INDEX_ID = 12
+LIVE_NEPSE_INDEX_ID = 0
 
 
 @router.get("/issue-price")
@@ -158,9 +161,27 @@ def get_historical_prices(
 
 @router.get("/index/latest")
 def get_latest_nepse_index(db: Session = Depends(get_db)):
-    """Fetch the most recent NEPSE index record, prioritizing official records if same date."""
-    r = db.query(IndexHistory).filter(IndexHistory.index_id.in_([12, 0]))\
-          .order_by(IndexHistory.date.desc(), IndexHistory.index_id.desc()).first()
+    """Fetch the dashboard NEPSE index snapshot.
+
+    Live market snapshots are stored separately as index_id=0. Use those first
+    for the dashboard, then fall back to official historical index_id=12 data.
+    """
+    live_row = (
+        db.query(IndexHistory)
+        .filter(IndexHistory.index_id == LIVE_NEPSE_INDEX_ID)
+        .order_by(IndexHistory.date.desc(), IndexHistory.updated_at.desc())
+        .first()
+    )
+    official_row = (
+        db.query(IndexHistory)
+        .filter(IndexHistory.index_id == OFFICIAL_NEPSE_INDEX_ID)
+        .order_by(IndexHistory.date.desc())
+        .first()
+    )
+    if live_row and (not official_row or live_row.date >= official_row.date):
+        r = live_row
+    else:
+        r = official_row
         
     if not r:
         return {"error": "No index data found"}
@@ -170,7 +191,8 @@ def get_latest_nepse_index(db: Session = Depends(get_db)):
         "close": r.close,
         "change": r.change,
         "percent_change": r.percent_change,
-        "turnover": r.turnover
+        "turnover": r.turnover,
+        "source": "live" if r.index_id == LIVE_NEPSE_INDEX_ID else "historical",
     }
 
 
@@ -180,33 +202,35 @@ def get_nepse_index(
     end_date: Optional[date_type] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Fetch historical NEPSE index data, merging official and live records."""
-    # Fetch both official (12) and live (0) index records
-    query = db.query(IndexHistory).filter(IndexHistory.index_id.in_([12, 0]))
+    """Fetch official historical NEPSE index OHLC data only.
+
+    Live dashboard snapshots are close-only and must not appear in the
+    historical index table.
+    """
+    query = db.query(IndexHistory).filter(
+        IndexHistory.index_id == OFFICIAL_NEPSE_INDEX_ID,
+        IndexHistory.open.isnot(None),
+        IndexHistory.high.isnot(None),
+        IndexHistory.low.isnot(None),
+    )
     
     if start_date:
         query = query.filter(IndexHistory.date >= start_date)
     if end_date:
         query = query.filter(IndexHistory.date <= end_date)
         
-    # Order by date desc, then by index_id desc (so 12 comes before 0 for the same date)
-    records = query.order_by(IndexHistory.date.desc(), IndexHistory.index_id.desc()).all()
-    
-    # Deduplicate by date, prioritizing official records (index_id 12)
-    seen_dates = set()
-    merged_data = []
-    for r in records:
-        if r.date not in seen_dates:
-            merged_data.append({
-                "date": r.date,
-                "close": r.close,
-                "open": r.open,
-                "high": r.high,
-                "low": r.low,
-                "change": r.change,
-                "percent_change": r.percent_change,
-                "turnover": r.turnover
-            })
-            seen_dates.add(r.date)
-            
-    return merged_data
+    records = query.order_by(IndexHistory.date.desc()).all()
+
+    return [
+        {
+            "date": r.date,
+            "close": r.close,
+            "open": r.open,
+            "high": r.high,
+            "low": r.low,
+            "change": r.change,
+            "percent_change": r.percent_change,
+            "turnover": r.turnover,
+        }
+        for r in records
+    ]

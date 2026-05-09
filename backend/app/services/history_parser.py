@@ -7,7 +7,7 @@ each row into a Transaction record.
 
 import pandas as pd
 from io import StringIO
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.models.transaction import Transaction, TransactionType, TransactionSource
 from app.models.company import Company
@@ -277,6 +277,28 @@ def parse_meroshare_csv(
                         # If it's a completely different category (e.g. BUY vs IPO), 
                         # we treat it as a new transaction to be safe.
                         pass
+
+                # Secondary-market trades can appear in MeroShare on settlement date,
+                # while manual/broker entries are usually recorded on trade date.
+                if txn_type in (TransactionType.BUY.value, TransactionType.SELL.value) and txn_date:
+                    settlement_start = txn_date - timedelta(days=3)
+                    settlement_end = txn_date + timedelta(days=3)
+                    settled_existing = (
+                        db.query(Transaction)
+                        .filter(
+                            Transaction.member_id == member_id,
+                            Transaction.symbol == symbol,
+                            Transaction.txn_type == txn_type,
+                            Transaction.quantity == quantity,
+                            Transaction.source != TransactionSource.MEROSHARE.value,
+                            Transaction.txn_date >= settlement_start,
+                            Transaction.txn_date <= settlement_end,
+                        )
+                        .first()
+                    )
+                    if settled_existing:
+                        skipped += 1
+                        continue
 
             # Link to company
             company = db.query(Company).filter(

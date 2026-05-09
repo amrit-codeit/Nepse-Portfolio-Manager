@@ -10,7 +10,7 @@ from app.services.economy_service import (
     get_alternatives_comparison,
 )
 
-router = APIRouter(prefix="/api/economy", tags=["Economy"])
+router = APIRouter(prefix="/api/v1/economy", tags=["Economy"])
 
 
 @router.get("/macro")

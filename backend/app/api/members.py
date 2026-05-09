@@ -6,6 +6,7 @@ from app.database import get_db, SessionLocal
 from app.models.member import Member, MeroshareCredential
 from app.utils.encryption import encrypt_value, decrypt_value
 from app.config import settings
+from app.api.auth import verify_token
 from app.schemas.member import (
     MemberCreate, MemberUpdate, MemberResponse,
     CredentialCreate, CredentialResponse,
@@ -15,19 +16,10 @@ from app.scrapers.meroshare import sync_meroshare_for_member
 from fastapi import BackgroundTasks
 import bcrypt
 
-router = APIRouter(prefix="/api/members", tags=["Members"])
+router = APIRouter(prefix="/api/v1/members", tags=["Members"])
 
 
-def require_master_password(x_master_password: str = Header(..., alias="X-Master-Password")):
-    """FastAPI dependency that enforces master password on sensitive endpoints."""
-    try:
-        if not bcrypt.checkpw(x_master_password.encode('utf-8'), settings.MASTER_PASSWORD.encode('utf-8')):
-            raise HTTPException(
-                status_code=401, detail="Invalid master password")
-    except ValueError:
-        raise HTTPException(
-            status_code=401, detail="Invalid master password format")
-    return True
+
 
 
 @router.get("", response_model=list[MemberResponse])
@@ -70,7 +62,7 @@ def verify_password(data: VerifyPasswordRequest):
 
 
 @router.get("/export-credentials", response_model=list[MemberCredentialBulk])
-def export_credentials(db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+def export_credentials(db: Session = Depends(get_db), _auth=Depends(verify_token)):
     """Export all members and their credentials for backup."""
     members = db.query(Member).all()
     result = []
@@ -90,7 +82,7 @@ def export_credentials(db: Session = Depends(get_db), _auth=Depends(require_mast
 
 
 @router.post("/import-credentials")
-def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+def import_credentials(data: BulkImportRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), _auth=Depends(verify_token)):
     """Import members and credentials bulk (from credentials.csv)."""
     count = 0
     for item in data.credentials:
@@ -171,7 +163,7 @@ def update_member(member_id: int, data: MemberUpdate, db: Session = Depends(get_
 
 
 @router.delete("/{member_id}", status_code=204)
-def delete_member(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+def delete_member(member_id: int, db: Session = Depends(get_db), _auth=Depends(verify_token)):
     """Delete a member and all associated data."""
     member = db.query(Member).filter(Member.id == member_id).first()
     if not member:
@@ -183,7 +175,7 @@ def delete_member(member_id: int, db: Session = Depends(get_db), _auth=Depends(r
 # --- Credential Endpoints ---
 
 @router.post("/{member_id}/credentials", response_model=CredentialResponse, status_code=201)
-def set_credentials(member_id: int, data: CredentialCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+def set_credentials(member_id: int, data: CredentialCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db), _auth=Depends(verify_token)):
     """Set MeroShare credentials for a member."""
     member = db.query(Member).filter(Member.id == member_id).first()
     if not member:
@@ -216,7 +208,7 @@ def set_credentials(member_id: int, data: CredentialCreate, background_tasks: Ba
 
 
 @router.get("/{member_id}/credentials", response_model=CredentialResponse)
-def get_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+def get_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(verify_token)):
     """Get credentials for a member."""
     cred = db.query(MeroshareCredential).filter(
         MeroshareCredential.member_id == member_id).first()
@@ -231,7 +223,7 @@ def get_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends
 
 
 @router.get("/{member_id}/credentials/decrypted")
-def get_decrypted_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+def get_decrypted_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(verify_token)):
     """Get full credentials including decrypted password for editing.
     Requires X-Master-Password header (CRIT-01 fix)."""
     cred = db.query(MeroshareCredential).filter(
@@ -250,7 +242,7 @@ def get_decrypted_credentials(member_id: int, db: Session = Depends(get_db), _au
 
 
 @router.delete("/{member_id}/credentials", status_code=204)
-def delete_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+def delete_credentials(member_id: int, db: Session = Depends(get_db), _auth=Depends(verify_token)):
     """Delete credentials for a member."""
     cred = db.query(MeroshareCredential).filter(
         MeroshareCredential.member_id == member_id).first()

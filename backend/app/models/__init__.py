@@ -9,6 +9,7 @@ from app.models.fundamental import StockOverview, FundamentalReport
 from app.models.trading import TradeSetup, TradeJournal
 from app.models.scraper import ScraperRun
 from app.models.notification import Notification
+from app.models.ai_log import AIUsageLog
 
 __all__ = [
     "Member",
@@ -34,4 +35,5 @@ __all__ = [
     "TradeJournal",
     "ScraperRun",
     "Notification",
+    "AIUsageLog",
 ]

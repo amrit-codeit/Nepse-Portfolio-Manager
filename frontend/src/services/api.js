@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = '/api';
+const API_BASE = '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -9,11 +9,11 @@ const api = axios.create({
   },
 });
 
-// CRIT-01 Fix: Automatically attach the master password header to requests if available
+// CRIT-01 Fix: Automatically attach the token header to requests if available
 api.interceptors.request.use((config) => {
-  const masterPassword = sessionStorage.getItem('masterAuth');
-  if (masterPassword) {
-    config.headers['X-Master-Password'] = masterPassword;
+  const token = sessionStorage.getItem('masterAuth');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
 });
@@ -31,7 +31,8 @@ export const getDecryptedCredentials = (memberId) => api.get(`/members/${memberI
 export const deleteCredentials = (memberId) => api.delete(`/members/${memberId}/credentials`);
 
 // --- Bulk Credentials ---
-export const verifyMasterPassword = (password) => api.post('/members/verify-password', { password });
+export const verifyMasterPassword = (password) => api.post('/auth/login', { password });
+export const logout = () => api.post('/auth/logout');
 export const exportCredentials = () => api.get('/members/export-credentials');
 export const importCredentials = (credentials) => api.post('/members/import-credentials', { credentials });
 
@@ -96,6 +97,7 @@ export const scrapePrices = () => api.post('/scraper/prices');
 export const scrapeIssues = () => api.post('/scraper/issues');
 export const syncMeroshare = (memberIds) => api.post('/scraper/meroshare/sync', memberIds ? { member_ids: memberIds } : null);
 export const syncHistory = () => api.post('/scraper/history');
+export const scrapeNepseIndex = () => api.post('/scraper/index');
 export const scrapeIndex = () => api.post('/scraper/all-indices');
 export const syncDividends = () => api.post('/scraper/dividends');
 export const scrapeFundamentals = (symbol) => api.post(`/scraper/fundamentals/${symbol}`);

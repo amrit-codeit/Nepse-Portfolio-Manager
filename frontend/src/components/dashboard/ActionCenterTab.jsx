@@ -12,6 +12,7 @@ const getVerdictConfig = (verdict) => {
     switch (verdict) {
         case 'BUY': return { color: '#00b894', icon: <ThunderboltOutlined />, label: 'BUY' };
         case 'ACCUMULATE': return { color: '#0984e3', icon: <RiseOutlined />, label: 'ACCUMULATE' };
+        case 'WATCHLIST': return { color: '#00cec9', icon: <InfoCircleOutlined />, label: 'WATCHLIST' };
         case 'HOLD': return { color: '#fdcb6e', icon: <SafetyOutlined />, label: 'HOLD' };
         case 'REDUCE': return { color: '#e17055', icon: <FallOutlined />, label: 'REDUCE' };
         case 'EXIT': return { color: '#d63031', icon: <CloseCircleOutlined />, label: 'EXIT' };
@@ -25,6 +26,7 @@ const URGENCY_ORDER = {
     REDUCE: 1,
     ACCUMULATE: 2,
     BUY: 3,
+    WATCHLIST: 3.5,
     HOLD: 4,
     AVOID: 5
 };
@@ -56,6 +58,8 @@ const getActionDirective = (verdict, record, currentWeight) => {
             return `Set target weight above ${currentWeight.toFixed(1)}% in the rebalancer`;
         case 'BUY':
             return 'No position - use rebalancer to set initial target weight';
+        case 'WATCHLIST':
+            return 'Fundamentals constructive - monitor for better entry pricing';
         case 'HOLD':
             return 'No action - monitor for deterioration';
         case 'AVOID':
@@ -598,7 +602,7 @@ export default function ActionCenterTab({ summary, context, isSipMode }) {
                 className="portfolio-table"
                 rowClassName={(r) => {
                     const v = verdicts[r.symbol]?.action_verdict;
-                    if (v === 'ACCUMULATE' || v === 'BUY') return 'row-positive';
+                    if (v === 'ACCUMULATE' || v === 'BUY' || v === 'WATCHLIST') return 'row-positive';
                     if (v === 'EXIT' || v === 'REDUCE') return 'row-negative';
                     return '';
                 }}

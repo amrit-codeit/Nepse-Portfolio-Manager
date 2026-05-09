@@ -11,7 +11,7 @@ import pandas as pd
 import pandas_ta as ta
 from app.scrapers.screener_scraper import NepseAlphaScreenerScraper
 
-router = APIRouter(prefix="/api/screener", tags=["Screener"])
+router = APIRouter(prefix="/api/v1/screener", tags=["Screener"])
 
 STALE_TECHNICAL_HOURS = 12
 

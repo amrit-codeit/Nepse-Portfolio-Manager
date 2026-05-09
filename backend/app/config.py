@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     APP_NAME: str = "Nepal Portfolio Manager"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"  # H-3: structlog log level
+
+    # AI provider governance (M-5)
+    AI_TIMEOUT_SECONDS: int = 30
+    AI_FALLBACK_ORDER: list[str] = ["groq", "nvidia", "ollama"]
 
     # Database
     DATABASE_URL: str = "sqlite:///./portfolio.db"

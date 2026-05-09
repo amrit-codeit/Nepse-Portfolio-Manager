@@ -6,7 +6,7 @@ from app.database import get_db
 from app.models.company import Company
 from app.schemas.company import CompanyResponse, CompanyListResponse
 
-router = APIRouter(prefix="/api/companies", tags=["Companies"])
+router = APIRouter(prefix="/api/v1/companies", tags=["Companies"])
 
 
 @router.get("", response_model=CompanyListResponse)

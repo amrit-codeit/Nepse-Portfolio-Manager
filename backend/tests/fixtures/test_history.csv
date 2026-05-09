@@ -1,0 +1,5 @@
+SN,Script,History Description,Quantity,Credit/Debit,Current Balance,Transaction Date
+1,NABIL,SHARE BOUGHT,100,Credit,100,2024-01-01
+2,NABIL,SHARE SOLD,50,Debit,50,2024-01-05
+3,NTC,INITIAL PUBLIC OFFERING,50,Credit,50,2024-02-01
+4,NABIL,BONUS SHARE,10,Credit,60,2024-03-01

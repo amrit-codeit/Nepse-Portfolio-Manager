@@ -8,7 +8,7 @@ import pandas as pd
 import pandas_ta as ta
 from datetime import datetime, timedelta, timezone
 
-router = APIRouter(prefix="/api/insights", tags=["Insights"])
+router = APIRouter(prefix="/api/v1/insights", tags=["Insights"])
 
 STALE_PRICE_HOURS = 12
 

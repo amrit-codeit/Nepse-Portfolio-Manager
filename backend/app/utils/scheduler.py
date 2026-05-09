@@ -22,13 +22,33 @@ from datetime import datetime, timezone
 
 scheduler = BackgroundScheduler()
 
-def run_with_db(func, *args, scraper_name=None, **kwargs):
-    """Helper to run a synchronous task with a database session and log to ScraperRun."""
-    db = SessionLocal()
+# H-2: In-memory set of currently-running scraper names to prevent duplicates
+_active_scrapers: set[str] = set()
+
+def is_scraper_running(name: str) -> bool:
+    """Check if a scraper is currently running (H-2 concurrency guard)."""
+    return name in _active_scrapers
+
+
+def run_with_db(func, *args, scraper_name=None, triggered_by="scheduler", **kwargs):
+    """Helper to run a synchronous task with a database session and log to ScraperRun.
+    
+    Prevents duplicate concurrent runs via _active_scrapers lock set.
+    """
     if scraper_name is None:
         scraper_name = func.__name__
-        
-    run = ScraperRun(scraper_name=scraper_name, triggered_by="scheduler", status="running", started_at=datetime.now(timezone.utc))
+
+    # H-2: Prevent duplicate concurrent scraper runs
+    if scraper_name in _active_scrapers:
+        print(f"[Scheduler] Skipped {scraper_name} — already running")
+        return
+
+    _active_scrapers.add(scraper_name)
+    db = SessionLocal()
+    run = ScraperRun(
+        scraper_name=scraper_name, triggered_by=triggered_by,
+        status="running", started_at=datetime.now(timezone.utc),
+    )
     db.add(run)
     db.commit()
     
@@ -41,12 +61,13 @@ def run_with_db(func, *args, scraper_name=None, **kwargs):
             run.rows_affected = result
     except Exception as e:
         run.status = "failure"
-        run.error_message = str(e)
+        run.error_message = str(e)[:500]
         print(f"Scheduler job failed for {func.__name__}: {e}")
     finally:
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
         db.close()
+        _active_scrapers.discard(scraper_name)
 
 def scheduled_price_scrape():
     run_with_db(scrape_live_prices)
@@ -128,8 +149,13 @@ def start_scheduler():
         day_of_week='sun', hour=23, minute=0, timezone=ktm_tz
     ), id="fundamentals_scrape", replace_existing=True)
 
+    # H-1: Nightly backup at 02:00 NPT
+    scheduler.add_job(create_database_backup, CronTrigger(
+        hour=2, minute=0, timezone=ktm_tz
+    ), id="nightly_backup", replace_existing=True)
+
     scheduler.start()
-    print("[OK] Background scheduler started with NEPSE trading hours jobs")
+    print("[OK] Background scheduler started with NEPSE trading hours jobs + nightly backup")
 
 def stop_scheduler():
     """Stop the scheduler gracefully."""

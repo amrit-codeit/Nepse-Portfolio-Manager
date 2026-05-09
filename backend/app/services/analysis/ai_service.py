@@ -4,9 +4,15 @@ AI Service — Unified engine for interacting with AI models (Local, Cloud and F
 """
 import json
 import re
+import time
 import httpx
 from typing import Dict, Any, Optional, List
 from app.config import settings
+from app.database import SessionLocal
+from app.models.ai_log import AIUsageLog
+from app.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 # Add entries here as you test new models.
@@ -61,10 +67,11 @@ class AIService:
                 "- Do not recommend REDUCE or EXIT only because the position is in profit. Do not recommend ACCUMULATE only because price is below cost.\n"
             )
         else:
-            allowed_actions = "BUY or AVOID"
+            allowed_actions = "BUY, WATCHLIST, or AVOID"
             rules = (
                 "- User currently does not hold this stock. Treat this as a fresh value-investing decision.\n"
                 "- BUY only when valuation, business quality, dividend/compounding potential, and rough forward expected return are attractive versus waiting.\n"
+                "- WATCHLIST when fundamentals are constructive but entry timing or valuation isn't compelling enough for immediate capital deployment.\n"
                 "- AVOID when margin of safety is weak, balance-sheet quality is poor, or opportunity cost is too high.\n"
             )
         return allowed_actions, rules
@@ -415,7 +422,51 @@ class AIService:
             return ""
 
     # ------------------------------------------------------------------
-    # Public API
+    # Telemetry
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _log_usage(
+        provider: str,
+        model: str,
+        endpoint: str,
+        duration: float,
+        status: str,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        error_message: str = None
+    ) -> None:
+        """Record AI usage to database and structlog (H-3/M-5)."""
+        logger.info(
+            "ai.call_completed",
+            provider=provider,
+            model=model,
+            endpoint=endpoint,
+            duration=round(duration, 2),
+            status=status,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            error=error_message
+        )
+        try:
+            db = SessionLocal()
+            log = AIUsageLog(
+                provider=provider,
+                model=model,
+                endpoint=endpoint,
+                duration_seconds=duration,
+                status=status,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                error_message=error_message
+            )
+            db.add(log)
+            db.commit()
+            db.close()
+        except Exception as e:
+            logger.error("ai.log_usage_failed", error=str(e))
+
+    # ------------------------------------------------------------------
+    # Public API — Fallback Router (M-5)
     # ------------------------------------------------------------------
 
     @classmethod
@@ -424,25 +475,23 @@ class AIService:
         input_data: Dict[str, Any],
         model_name: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Value Investing AI session.
-        Combines fundamental analysis with technical timing for long-term value assessment.
-        """
-        model          = model_name or settings.DEFAULT_OLLAMA_MODEL
+        """Value Investing AI session with fallback chain."""
         scoring_action = input_data.get("action_verdict") or input_data.get("scoring_action", "HOLD")
         scoring_score  = input_data.get("health_score", 50)
         portfolio_ctx  = input_data.get("portfolio_context")
-        system_prompt = cls._build_value_system_prompt(
-            scoring_action=scoring_action,
-            scoring_score=scoring_score,
-            portfolio_ctx=portfolio_ctx,
-            is_local=True,
-        )
+        
         user_prompt = f"Stock data:\n{json.dumps(input_data, default=str)}"
         macro_ctx = cls._get_macro_context()
         if macro_ctx:
             user_prompt += f"\n\n{macro_ctx}"
-        return await cls._call_ollama(system_prompt, user_prompt, model)
+
+        return await cls._execute_with_fallback(
+            endpoint_name="value_verdict",
+            build_local_system=lambda: cls._build_value_system_prompt(scoring_action, scoring_score, portfolio_ctx, True),
+            build_cloud_system=lambda: cls._build_value_system_prompt(scoring_action, scoring_score, portfolio_ctx, False),
+            user_prompt=user_prompt,
+            requested_model=model_name
+        )
 
     @classmethod
     async def get_trading_verdict(
@@ -450,25 +499,22 @@ class AIService:
         input_data: Dict[str, Any],
         model_name: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Pure Trading AI session.
-        Focuses on price action, momentum, and short-term trading opportunities.
-        """
-        model = model_name or settings.DEFAULT_OLLAMA_MODEL
-
+        """Pure Trading AI session with fallback chain."""
         active_setup = input_data.get("active_trade_setup")
         portfolio_ctx = input_data.get("portfolio_context")
-        system_prompt = cls._build_trading_system_prompt(
-            active_trade_setup=active_setup,
-            portfolio_context=portfolio_ctx,
-            is_local=True,
-        )
-
+        
         user_prompt = f"Technical data:\n{json.dumps(input_data, default=str)}"
         macro_ctx = cls._get_macro_context()
         if macro_ctx:
             user_prompt += f"\n\n{macro_ctx}"
-        return await cls._call_ollama(system_prompt, user_prompt, model)
+
+        return await cls._execute_with_fallback(
+            endpoint_name="trading_verdict",
+            build_local_system=lambda: cls._build_trading_system_prompt(active_setup, portfolio_ctx, True),
+            build_cloud_system=lambda: cls._build_trading_system_prompt(active_setup, portfolio_ctx, False),
+            user_prompt=user_prompt,
+            requested_model=model_name
+        )
 
     @classmethod
     async def get_verdict(
@@ -476,11 +522,121 @@ class AIService:
         input_data: Dict[str, Any],
         model_name: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Legacy alias — delegates to get_value_verdict."""
+        """Legacy alias."""
         return await cls.get_value_verdict(input_data, model_name)
 
+    @classmethod
+    async def get_portfolio_verdict(
+        cls,
+        input_data: Dict[str, Any],
+        model_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Portfolio analysis with fallback chain."""
+        user_prompt = f"Portfolio Metrics:\n{json.dumps(input_data, default=str)}"
+        
+        return await cls._execute_with_fallback(
+            endpoint_name="portfolio",
+            build_local_system=cls._portfolio_system_prompt,
+            build_cloud_system=cls._portfolio_system_prompt,
+            user_prompt=user_prompt,
+            requested_model=model_name
+        )
+
+    @classmethod
+    async def get_portfolio_verdict_cloud(
+        cls,
+        input_data: Dict[str, Any],
+        provider: str = "groq",
+    ) -> Dict[str, Any]:
+        """Legacy alias."""
+        return await cls.get_portfolio_verdict(input_data)
+
+    @classmethod
+    async def _execute_with_fallback(
+        cls,
+        endpoint_name: str,
+        build_local_system: callable,
+        build_cloud_system: callable,
+        user_prompt: str,
+        requested_model: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Executes the AI call, trying providers in the defined fallback order (M-5)."""
+        fallback_order = settings.AI_FALLBACK_ORDER
+        last_error = None
+
+        for provider in fallback_order:
+            start_time = time.time()
+            logger.info("ai.attempting_provider", provider=provider, endpoint=endpoint_name)
+            
+            try:
+                if provider == "groq":
+                    if not settings.GROQ_API_KEY:
+                        logger.debug("ai.skip_groq", reason="no_api_key")
+                        continue
+                    res = await cls._call_cloud_api(
+                        build_cloud_system(), user_prompt, 
+                        is_nvidia=False, 
+                        timeout=settings.AI_TIMEOUT_SECONDS
+                    )
+                elif provider == "nvidia":
+                    if not settings.NVIDIA_API_KEY:
+                        logger.debug("ai.skip_nvidia", reason="no_api_key")
+                        continue
+                    res = await cls._call_cloud_api(
+                        build_cloud_system(), user_prompt, 
+                        is_nvidia=True, 
+                        timeout=settings.AI_TIMEOUT_SECONDS
+                    )
+                elif provider == "ollama":
+                    model = requested_model or settings.DEFAULT_OLLAMA_MODEL
+                    res = await cls._call_ollama(
+                        build_local_system(), user_prompt, model
+                    )
+                else:
+                    continue
+
+                duration = time.time() - start_time
+                
+                if res.get("status") == "success":
+                    cls._log_usage(
+                        provider=provider,
+                        model=res.get("model_used", "unknown"),
+                        endpoint=endpoint_name,
+                        duration=duration,
+                        status="success",
+                        prompt_tokens=res.get("prompt_tokens", 0),
+                        completion_tokens=res.get("completion_tokens", 0)
+                    )
+                    return res
+                else:
+                    last_error = res.get("analysis", "Unknown error")
+                    cls._log_usage(
+                        provider=provider,
+                        model="unknown",
+                        endpoint=endpoint_name,
+                        duration=duration,
+                        status="failed",
+                        error_message=last_error
+                    )
+                    logger.warning("ai.provider_failed", provider=provider, error=last_error)
+
+            except Exception as e:
+                duration = time.time() - start_time
+                last_error = str(e)
+                cls._log_usage(
+                    provider=provider,
+                    model="unknown",
+                    endpoint=endpoint_name,
+                    duration=duration,
+                    status="failed",
+                    error_message=last_error
+                )
+                logger.warning("ai.provider_exception", provider=provider, error=last_error)
+
+        return cls._error(f"All AI providers failed. Last error: {last_error}")
+
     # ------------------------------------------------------------------
-    # Cloud API (Groq / OpenAI-compatible)
+    # Cloud API (Groq / Nvidia)
     # ------------------------------------------------------------------
 
     @classmethod
@@ -488,34 +644,36 @@ class AIService:
         cls,
         system_prompt: str,
         user_prompt: str,
+        is_nvidia: bool = False,
+        timeout: int = 30
     ) -> Dict[str, Any]:
         """
-        Calls a free-tier OpenAI-compatible REST API (default: Groq).
-        Uses response_format to enforce JSON output at the API level.
+        Calls either Groq or Nvidia API depending on the is_nvidia flag.
         """
-        api_key  = settings.GROQ_API_KEY
-        base_url = settings.GROQ_BASE_URL
-        model    = settings.GROQ_MODEL
-
-        if not api_key:
-            return cls._error(
-                "Cloud API key not configured. "
-                "Add GROQ_API_KEY to your .env file (get one free at https://console.groq.com)."
-            )
+        api_key  = settings.NVIDIA_API_KEY if is_nvidia else settings.GROQ_API_KEY
+        base_url = settings.NVIDIA_BASE_URL if is_nvidia else settings.GROQ_BASE_URL
+        model    = settings.NVIDIA_MODEL if is_nvidia else settings.GROQ_MODEL
+        provider = "Nvidia" if is_nvidia else "Groq"
 
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type":  "application/json",
         }
+        
         payload = {
             "model":    model,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user",   "content": user_prompt},
             ],
-            "temperature":     0.3,
-            "response_format": {"type": "json_object"},
+            "temperature": 0.3,
         }
+
+        if is_nvidia:
+            payload["max_tokens"] = 4096
+            payload["chat_template_kwargs"] = {"thinking": False}
+        else:
+            payload["response_format"] = {"type": "json_object"}
 
         try:
             async with httpx.AsyncClient() as client:
@@ -523,91 +681,35 @@ class AIService:
                     f"{base_url}/chat/completions",
                     json=payload,
                     headers=headers,
-                    timeout=30.0,
+                    timeout=float(timeout),
                 )
 
             if response.status_code == 429:
-                return cls._error(
-                    "Cloud API rate limit reached. Wait a minute and try again, "
-                    "or use the 'Copy Prompt' mode to paste into ChatGPT/DeepSeek."
-                )
+                return cls._error(f"{provider} API rate limit reached.")
 
             if response.status_code != 200:
-                return cls._error(f"Cloud API HTTP {response.status_code}: {response.text[:200]}")
+                return cls._error(f"{provider} API HTTP {response.status_code}: {response.text[:200]}")
 
             data    = response.json()
-            content = data["choices"][0]["message"]["content"]
-            parsed  = cls._parse_robust_json(content)
-
-            if parsed:
-                return cls._normalize_parsed(parsed, f"{model} (Cloud)")
-
-            return cls._error("Cloud API returned unparseable response.")
-
-        except httpx.ReadTimeout:
-            return cls._error("Cloud API timed out after 30s. Try again later.")
-    @classmethod
-    async def _call_nvidia_api(
-        cls,
-        system_prompt: str,
-        user_prompt: str,
-    ) -> Dict[str, Any]:
-        """
-        Calls Nvidia API for DeepSeek or other models.
-        """
-        api_key  = settings.NVIDIA_API_KEY
-        base_url = settings.NVIDIA_BASE_URL
-        model    = "deepseek-ai/deepseek-v4-pro"
-
-        if not api_key:
-            return cls._error(
-                "Nvidia API key not configured. "
-                "Add NVIDIA_API_KEY to your .env file."
-            )
-
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type":  "application/json",
-        }
-        payload = {
-            "model":    model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": user_prompt},
-            ],
-            "temperature":     0.3,
-            "max_tokens": 4096,
-            "chat_template_kwargs": {"thinking": False}, # Disable thinking tokens if applicable
-        }
-
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{base_url}/chat/completions",
-                    json=payload,
-                    headers=headers,
-                    timeout=180.0,
-                )
-
-            if response.status_code != 200:
-                return cls._error(f"Nvidia API HTTP {response.status_code}: {response.text[:200]}")
-
-            data    = response.json()
+            usage   = data.get("usage", {})
             content = data["choices"][0]["message"]["content"]
             
-            # Since Nvidia/Deepseek might return JSON embedded in markdown, strip thinking just in case
+            # Nvidia might return markdown blocks
             clean = cls._strip_thinking(content)
-            parsed  = cls._parse_robust_json(clean)
+            parsed = cls._parse_robust_json(clean)
 
             if parsed:
-                return cls._normalize_parsed(parsed, f"{model} (Nvidia)")
+                result = cls._normalize_parsed(parsed, f"{model} ({provider})")
+                result["prompt_tokens"] = usage.get("prompt_tokens", 0)
+                result["completion_tokens"] = usage.get("completion_tokens", 0)
+                return result
 
-            return cls._error("Nvidia API returned unparseable response.")
+            return cls._error(f"{provider} API returned unparseable response.")
 
         except httpx.ReadTimeout:
-            return cls._error("Nvidia API timed out after 180s. Try again later.")
+            return cls._error(f"{provider} API timed out after {timeout}s.")
         except Exception as e:
-            return cls._error(f"Nvidia API error: {e}")
+            return cls._error(f"{provider} API error: {e}")
 
     # ------------------------------------------------------------------
     # Cloud-specific system prompts (no <think> tags — frontier models
@@ -832,6 +934,10 @@ class AIService:
             "- In NEPSE, liquidity and volume shifts matter more than oscillator alignment. Treat volume/OBV/liquidity as primary evidence, trend integrity as secondary confirmation, and RSI as a timing aid only.\n"
             "- Separate trend integrity from execution timing. Trend integrity answers whether the trade thesis is intact; execution timing answers whether today is an efficient moment to act.\n"
             "- If a liquidity-adjusted slippage buffer is provided, use it. Prefer slippage-adjusted reward/risk over theoretical reward/risk.\n"
+            "- POSITION SIZING REGIME RULES:\n"
+            "  * If market_regime_verdict is BEARISH: Reduce standard position size by 50%. Focus on quick exits.\n"
+            "  * If sector_index_trend is BEARISH: Avoid new BUY/ADD entirely unless stock shows extreme relative strength.\n"
+            "  * If market is BULLISH but sector is BEARISH: Keep sizes small (quarter position).\n"
             "- HARD GATING RULE: if liquidity gate fails, do not endorse bullish action. Weak liquidity blocks BUY and ADD, and usually pushes active trades toward WAIT unless invalidation is triggered.\n"
             "- HARD GATING RULE: if OBV/distribution is hostile, downgrade bullish setups even if EMA structure still looks good.\n"
             "- If the payload provides trading_decision_framework, use its gates as binding summaries rather than re-inventing softer interpretations.\n"
@@ -869,6 +975,9 @@ class AIService:
             "OBV gate: [SUPPORTIVE / NEUTRAL / BLOCK_BULLISH]\n"
             "Trend integrity status: [INTACT / WEAKENING / BROKEN]\n"
             "Slippage R:R gate: [PASS / FAIL / N/A]\n\n"
+            "MARKET CONTEXT CHECK\n"
+            "Market Regime: [BEARISH / BULLISH / NEUTRAL] -> [Implication for size/holding period based on market_regime_verdict]\n"
+            "Sector Trend:  [BEARISH / BULLISH / NEUTRAL / N/A] -> [Tailwind or Headwind? based on sector_index_trend]\n\n"
             "POSITION CONTEXT\n"
             "[Explain whether this is an active trade, held-without-plan position, or no-position watchlist case, and why that changes the action.]\n\n"
             "TREND INTEGRITY\n"
@@ -1153,12 +1262,14 @@ class AIService:
             "NEPSE PORTFOLIO MANAGEMENT — HARD CONSTRAINTS:\n"
             "- Base all analysis STRICTLY on the provided portfolio data. Do not hallucinate market "
             "conditions, upcoming sector catalysts, or regulatory changes not in the data.\n"
-            "- RISK-FREE HURDLE: 7–8% p.a. (bank fixed deposit). Every holding and the overall "
+            "- RISK-FREE HURDLE: Use the `current_fd_rate` provided in the data. Every holding and the overall "
             "portfolio XIRR must be evaluated against this benchmark. If the portfolio XIRR is below "
             "this hurdle, the investor would have been better off in FD — say so plainly.\n"
-            "- NEPSE SECTOR CYCLE AWARENESS: NEPSE sector rotation is driven primarily by NRB monetary "
-            "policy. Rising interest rates hurt bank NIMs and stock valuations but benefit FD returns. "
-            "Falling rates benefit banks, finance, and hydros. Evaluate sector concentration in this context.\n"
+            "- NEPSE SECTOR CYCLE AWARENESS: Use the `sector_allocation` data. Rising interest rates hurt bank NIMs and "
+            "stock valuations but benefit FD returns. Falling rates benefit banks, finance, and hydros. Evaluate "
+            "sector concentration in this context.\n"
+            "- PORTFOLIO HEALTH SCORE: Use `portfolio_weighted_health_score`. A score below 40 indicates poor "
+            "aggregate fundamental quality, 40-60 is average, and >60 is high quality.\n"
             "- BONUS SHARE DILUTION WARNING: Holdings in companies that repeatedly issue bonus shares "
             "without matching earnings growth are experiencing slow value destruction. Aggregate "
             "dividend income should distinguish cash dividends from bonus shares at the portfolio level.\n"
@@ -1186,7 +1297,8 @@ class AIService:
             "━━━ PERFORMANCE vs BENCHMARKS ━━━\n"
             "Portfolio XIRR: [X]%\n"
             "vs. NEPSE Index: [outperformed / underperformed] by [X]% (Alpha: [+/-X]%)\n"
-            "vs. FD Hurdle (7–8%): [beating / meeting / failing to beat] — [one sentence on what this means]\n"
+            "vs. FD Hurdle ([current_fd_rate]%): [beating / meeting / failing to beat] — [one sentence on what this means]\n"
+            "Weighted Health Score: [score] — [what this tells you about overall fundamental quality]\n"
             "Portfolio cash dividend yield: [X]% on cost — [above / below / in-line with FD rates]\n"
             "[If Alpha is negative, diagnose why: poor stock selection, sector timing, concentration, "
             "or a structural bet that hasn't paid off yet?]\n\n"
@@ -1215,31 +1327,7 @@ class AIService:
             "4. [Optional: capital allocation to FD/cash if warranted by the data]\n"
         )
 
-    @classmethod
-    async def get_portfolio_verdict(
-        cls,
-        input_data: Dict[str, Any],
-        model_name: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """Holistic portfolio analysis via Local Ollama."""
-        model = model_name or settings.DEFAULT_OLLAMA_MODEL
-        system_prompt = cls._portfolio_system_prompt()
-        user_prompt = f"Portfolio Metrics:\n{json.dumps(input_data, default=str)}"
-        return await cls._call_ollama(system_prompt, user_prompt, model)
 
-    @classmethod
-    async def get_portfolio_verdict_cloud(
-        cls,
-        input_data: Dict[str, Any],
-        provider: str = "groq",
-    ) -> Dict[str, Any]:
-        """Holistic portfolio analysis via Cloud API."""
-        system_prompt = cls._portfolio_system_prompt()
-        user_prompt = f"Portfolio Metrics:\n{json.dumps(input_data, default=str)}"
-
-        if provider == "nvidia":
-            return await cls._call_nvidia_api(system_prompt, user_prompt)
-        return await cls._call_cloud_api(system_prompt, user_prompt)
 
     @classmethod
     def generate_portfolio_frontier_prompt(cls, input_data: Dict[str, Any]) -> str:

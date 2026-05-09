@@ -36,7 +36,7 @@ def analyze_sector_risk(sector: str, overview_data: dict, quarterly_data: list) 
         latest = quarterly_data[0]
         metrics = latest.get("sector_metrics", {})
         
-        # NPL > 4%
+        # NPL > 10%
         npl = metrics.get("Non Performing Loan (NPL)")
         if isinstance(npl, str) and "%" in npl:
             npl = float(npl.replace("%", ""))
@@ -57,7 +57,7 @@ def analyze_sector_risk(sector: str, overview_data: dict, quarterly_data: list) 
         elif dp is None:
             dp = 0
             
-        if npl > 4 or car < 11 or dp < 0:
+        if npl > 10 or car < 11 or dp < 0:
             return True
             
     # 2. Hydropower
@@ -96,9 +96,9 @@ def analyze_sector_risk(sector: str, overview_data: dict, quarterly_data: list) 
         latest = quarterly_data[0]
         metrics = latest.get("sector_metrics", {})
         
-        # solvency_ratio < 1.5
+        # solvency_ratio < 1.0
         solvency = metrics.get("Solvency Ratio")
-        if isinstance(solvency, (int, float)) and solvency < 1.5:
+        if isinstance(solvency, (int, float)) and solvency < 1.0:
             return True
             
         # Claim Ratio > 90% (Net Claim / Net Premium)

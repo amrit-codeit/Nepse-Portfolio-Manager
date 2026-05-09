@@ -17,7 +17,9 @@ from app.database import init_db, SessionLocal
 from app.services.fee_calculator import seed_fee_config
 from app.services.backup_service import create_database_backup
 from app.utils.scheduler import start_scheduler, stop_scheduler
+from app.utils.logging import setup_logging, get_logger
 
+from app.api.auth import router as auth_router
 from app.api.members import router as members_router
 from app.api.companies import router as companies_router
 from app.api.transactions import router as transactions_router
@@ -43,8 +45,10 @@ from app.api.system import router as system_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
-    # Startup
-    print(f"[START] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    # H-3: Initialize structured logging first
+    setup_logging()
+    logger = get_logger("lifespan")
+    logger.info("app.starting", app=settings.APP_NAME, version=settings.APP_VERSION)
     
     # CRIT-01/02 Startup Check: Ensure MASTER_PASSWORD is a bcrypt hash
     if not settings.MASTER_PASSWORD or not settings.MASTER_PASSWORD.startswith("$2b$"):
@@ -94,6 +98,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(members_router)
 app.include_router(companies_router)
 app.include_router(transactions_router)
@@ -118,8 +123,36 @@ app.include_router(system_router)
 
 @app.get("/api/health")
 def health():
-    """Health check for frontend."""
-    return {"status": "ok"}
+    """Health check with scraper staleness report (C-4)."""
+    from app.models.scraper import ScraperRun
+    from sqlalchemy import func
+
+    scrapers_health = {}
+    try:
+        db = SessionLocal()
+        # Get latest run per scraper name
+        latest_runs = (
+            db.query(
+                ScraperRun.scraper_name,
+                func.max(ScraperRun.finished_at).label("last_run"),
+            )
+            .filter(ScraperRun.status == "success")
+            .group_by(ScraperRun.scraper_name)
+            .all()
+        )
+        for name, last_run in latest_runs:
+            scrapers_health[name] = {
+                "last_success": last_run.isoformat() if last_run else None,
+            }
+        db.close()
+    except Exception:
+        pass
+
+    return {
+        "status": "ok",
+        "version": settings.APP_VERSION,
+        "scrapers": scrapers_health,
+    }
 
 # =========================================================================
 # Serve React Frontend (Single Page Application)

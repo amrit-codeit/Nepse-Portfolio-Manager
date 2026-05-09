@@ -22,7 +22,7 @@ from app.services.fee_calculator import calculate_buy_costs, calculate_sell_cost
 import pandas as pd
 import pandas_ta as ta
 
-router = APIRouter(prefix="/api/market", tags=["Market Context"])
+router = APIRouter(prefix="/api/v1/market", tags=["Market Context"])
 STALE_PRICE_HOURS = 12
 
 

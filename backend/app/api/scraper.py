@@ -17,9 +17,9 @@ from app.scrapers.index_scraper import scrape_nepse_index, scrape_sector_indices
 from app.models.holding import Holding
 from app.models.scraper import ScraperRun
 import traceback
-from app.api.members import require_master_password
+from app.api.auth import verify_token
 
-router = APIRouter(prefix="/api/scraper", tags=["Scraping"])
+router = APIRouter(prefix="/api/v1/scraper", tags=["Scraping"])
 
 
 @router.get("/runs")

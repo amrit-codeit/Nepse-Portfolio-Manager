@@ -76,4 +76,10 @@ class PortfolioSummary(BaseModel):
     sip_xirr: float = 0
     equity_dividend_income: float = 0
     sip_dividend_income: float = 0
+    
+    # Portfolio Enhancements (P3)
+    sector_allocation: dict = {}
+    portfolio_weighted_health_score: float = 0
+    current_fd_rate: float = 0
+    
     holdings: list[HoldingResponse] = []

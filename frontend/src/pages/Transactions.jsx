@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-    Table, Select, Input, Button, Tag, message, Popconfirm, Space, Tooltip, Dropdown, Tabs
+    Table, Select, Input, Button, Tag, message, Popconfirm, Space, Tooltip, Dropdown, Tabs, Modal
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, SearchOutlined, EditOutlined, DownloadOutlined, ImportOutlined, UploadOutlined, SyncOutlined } from '@ant-design/icons';
-import api, { getTransactions, deleteTransaction, getMembers, getCompanies, getMergedPrices } from '../services/api';
+import api, { getTransactions, deleteTransaction, getMembers, getCompanies, getMergedPrices, verifyMasterPassword } from '../services/api';
 import AddEditTransactionModal from '../components/transactions/AddEditTransactionModal';
 import ImportMeroShareModal from '../components/transactions/ImportMeroShareModal';
 import ImportDpStatementModal from '../components/transactions/ImportDpStatementModal';
@@ -29,6 +29,13 @@ function formatNPR(value) {
     return `Rs. ${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
 }
 
+function getApiErrorMessage(err) {
+    const detail = err.response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) return detail.map(item => item.msg || item.detail).filter(Boolean).join(', ');
+    return err.message;
+}
+
 function Transactions() {
     const [memberId, setMemberId] = useState(null);
     const [search, setSearch] = useState('');
@@ -39,6 +46,9 @@ function Transactions() {
     const [importDpModalOpen, setImportDpModalOpen] = useState(false);
     const [nativeImportModalOpen, setNativeImportModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('equity');
+    const [pendingDeleteId, setPendingDeleteId] = useState(null);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [deleteUnlockLoading, setDeleteUnlockLoading] = useState(false);
     const queryClient = useQueryClient();
     const [pageSize, setPageSize] = useState(20);
 
@@ -83,7 +93,7 @@ function Transactions() {
         if (txn.remarks && (txn.remarks.toLowerCase().includes('ca-rearrangement') || txn.remarks.toLowerCase().includes('dp statement'))) {
             return true;
         }
-        
+
         // Priority: Metadata from NEPSE
         const priceInfo = pricesData?.find(p => p.symbol === txn.symbol);
         if (priceInfo) {
@@ -100,6 +110,49 @@ function Transactions() {
 
     const equityTransactions = allTransactions.filter(t => !isSip(t));
     const sipTransactions = allTransactions.filter(t => isSip(t));
+
+    const deleteMutation = useMutation({
+        mutationFn: deleteTransaction,
+        onSuccess: () => {
+            message.success('Transaction deleted');
+            queryClient.invalidateQueries({ queryKey: ['transactions'] });
+            queryClient.invalidateQueries({ queryKey: ['holdings'] });
+            queryClient.invalidateQueries({ queryKey: ['portfolio-summary'] });
+        },
+        onError: (err) => {
+            message.error(getApiErrorMessage(err) || 'Failed to delete transaction.');
+        },
+    });
+
+    const handleDeleteTransaction = async (id) => {
+        if (!sessionStorage.getItem('masterAuth')) {
+            setPendingDeleteId(id);
+            setDeletePassword('');
+            return;
+        }
+
+        await deleteMutation.mutateAsync(id);
+    };
+
+    const handleUnlockAndDelete = async () => {
+        if (!deletePassword || !pendingDeleteId) {
+            message.warning('Enter the master password to delete this transaction.');
+            return;
+        }
+
+        setDeleteUnlockLoading(true);
+        try {
+            await verifyMasterPassword(deletePassword);
+            sessionStorage.setItem('masterAuth', res.data.access_token);
+            await deleteMutation.mutateAsync(pendingDeleteId);
+            setPendingDeleteId(null);
+            setDeletePassword('');
+        } catch (err) {
+            message.error(getApiErrorMessage(err) || 'Failed to unlock delete action.');
+        } finally {
+            setDeleteUnlockLoading(false);
+        }
+    };
 
     const commonColumns = [
         {
@@ -242,8 +295,21 @@ function Transactions() {
                             setModalOpen(true);
                         }}
                     />
-                    <Popconfirm title="Delete this transaction?" onConfirm={() => deleteMutation.mutate(r.id)}>
-                        <Button type="text" danger icon={<DeleteOutlined />} size="small" />
+                    <Popconfirm
+                        title="Delete this transaction?"
+                        description="Holdings will be recalculated after deletion."
+                        okText="Delete"
+                        okButtonProps={{ danger: true, loading: deleteMutation.isPending }}
+                        onConfirm={() => handleDeleteTransaction(r.id)}
+                    >
+                        <Button
+                            type="text"
+                            danger
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            loading={deleteMutation.isPending && deleteMutation.variables === r.id}
+                            onClick={(e) => e.stopPropagation()}
+                        />
                     </Popconfirm>
                 </Space>
             ),
@@ -324,6 +390,14 @@ function Transactions() {
             key: 'csv_both',
             label: 'Export Both (CSV)',
             onClick: handleExportBoth,
+        },
+    ];
+
+    return (
+        <div className="animate-in">
+            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1>Transactions</h1>
                     <p className="subtitle">All share transactions across members</p>
                 </div>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
@@ -358,35 +432,35 @@ function Transactions() {
                     allowClear
                 />
                 <div style={{ flexGrow: 1 }} />
-                
+
                 {activeTab === 'sips' && (
-                  <Button
-                      type="default"
-                      icon={<ImportOutlined />}
-                      onClick={() => setImportDpModalOpen(true)}
-                  >
-                      Import SIP Data
-                  </Button>
+                    <Button
+                        type="default"
+                        icon={<ImportOutlined />}
+                        onClick={() => setImportDpModalOpen(true)}
+                    >
+                        Import SIP Data
+                    </Button>
                 )}
 
-                <Button 
-                    type="default" 
-                    icon={<UploadOutlined />} 
+                <Button
+                    type="default"
+                    icon={<UploadOutlined />}
                     onClick={() => setNativeImportModalOpen(true)}
                 >
                     {activeTab === 'equity' ? 'Import Equity Backup' : 'Import SIP Backup'}
                 </Button>
 
                 <Tooltip title="Automatically find and fill missing prices for IPO, Right, and FPO shares using historical data.">
-                    <Button 
-                        icon={<SyncOutlined spin={syncIssuePricesMutation.isPending} />} 
+                    <Button
+                        icon={<SyncOutlined spin={syncIssuePricesMutation.isPending} />}
                         onClick={() => syncIssuePricesMutation.mutate()}
                         loading={syncIssuePricesMutation.isPending}
                     >
                         Auto-Fill Rates
                     </Button>
                 </Tooltip>
-                
+
                 <Dropdown menu={{ items: exportItems }} disabled={activeTab === 'equity' ? equityTransactions.length === 0 : sipTransactions.length === 0}>
                     <Button type="primary" icon={<DownloadOutlined />}>
                         Export
@@ -394,8 +468,8 @@ function Transactions() {
                 </Dropdown>
             </div>
 
-            <Tabs 
-                activeKey={activeTab} 
+            <Tabs
+                activeKey={activeTab}
                 onChange={setActiveTab}
                 items={[
                     {
@@ -447,30 +521,53 @@ function Transactions() {
                 ]}
             />
 
-            <AddEditTransactionModal 
-                open={modalOpen} 
-                onClose={() => { setModalOpen(false); setEditingTxn(null); }} 
-                editingTxn={editingTxn} 
-                members={members} 
-                companiesData={companiesData} 
-                activeTab={activeTab} 
+            <AddEditTransactionModal
+                open={modalOpen}
+                onClose={() => { setModalOpen(false); setEditingTxn(null); }}
+                editingTxn={editingTxn}
+                members={members}
+                companiesData={companiesData}
+                activeTab={activeTab}
             />
-            <ImportMeroShareModal 
-                open={importModalOpen} 
-                onClose={() => setImportModalOpen(false)} 
-                members={members} 
+            <ImportMeroShareModal
+                open={importModalOpen}
+                onClose={() => setImportModalOpen(false)}
+                members={members}
             />
-            <ImportDpStatementModal 
-                open={importDpModalOpen} 
-                onClose={() => setImportDpModalOpen(false)} 
-                members={members} 
-                pricesData={pricesData} 
+            <ImportDpStatementModal
+                open={importDpModalOpen}
+                onClose={() => setImportDpModalOpen(false)}
+                members={members}
+                pricesData={pricesData}
             />
-            <ImportNativePortfolioModal 
-                open={nativeImportModalOpen} 
-                onClose={() => setNativeImportModalOpen(false)} 
-                activeTab={activeTab} 
+            <ImportNativePortfolioModal
+                open={nativeImportModalOpen}
+                onClose={() => setNativeImportModalOpen(false)}
+                activeTab={activeTab}
             />
+            <Modal
+                title="Unlock Delete"
+                open={!!pendingDeleteId}
+                onCancel={() => {
+                    setPendingDeleteId(null);
+                    setDeletePassword('');
+                }}
+                onOk={handleUnlockAndDelete}
+                okText="Unlock and Delete"
+                okButtonProps={{ danger: true }}
+                confirmLoading={deleteUnlockLoading}
+                destroyOnHidden
+            >
+                <p style={{ color: 'var(--text-secondary)' }}>
+                    Transaction deletion is protected. Enter the master password to delete this row and recalculate holdings.
+                </p>
+                <Input.Password
+                    placeholder="Master password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    onPressEnter={handleUnlockAndDelete}
+                />
+            </Modal>
         </div>
     );
 }

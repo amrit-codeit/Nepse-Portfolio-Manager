@@ -11,7 +11,7 @@ from app.services.calculator_service import (
     calculate_trade_plan,
 )
 
-router = APIRouter(prefix="/api/calculator", tags=["Calculator"])
+router = APIRouter(prefix="/api/v1/calculator", tags=["Calculator"])
 
 class BuyRequest(BaseModel):
     quantity: float = Field(..., gt=0)

@@ -8,7 +8,7 @@ from app.services.stock_detail import get_stock_detail
 from app.models.transaction import Transaction
 from app.models.holding import Holding
 
-router = APIRouter(prefix="/api/stock-detail", tags=["Stock Detail"])
+router = APIRouter(prefix="/api/v1/stock-detail", tags=["Stock Detail"])
 
 
 @router.get("/symbols/list")

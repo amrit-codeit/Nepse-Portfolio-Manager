@@ -10,7 +10,7 @@ from app.models.price import LivePrice, NavValue
 from app.models.holding import Holding
 from app.models.company import Company
 
-router = APIRouter(prefix="/api/dividends", tags=["Dividends"])
+router = APIRouter(prefix="/api/v1/dividends", tags=["Dividends"])
 
 
 @router.get("")

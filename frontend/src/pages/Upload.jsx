@@ -42,7 +42,7 @@ function Upload() {
     const verifyMutation = useMutation({
         mutationFn: (pwd) => verifyMasterPassword(pwd),
         onSuccess: () => {
-            sessionStorage.setItem('masterAuth', passwordInput);
+            sessionStorage.setItem('masterAuth', res.data.access_token);
             setIsAuthenticated(true);
             message.success('Authenticated successfully');
         },

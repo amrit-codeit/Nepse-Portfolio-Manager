@@ -117,7 +117,7 @@ function getSectionIcon(headerText) {
 /** Highlights numeric values and key terms inside analysis text */
 function highlightText(text) {
     // Split by patterns we want to highlight, keeping delimiters
-    const parts = text.split(/(\b(?:Rs\.?\s*)?[\d,]+\.?\d*%?\b|(?:STRONG BUY|BUY|ACCUMULATE|HOLD|REDUCE|SELL|WAIT|BULLISH|BEARISH|OVERBOUGHT|OVERSOLD|NEUTRAL|DO NOT BUY))/gi);
+    const parts = text.split(/(\b(?:Rs\.?\s*)?[\d,]+\.?\d*%?\b|(?:STRONG BUY|BUY|ACCUMULATE|WATCHLIST|HOLD|REDUCE|SELL|WAIT|BULLISH|BEARISH|OVERBOUGHT|OVERSOLD|NEUTRAL|DO NOT BUY))/gi);
     
     return parts.map((part, i) => {
         // Highlight numbers and currency
@@ -126,7 +126,7 @@ function highlightText(text) {
         }
         // Highlight verdicts / signals
         const upper = part.toUpperCase();
-        if (['STRONG BUY', 'BUY', 'ACCUMULATE', 'BULLISH'].includes(upper)) {
+        if (['STRONG BUY', 'BUY', 'ACCUMULATE', 'WATCHLIST', 'BULLISH'].includes(upper)) {
             return <span key={i} style={{ fontWeight: 700, color: '#00b894', background: 'rgba(0,184,148,0.08)', padding: '1px 5px', borderRadius: 4 }}>{part}</span>;
         }
         if (['SELL', 'REDUCE', 'BEARISH', 'DO NOT BUY'].includes(upper)) {
@@ -923,6 +923,7 @@ export default function ExecutiveSummary({ symbol, memberId }) {
         switch (verdict) {
             case 'BUY': return { color: '#00b894', bg: 'rgba(0,184,148,0.10)', icon: <ThunderboltOutlined />, glow: '0 0 24px rgba(0,184,148,0.25)', label: 'BUY' };
             case 'ACCUMULATE': return { color: '#0984e3', bg: 'rgba(9,132,227,0.10)', icon: <RiseOutlined />, glow: '0 0 24px rgba(9,132,227,0.25)', label: 'ACCUMULATE' };
+            case 'WATCHLIST': return { color: '#00cec9', bg: 'rgba(0,206,201,0.10)', icon: <InfoCircleOutlined />, glow: '0 0 24px rgba(0,206,201,0.22)', label: 'WATCHLIST' };
             case 'HOLD': return { color: '#fdcb6e', bg: 'rgba(253,203,110,0.10)', icon: <SafetyOutlined />, glow: '0 0 24px rgba(253,203,110,0.18)', label: 'HOLD' };
             case 'REDUCE': return { color: '#e17055', bg: 'rgba(225,112,85,0.10)', icon: <FallOutlined />, glow: '0 0 24px rgba(225,112,85,0.25)', label: 'REDUCE' };
             case 'EXIT': return { color: '#d63031', bg: 'rgba(214,48,49,0.12)', icon: <CloseCircleOutlined />, glow: '0 0 24px rgba(214,48,49,0.3)', label: 'EXIT' };

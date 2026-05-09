@@ -1,6 +1,6 @@
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { Layout, Menu, Spin, message } from 'antd';
+import { Component, lazy, Suspense, useEffect, useState } from 'react';
+import { Alert, Button, Layout, Menu, Spin, message } from 'antd';
 import {
   DashboardOutlined,
   FundOutlined,
@@ -18,19 +18,77 @@ import NotificationBell from './components/NotificationBell';
 
 const { Sider, Content } = Layout;
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Holdings = lazy(() => import('./pages/Holdings'));
-const Transactions = lazy(() => import('./pages/Transactions'));
-const Upload = lazy(() => import('./pages/Upload'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Prices = lazy(() => import('./pages/Prices'));
-const ApplyIPO = lazy(() => import('./pages/ApplyIPO'));
-const Insights = lazy(() => import('./pages/Insights'));
-const TradingDesk = lazy(() => import('./pages/TradingDesk'));
-const Economy = lazy(() => import('./pages/Economy'));
-const About = lazy(() => import('./pages/About'));
-const Members = lazy(() => import('./pages/Members'));
-const ScripDetail = lazy(() => import('./pages/ScripDetail'));
+function isChunkLoadError(error) {
+  const messageText = `${error?.message || ''} ${error?.name || ''}`;
+  return /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk|ChunkLoadError/i.test(messageText);
+}
+
+function lazyWithRetry(importer) {
+  return lazy(async () => {
+    try {
+      return await importer();
+    } catch (error) {
+      if (isChunkLoadError(error)) {
+        const reloadKey = 'route-chunk-reload-at';
+        const lastReload = Number(sessionStorage.getItem(reloadKey) || 0);
+        const now = Date.now();
+
+        if (now - lastReload > 5000) {
+          sessionStorage.setItem(reloadKey, String(now));
+          window.location.reload();
+        }
+      }
+
+      throw error;
+    }
+  });
+}
+
+class RouteErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Route Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Alert
+          type="error"
+          showIcon
+          message="Page failed to load"
+          description={this.state.error?.message || 'The page could not be rendered. Reloading usually clears stale route assets after a restart.'}
+          action={<Button onClick={() => window.location.reload()}>Reload</Button>}
+        />
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
+const Holdings = lazyWithRetry(() => import('./pages/Holdings'));
+const Transactions = lazyWithRetry(() => import('./pages/Transactions'));
+const Upload = lazyWithRetry(() => import('./pages/Upload'));
+const Settings = lazyWithRetry(() => import('./pages/Settings'));
+const Prices = lazyWithRetry(() => import('./pages/Prices'));
+const ApplyIPO = lazyWithRetry(() => import('./pages/ApplyIPO'));
+const Insights = lazyWithRetry(() => import('./pages/Insights'));
+const TradingDesk = lazyWithRetry(() => import('./pages/TradingDesk'));
+const Economy = lazyWithRetry(() => import('./pages/Economy'));
+const About = lazyWithRetry(() => import('./pages/About'));
+const Members = lazyWithRetry(() => import('./pages/Members'));
+const ScripDetail = lazyWithRetry(() => import('./pages/ScripDetail'));
+const Calculator = lazyWithRetry(() => import('./pages/Calculator'));
 
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
@@ -38,6 +96,7 @@ const menuItems = [
   { key: '/transactions', icon: <SwapOutlined />, label: 'Transactions' },
   { key: '/prices', icon: <BankOutlined />, label: 'Prices' },
   { key: '/insights', icon: <StockOutlined />, label: 'Stock Explorer' },
+  { key: '/calculator', icon: <CalculatorOutlined />, label: 'Calculator' },
   { key: '/trading', icon: <ThunderboltOutlined />, label: 'Trading Desk' },
   { key: '/economy', icon: <GlobalOutlined />, label: 'Economy' },
   { key: '/apply-ipo', icon: <ThunderboltOutlined />, label: 'Apply IPO' },
@@ -57,7 +116,7 @@ function App() {
     
     const lockSession = () => {
       if (sessionStorage.getItem('masterAuth')) {
-        sessionStorage.removeItem('masterAuth');
+        logout().catch(()=>{}).finally(()=>{sessionStorage.removeItem('masterAuth'); window.location.reload();});
         message.info('Admin session locked due to inactivity.');
       }
     };
@@ -127,23 +186,26 @@ function App() {
             <NotificationBell />
         </div>
         <Content className="animate-in" style={{ padding: 16 }}>
-          <Suspense fallback={<div className="route-loading"><Spin size="large" /></div>}>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/holdings" element={<Holdings />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/prices" element={<Prices />} />
-              <Route path="/insights" element={<Insights />} />
-              <Route path="/trading" element={<TradingDesk />} />
-              <Route path="/economy" element={<Economy />} />
-              <Route path="/apply-ipo" element={<ApplyIPO />} />
-              <Route path="/upload" element={<Upload />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/members" element={<Members />} />
-              <Route path="/scrip/:symbol" element={<ScripDetail />} />
-            </Routes>
-          </Suspense>
+          <RouteErrorBoundary key={location.pathname}>
+            <Suspense fallback={<div className="route-loading"><Spin size="large" /></div>}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/holdings" element={<Holdings />} />
+                <Route path="/transactions" element={<Transactions />} />
+                <Route path="/prices" element={<Prices />} />
+                <Route path="/insights" element={<Insights />} />
+                <Route path="/trading" element={<TradingDesk />} />
+                <Route path="/economy" element={<Economy />} />
+                <Route path="/apply-ipo" element={<ApplyIPO />} />
+                <Route path="/upload" element={<Upload />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/members" element={<Members />} />
+                <Route path="/calculator" element={<Calculator />} />
+                <Route path="/scrip/:symbol" element={<ScripDetail />} />
+              </Routes>
+            </Suspense>
+          </RouteErrorBoundary>
         </Content>
       </Layout>
     </Layout>

@@ -46,7 +46,9 @@ def get_pe_bands(sector: str) -> dict:
     return {"low": 8, "base": 12, "high": 18}
 
 def dividend_quality_score(cash_pct: float, bonus_pct: float, eps_growth_pct: float) -> int:
-    eps_g = max(eps_growth_pct if eps_growth_pct is not None else 0.1, 0.1)
+    # Floor raised from 0.1 to 3.0: a company with flat but stable earnings paying modest
+    # bonus is not aggressively diluting. Reserve -10 for bonus > 20% with eps_growth < 3%.
+    eps_g = max(eps_growth_pct if eps_growth_pct is not None else 3.0, 3.0)
     bonus = bonus_pct or 0
     cash = cash_pct or 0
     
@@ -63,6 +65,7 @@ def dividend_quality_score(cash_pct: float, bonus_pct: float, eps_growth_pct: fl
 SCORING_ACTION_LABELS = {
     "BUY": "Attractive Entry",
     "ACCUMULATE": "Add on Strength",
+    "WATCHLIST": "Monitor for Entry",
     "HOLD": "Fair Value — Hold",
     "REDUCE": "Overvalued — Reduce",
     "EXIT": "Exit — Thesis Broken",
@@ -158,6 +161,12 @@ def _sector_quality_gate_from_summary(summary_data: dict) -> tuple[str, list[str
         if car is not None and car < 11:
             reasons.append(f"CAR weak at {round(car, 2)}%")
             hard_fail = True
+        
+        # Distributable Profit Check
+        dp = metrics.get("distributable_profit")
+        if dp is not None and dp < 0:
+            reasons.append("Distributable profit is negative (dividend at risk)")
+            hard_fail = True
 
     elif "insurance" in sector:
         if solvency is not None and solvency < 1.0:
@@ -165,7 +174,20 @@ def _sector_quality_gate_from_summary(summary_data: dict) -> tuple[str, list[str
             hard_fail = True
         elif solvency is not None and solvency < 1.5:
             reasons.append(f"Solvency weak at {round(solvency, 2)}x")
-        if claim_ratio is not None and claim_ratio > 90:
+            
+        # Combined Ratio check
+        net_premium = metrics.get("net_premium")
+        mgmt_expenses = metrics.get("mgmt_expenses")
+        combined_ratio = claim_ratio if claim_ratio is not None else 0
+        
+        if net_premium and mgmt_expenses and net_premium > 0:
+            expense_ratio = (mgmt_expenses / net_premium) * 100
+            combined_ratio += expense_ratio
+            
+        if combined_ratio > 100:
+            reasons.append(f"Combined ratio > 100% ({round(combined_ratio, 2)}%) indicating underwriting loss")
+            hard_fail = True
+        elif claim_ratio is not None and claim_ratio > 90:
             reasons.append(f"Claim ratio high at {round(claim_ratio, 2)}%")
             hard_fail = True
 
@@ -289,6 +311,8 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
     obv_status = None
     circuit_distance_pct = None
     turnover_120d = None
+    bb_upper = None
+    bb_lower = None
 
     if prices and len(prices) >= 50:
         prices_chrono = prices[::-1]
@@ -320,8 +344,6 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
         obv_prev = prev_row.get("OBV")
         bb_upper_val = latest.get("BBU_20_2.0_2.0")
         bb_lower_val = latest.get("BBL_20_2.0_2.0")
-
-        bb_upper, bb_lower = None, None
 
         if pd.notna(rsi_val):
             rsi_14 = round(float(rsi_val), 3)
@@ -560,11 +582,23 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
         except Exception:
             return None, None
 
-    # 1. DIVIDEND CAPACITY (20 pts) - The "NEPSE Fuel"
-    if dividend_yield > 5 or (roe_ttm and roe_ttm > 0.12):
+    # 1. DIVIDEND CAPACITY (20 pts) - The "NEPSE Fuel" — graduated scoring
+    if dividend_yield >= 5:
         score += 20
         score_breakdown.append(
-            {"label": "High Dividend Capacity/ROE", "pts": 20, "met": True})
+            {"label": f"Strong Cash Yield ({round(dividend_yield, 1)}%)", "pts": 20, "met": True})
+    elif dividend_yield >= 3:
+        score += 15
+        score_breakdown.append(
+            {"label": f"Good Cash Yield ({round(dividend_yield, 1)}%)", "pts": 15, "met": True})
+    elif dividend_yield >= 1 and roe_ttm and roe_ttm > 0.15:
+        score += 12
+        score_breakdown.append(
+            {"label": f"Moderate Yield ({round(dividend_yield, 1)}%) + High ROE ({round(roe_ttm * 100, 1)}%)", "pts": 12, "met": True})
+    elif roe_ttm and roe_ttm > 0.15:
+        score += 8
+        score_breakdown.append(
+            {"label": f"ROE-Driven Capacity ({round(roe_ttm * 100, 1)}%)", "pts": 8, "met": True})
     else:
         score_breakdown.append(
             {"label": "Low Dividend Capacity", "pts": 0, "met": False})
@@ -709,15 +743,26 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
         score_breakdown.append(
             {"label": pe_valuation_label, "pts": pe_valuation_pts, "met": pe_valuation_met})
     else:
+        # P/E unavailable — use PBV-anchored valuation via _estimate_valuation_change_potential
         roe_val = roe_ttm if roe_ttm is not None else 0
-        if pbv < 1.8 and roe_val > 0.10:
+        pbv_valuation_ctx = _estimate_valuation_change_potential({
+            "sector": sector, "pe_ratio": None, "pb_ratio": pbv,
+            "peg_ratio": None, "roe_ttm": round(roe_val * 100, 3) if roe_val else None,
+            "eps_growth_yoy": eps_growth, "graham_discount_pct": None
+        })
+        pbv_upside = pbv_valuation_ctx.get("valuation_change_potential_pct")
+        if pbv_upside is not None and pbv_upside > 15:
             score += 20
             score_breakdown.append(
-                {"label": f"Strong PBV ({round(pbv, 2)}) vs ROE", "pts": 20, "met": True})
-        elif graham_number and ltp and ltp < graham_number:
+                {"label": f"PBV Upside ({round(pbv_upside, 1)}% to sector anchor)", "pts": 20, "met": True})
+        elif pbv_upside is not None and pbv_upside > 5:
+            score += 12
+            score_breakdown.append(
+                {"label": f"Moderate PBV Upside ({round(pbv_upside, 1)}%)", "pts": 12, "met": True})
+        elif pbv < 1.8 and roe_val > 0.10:
             score += 10
             score_breakdown.append(
-                {"label": "Below Graham Value (secondary check)", "pts": 10, "met": True})
+                {"label": f"Decent PBV ({round(pbv, 2)}) with positive ROE", "pts": 10, "met": True})
         else:
             score_breakdown.append(
                 {"label": "Valuation Not Yet Compelling", "pts": 0, "met": False})
@@ -984,24 +1029,21 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
     expected_return_for_score = _estimate_expected_return_proxy(scoring_preview)
     forward_return_gate = expected_return_for_score["forward_return_band"]
 
+    # Forward return gate — use cap mechanism only (no double penalty)
     if forward_return_gate == "NEGATIVE":
-        score -= 20
         score = min(score, 45)
         score_breakdown.append(
-            {"label": "Negative forward return gate", "pts": -20, "met": False})
+            {"label": "Negative forward return gate (capped at 45)", "pts": 0, "met": False})
     elif forward_return_gate == "WEAK":
-        score -= 10
+        score = min(score, 55)
         score_breakdown.append(
-            {"label": "Weak forward return gate", "pts": -10, "met": False})
+            {"label": "Weak forward return gate (capped at 55)", "pts": 0, "met": False})
     elif forward_return_gate == "STRONG":
         score += 5
         score_breakdown.append(
             {"label": "Strong forward return gate", "pts": 5, "met": True})
 
-    if pe_vs_sector["live_pe"] is not None and pe_vs_sector["live_pe"] > pe_vs_sector["sector_high_pe"] * 2:
-        score = min(score, 45)
-        score_breakdown.append(
-            {"label": "Extreme valuation hard cap", "pts": 0, "met": False})
+    # NOTE: Extreme valuation cap removed here — applied ONCE in Gate 3 (L1171) to avoid double-capping
 
     score = max(0, min(100, round(score)))
 
@@ -1098,50 +1140,32 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
                     f"Attractive dividend yield ({round(dividend_yield, 1)}%) providing downside protection.")
 
         else:
-            # Discovery Mode (Not held)
-            if score >= 60:
-                action_verdict = "BUY"
-                action_reasoning.append(
-                    f"Strong fundamental health (Score: {score}).")
-                if graham_discount_pct and graham_discount_pct > 15:
-                    action_reasoning.append(
-                        f"Trading at {round(graham_discount_pct, 1)}% discount to Graham Number.")
-            else:
-                action_verdict = "AVOID"
-                action_reasoning.append(
-                    f"Weak fundamental health (Score: {score}). Better opportunities exist.")
-                if score_breakdown and len(score_breakdown) > 0 and not score_breakdown[0].get("met"):
-                    action_reasoning.append(score_breakdown[0].get("label"))
+            # Discovery Mode (Not held, but member context available)
+            pass  # Handled by unified discovery block below
     else:
         # Discovery Mode (No member context)
-        if score >= 60:
-            action_verdict = "BUY"
-            action_reasoning.append(
-                f"Strong fundamental health (Score: {score}).")
-            if graham_discount_pct and graham_discount_pct > 15:
-                action_reasoning.append(
-                    f"Trading at {round(graham_discount_pct, 1)}% discount to Graham Number.")
-        else:
-            action_verdict = "AVOID"
-            action_reasoning.append(
-                f"Weak fundamental health (Score: {score}). Better opportunities exist.")
-            if score_breakdown and len(score_breakdown) > 0 and not score_breakdown[-1].get("met"):
-                action_reasoning.append(score_breakdown[-1].get("label"))
+        pass  # Handled by unified discovery block below
 
+    # Unified Discovery Mode — single truth source for non-holders
+    # Widened gaps: BUY >= 78, WATCHLIST >= 65, HOLD >= 50, else AVOID
     if not has_position:
         action_reasoning = []
-        if score >= 75 and forward_return_gate in ["ACCEPTABLE", "STRONG"]:
+        if score >= 78 and forward_return_gate in ["ACCEPTABLE", "STRONG"]:
             action_verdict = "BUY"
             action_reasoning.append(f"High health score ({score}) with {forward_return_gate.lower()} forward return.")
-        elif score >= 73 and forward_return_gate in ["ACCEPTABLE", "STRONG"]:
-            action_verdict = "ACCUMULATE"
-            action_reasoning.append(f"Constructive health score ({score}) with {forward_return_gate.lower()} forward return.")
+        elif score >= 65 and forward_return_gate in ["ACCEPTABLE", "STRONG"]:
+            action_verdict = "WATCHLIST"
+            action_reasoning.append(f"Constructive health score ({score}) with {forward_return_gate.lower()} forward return. Worth monitoring for better entry.")
         elif score >= 50:
             action_verdict = "HOLD"
             action_reasoning.append(f"Fair-to-watch profile (Score: {score}). Wait for better risk/reward.")
         else:
             action_verdict = "AVOID"
             action_reasoning.append(f"Weak risk/reward profile (Score: {score}). Better opportunities exist.")
+        # Append top unmet risk factor
+        unmet_risks = [item['label'] for item in score_breakdown if not item.get('met')]
+        if unmet_risks:
+            action_reasoning.append(f"Key risk: {unmet_risks[0]}")
 
     gate_summary = {
         **scoring_preview,
@@ -1180,6 +1204,12 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
     quality_gate, quality_gate_reasons, hard_quality_fail = _sector_quality_gate_from_summary(gate_summary)
     score_context = _build_score_context(gate_summary, pe_vs_sector, quality_gate, quality_gate_reasons, forward_return_gate)
     value_decision_framework = _build_value_decision_framework(gate_summary, expected_return_for_score)
+
+    from app.api.market_context import get_market_context, get_sector_context
+    market_ctx = get_market_context(db)
+    market_verdict = market_ctx.get("market_verdict", "NEUTRAL") if isinstance(market_ctx, dict) else "NEUTRAL"
+    sector_ctx = get_sector_context(sector, db) if sector else {}
+    sector_trend = sector_ctx.get("trend", "N/A") if isinstance(sector_ctx, dict) else "N/A"
 
     return {
         "symbol": symbol,
@@ -1227,9 +1257,18 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
         # Scoring & Action
         "health_score": score,
         "score_breakdown": score_breakdown,
-        "action": action,  # Kept for backward compatibility
+        "action": action,  # Kept for backward compatibility (same as scoring_action)
         "action_verdict": action_verdict,
         "scoring_action": action,
+        # DATA FLAGS — metrics not yet scraped but needed for future analysis
+        # These fields will be None until the respective scrapers are built.
+        "data_flags": {
+            "promoter_holding_pct": None,  # FLAG: Needs scraper from NepseAlpha company profile
+            "distributable_profit": sector_metrics_payload.get("distributable_profit"),  # Available for BFIs
+            "interest_spread": sector_metrics_payload.get("interest_spread"),  # Available for BFIs
+            "paid_up_capital_growth_yoy": None,  # FLAG: Needs calculation from quarterly paid_up_capital history
+            "combined_ratio": None,  # FLAG: Needs calculation from mgmt_expenses + claims / net_premium for insurance
+        },
         "score_context": score_context,
         "forward_return_gate": forward_return_gate,
         "expected_return_framework": expected_return_for_score,
@@ -1237,6 +1276,8 @@ def calculate_executive_summary(db: Session, symbol: str, member_id: int | None 
         "action_reasoning": action_reasoning,
         "technical_timing_guidance": technical_timing_guidance,
         "portfolio_context": portfolio_context,
+        "market_regime_verdict": market_verdict,
+        "sector_index_trend": sector_trend,
         # Trajectories
         "profit_trend": profit_trend,
         "capital_trend": capital_trend,
@@ -1688,14 +1729,6 @@ def _build_value_input(summary_data: dict) -> dict:
     expected_return_ctx = _estimate_expected_return_proxy(summary_data)
     value_decision_framework = _build_value_decision_framework(summary_data, expected_return_ctx)
 
-    graham_discount = summary_data.get("graham_discount_pct")
-    graham_desc = "N/A"
-    if graham_discount is not None:
-        if graham_discount > 0:
-            graham_desc = f"Undervalued by {graham_discount}% (LTP is below Graham value)"
-        else:
-            graham_desc = f"Overvalued by {abs(graham_discount)}% (LTP is above Graham value)"
-
     input_data = {
         "symbol": summary_data["symbol"],
         "sector": summary_data["sector"],
@@ -1705,8 +1738,9 @@ def _build_value_input(summary_data: dict) -> dict:
         "pb": summary_data["pb_ratio"],
         "peg": summary_data["peg_ratio"],
         "peg_category": _categorize_peg(summary_data.get("peg_ratio")),
-        "graham_valuation": graham_desc,
-        "graham_number": summary_data.get("graham_number"),
+        # NOTE: graham_valuation and graham_number removed — system prompt
+        # says Graham is irrelevant in NEPSE. Sending it caused models to
+        # reference it despite being told not to.
         "roe_pct": summary_data["roe_ttm"],
         "eps_ttm": summary_data.get("eps_ttm"),
         "net_profit_ttm": summary_data.get("net_profit_ttm"),
@@ -1780,8 +1814,8 @@ def _build_trading_input(summary_data: dict) -> dict:
         "rsi_14": summary_data.get("rsi_14"),
         "macd_histogram": summary_data.get("macd_hist"),
         "macd_status": summary_data.get("macd_status"),
-        "volume_ratio_raw": summary_data.get("vol_ratio", 0),
-        "volume_ratio": f"{summary_data.get('vol_ratio', 0)}x of 20-day average",
+        "volume_ratio": summary_data.get("vol_ratio", 0),
+        # NOTE: volume_ratio formatted string removed — raw value already sent above
         "obv_trend": summary_data.get("obv_status", "N/A"),
         "bollinger_upper": summary_data.get("bb_upper"),
         "bollinger_lower": summary_data.get("bb_lower"),
@@ -1804,32 +1838,17 @@ def _build_trading_input(summary_data: dict) -> dict:
             "stale_technicals": ext_tech.get("stale_price"),
         },
         "position_mode": position_mode,
+        "market_regime_verdict": summary_data.get("market_regime_verdict", "NEUTRAL"),
+        "sector_index_trend": summary_data.get("sector_index_trend", "N/A"),
         "circuit_distance_pct": summary_data.get("circuit_distance_pct"),
         "turnover_120d": summary_data.get("turnover_120d"),
         "liquidity_grade": ext_tech.get("liquidity_grade"),
         "volatility_risk_tag": ext_tech.get("volatility_risk_tag"),
         "liquidity_adjusted_slippage_buffer": slippage_ctx,
         "trading_decision_framework": trading_decision_framework,
-        "signal_hierarchy": {
-            "primary": "Liquidity and volume confirmation",
-            "secondary": "Trend integrity and higher timeframe structure",
-            "tertiary": "Execution timing around ATR, breakout strength, and key levels",
-            "last_check": "Oscillators like RSI should refine timing, not drive the thesis alone",
-        },
-        "trend_integrity": {
-            "ema_structure": "Bullish" if summary_data.get("ltp") and summary_data.get("ema_50") and summary_data.get("ema_200") and summary_data["ltp"] > summary_data["ema_50"] and summary_data["ltp"] > summary_data["ema_200"] else "Weak/Mixed",
-            "higher_timeframe_bias": summary_data.get("ema_200_status"),
-            "relative_strength_vs_nepse": ext_tech.get("rs_trend", "N/A"),
-            "adx_14": ext_tech.get("adx_14"),
-        },
-        "execution_timing": {
-            "volume_ratio_raw": summary_data.get("vol_ratio", 0),
-            "obv_trend": summary_data.get("obv_status", "N/A"),
-            "atr_14": ext_tech.get("atr_14"),
-            "vsa_reversal": ext_tech.get("vsa_reversal"),
-            "bollinger_squeeze": ext_tech.get("bb_squeeze", False),
-            "circuit_distance_pct": summary_data.get("circuit_distance_pct"),
-        },
+        # NOTE: signal_hierarchy, trend_integrity, and execution_timing sub-objects
+        # were removed — they duplicated top-level fields and trading_decision_framework.
+        # The system prompt already encodes the signal hierarchy as hard constraints.
         "support_levels": [
             v for v in [
                 summary_data.get("bb_lower"),
@@ -1861,16 +1880,7 @@ def _build_trading_input(summary_data: dict) -> dict:
         ltp = summary_data.get("ltp")
         if ltp and wacc:
             input_data["distance_to_wacc_pct"] = round(((ltp - wacc) / wacc) * 100, 3)
-        input_data["holding_context"] = {
-            "current_qty": portfolio_context.get("current_qty"),
-            "wacc": portfolio_context.get("wacc"),
-            "total_investment": portfolio_context.get("total_investment"),
-            "unrealized_pnl": portfolio_context.get("unrealized_pnl"),
-            "pnl_pct": portfolio_context.get("pnl_pct"),
-            "concentration_pct": portfolio_context.get("concentration_pct"),
-            "xirr": portfolio_context.get("xirr"),
-            "dividend_income": portfolio_context.get("dividend_income"),
-        }
+        # NOTE: holding_context sub-object removed — it was an exact subset of portfolio_context
 
     if active_setup:
         input_data["active_trade_setup"] = active_setup

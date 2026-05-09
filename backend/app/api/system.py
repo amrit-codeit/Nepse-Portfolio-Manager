@@ -19,7 +19,7 @@ from app.models.price import (
 )
 from app.models.fundamental import StockOverview, FundamentalReport, QuarterlyGrowth
 
-router = APIRouter(prefix="/api/system", tags=["System"])
+router = APIRouter(prefix="/api/v1/system", tags=["System"])
 
 # We define the models to export and their unique constraints for upserting
 # (Model, index_elements)

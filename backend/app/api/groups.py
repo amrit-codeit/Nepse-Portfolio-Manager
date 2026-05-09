@@ -7,7 +7,7 @@ from app.database import get_db
 from app.models.member import MemberGroup, Member
 from app.schemas.member import MemberGroupCreate, MemberGroupUpdate, MemberGroupResponse
 
-router = APIRouter(prefix="/api/groups", tags=["groups"])
+router = APIRouter(prefix="/api/v1/groups", tags=["groups"])
 
 @router.get("/", response_model=List[MemberGroupResponse])
 def get_groups(db: Session = Depends(get_db)):

@@ -89,8 +89,10 @@ def _fetch_index_data(session, index_id, index_name, start_date_str, today_str):
     if records_total == 0:
         return []
 
-    # Phase 2: Paginated fetch
-    batch_size = 100
+    # Phase 2: Paginated fetch.
+    # ShareSansar currently returns an empty dataset for length >= 75 even when
+    # records exist, so keep the page size within the accepted DataTables range.
+    batch_size = 50
     all_data = []
     draw = 2
 
@@ -183,12 +185,17 @@ def scrape_indices(db: Session, index_ids: list[int] = None):
     for idx_id in index_ids:
         index_name = SECTOR_INDICES.get(idx_id, f"Index_{idx_id}")
 
-        # Incremental: find latest date for this index
+        # Incremental: find the latest complete OHLC row for this index.
+        # Close-only rows from live snapshots or older bad runs must not block
+        # the historical scraper from repairing official OHLC history.
         latest_date = db.query(func.max(IndexHistory.date)).filter(
-            IndexHistory.index_id == idx_id
+            IndexHistory.index_id == idx_id,
+            IndexHistory.open.isnot(None),
+            IndexHistory.high.isnot(None),
+            IndexHistory.low.isnot(None),
         ).scalar()
 
-        start_date = (latest_date + timedelta(days=1)) if latest_date else date(2020, 1, 1)
+        start_date = (latest_date - timedelta(days=5)) if latest_date else date(2020, 1, 1)
         if start_date > today:
             print(f"  [SKIP] {index_name} — already up-to-date")
             continue

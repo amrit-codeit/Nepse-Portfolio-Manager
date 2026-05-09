@@ -41,12 +41,35 @@ def create_database_backup():
     # Don't backup multiple times on the same day unless it's a manual trigger that forces it
     if not os.path.exists(backup_path):
         shutil.copy2(db_path, backup_path)
-        print(f"[Backup] Successfully created database backup: {backup_filename}")
+        
+        # H-1: Validate backup integrity before considering it complete
+        if _verify_backup_integrity(backup_path):
+            print(f"[Backup] Successfully created & verified: {backup_filename}")
+        else:
+            print(f"[Backup] WARNING: Integrity check failed for {backup_filename} — removing corrupt backup")
+            try:
+                os.remove(backup_path)
+            except OSError:
+                pass
+            return
     else:
         print(f"[Backup] Backup for today already exists: {backup_filename}")
 
     # Cleanup old daily backups (older than 14 days)
     cleanup_old_backups(backup_dir, retention_days=14)
+
+
+def _verify_backup_integrity(backup_path: str) -> bool:
+    """Run SQLite PRAGMA integrity_check on a backup file."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(backup_path)
+        result = conn.execute("PRAGMA integrity_check").fetchone()
+        conn.close()
+        return result and result[0] == "ok"
+    except Exception as e:
+        print(f"[Backup] Integrity check error: {e}")
+        return False
 
 def cleanup_old_backups(backup_dir, retention_days=14):
     """

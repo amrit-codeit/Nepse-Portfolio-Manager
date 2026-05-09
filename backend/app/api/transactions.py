@@ -6,13 +6,12 @@ from datetime import date
 from app.database import get_db
 from app.models.transaction import Transaction, TransactionType, TransactionSource
 from app.models.company import Company
-from app.models.holding import Holding
 from app.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionResponse, TransactionListResponse
 from app.services.fee_calculator import calculate_buy_costs, calculate_sell_costs, get_fee_value
 from app.services.portfolio_engine import recalculate_holdings
-from app.api.members import require_master_password
+from app.api.auth import verify_token
 
-router = APIRouter(prefix="/api/transactions", tags=["Transactions"])
+router = APIRouter(prefix="/api/v1/transactions", tags=["Transactions"])
 
 
 @router.get("", response_model=TransactionListResponse)
@@ -92,9 +91,11 @@ def create_transaction(data: TransactionCreate, db: Session = Depends(get_db)):
             manual_dp=manual_dp, manual_broker=data.broker_commission, manual_sebon=data.sebon_fee)
 
     elif txn_type_up == TransactionType.SELL.value and amount:
+        from app.models.holding import Holding
+        from app.models.transaction import TransactionType
         holding = db.query(Holding).filter(
             Holding.member_id == data.member_id, Holding.symbol == symbol).first()
-        wacc = holding.wacc if holding else 0
+        wacc = holding.tax_wacc if (holding and holding.tax_wacc > 0) else (holding.wacc if holding else 0)
         
         # MED-03: Calculate actual holding days
         first_buy = db.query(Transaction.txn_date).filter(
@@ -250,7 +251,7 @@ async def upload_dp_statement(
     }
 
 @router.put("/{txn_id}", response_model=TransactionResponse)
-def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depends(get_db), _auth=Depends(verify_token)):
     """Update a transaction and recalculate everything."""
     try:
         txn = db.query(Transaction).filter(Transaction.id == txn_id).first()
@@ -301,11 +302,13 @@ def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depen
             txn.cgt = 0
             txn.total_cost = fees["total_cost"]
         elif txn.txn_type == TransactionType.SELL.value:
+            from app.models.holding import Holding
+            from app.models.transaction import TransactionType
             holding = db.query(Holding).filter(
                 Holding.member_id == txn.member_id,
                 Holding.symbol == txn.symbol
             ).first()
-            wacc = holding.wacc if holding else 0
+            wacc = holding.tax_wacc if (holding and holding.tax_wacc > 0) else (holding.wacc if holding else 0)
             
             # MED-03: Calculate actual holding days
             first_buy = db.query(Transaction.txn_date).filter(
@@ -356,11 +359,11 @@ def update_transaction(txn_id: int, data: TransactionUpdate, db: Session = Depen
         return TransactionResponse.model_validate(txn)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"An internal error occurred during update: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred during update.")
 
 
 @router.delete("/{txn_id}", status_code=204)
-def delete_transaction(txn_id: int, db: Session = Depends(get_db), _auth=Depends(require_master_password)):
+def delete_transaction(txn_id: int, db: Session = Depends(get_db), _auth=Depends(verify_token)):
     """Delete a transaction and recalculate holdings."""
     txn = db.query(Transaction).filter(Transaction.id == txn_id).first()
     if not txn:

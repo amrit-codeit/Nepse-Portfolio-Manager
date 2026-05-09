@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.api.members import require_master_password
+from app.api.auth import verify_token
 from app.database import get_db
 from app.models.trading import TradeJournal, TradeSetup
 from app.schemas.trading import (
@@ -25,7 +25,7 @@ from app.services.trading_desk import (
 )
 
 
-router = APIRouter(prefix="/api/trading", tags=["Trading Desk"])
+router = APIRouter(prefix="/api/v1/trading", tags=["Trading Desk"])
 
 
 @router.get("/setups", response_model=list[TradeSetupResponse])
@@ -78,7 +78,7 @@ def close_setup(setup_id: int, close_req: TradeCloseRequest, db: Session = Depen
 def delete_setup(
     setup_id: int,
     db: Session = Depends(get_db),
-    _auth=Depends(require_master_password),
+    _auth=Depends(verify_token),
 ):
     """Delete a trade setup."""
     setup = db.query(TradeSetup).filter(TradeSetup.id == setup_id).first()

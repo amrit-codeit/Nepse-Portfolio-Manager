@@ -12,7 +12,7 @@ from app.services.analysis.executive_summary import (
 )
 from app.services.analysis.ai_service import AIService
 
-router = APIRouter(prefix="/api/analysis", tags=["Analysis"])
+router = APIRouter(prefix="/api/v1/analysis", tags=["Analysis"])
 
 
 def _attach_active_trade_setup(summary_data: dict, symbol: str, member_id: int | None, db: Session) -> None:

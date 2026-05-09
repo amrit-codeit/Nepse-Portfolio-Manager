@@ -18,6 +18,8 @@ from app.models.dividend import DividendIncome
 from app.schemas.holding import HoldingResponse, PortfolioSummary
 from app.services.analysis.fundamental import calculate_graham_number, is_overvalued, analyze_sector_risk
 from app.services.analysis.technical import is_technical_downtrend
+from app.services.analysis.executive_summary import calculate_executive_summary
+from app.api.economy import macro_snapshot
 import pandas as pd
 import pandas_ta as ta
 
@@ -683,6 +685,42 @@ def get_portfolio_summary(
         import logging
         logging.getLogger(__name__).warning(f"Failed to calculate advanced risk metrics: {e}")
 
+    # Portfolio Enhancements (P3)
+    sector_totals = {}
+    weighted_health_sum = 0.0
+    valid_health_weight = 0.0
+    
+    for h in holding_responses:
+        val = h.current_qty * h.ltp if h.ltp else 0
+        if val <= 0: continue
+            
+        sector_totals[h.sector] = sector_totals.get(h.sector, 0) + val
+        
+        try:
+            # Calculate health score for each holding
+            exec_sum = calculate_executive_summary(db, h.symbol)
+            if exec_sum and "health_score" in exec_sum:
+                score = exec_sum["health_score"]
+                weighted_health_sum += score * val
+                valid_health_weight += val
+        except Exception:
+            pass
+
+    sector_allocation = {}
+    if total_current_value > 0:
+        for sec, val in sector_totals.items():
+            sector_allocation[sec] = round((val / total_current_value) * 100, 2)
+            
+    portfolio_weighted_health_score = round(weighted_health_sum / valid_health_weight, 2) if valid_health_weight > 0 else 0
+
+    current_fd_rate = 7.5
+    try:
+        macro = macro_snapshot(db)
+        if macro and "indicators" in macro:
+            current_fd_rate = macro["indicators"].get("deposit_rate", 7.5)
+    except Exception:
+        pass
+
     summary = PortfolioSummary(
         member_id=member_id,
         member_name=summary_member_name,
@@ -701,10 +739,12 @@ def get_portfolio_summary(
         portfolio_beta=portfolio_beta,
         dividend_yield=round((dividend_income / total_investment * 100), 2) if total_investment > 0 else 0,
         equity_xirr=computed_equity_xirr,
-
         sip_xirr=computed_sip_xirr,
         equity_dividend_income=round(eq_div_income, 3),
         sip_dividend_income=round(sip_div_income, 3),
+        sector_allocation=sector_allocation,
+        portfolio_weighted_health_score=portfolio_weighted_health_score,
+        current_fd_rate=current_fd_rate,
         holdings=holding_responses,
     )
         
