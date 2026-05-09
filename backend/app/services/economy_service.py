@@ -282,32 +282,40 @@ def get_alternatives_comparison(db: Session, principal: float, start_date: datet
 
     # --- NEPSE Index ---
     try:
-        start_idx = db.query(IndexHistory).filter(
+        nepse_history_query = db.query(IndexHistory).filter(
             IndexHistory.index_name == "NEPSE Index",
             IndexHistory.date >= start_date,
-        ).order_by(IndexHistory.date.asc()).first()
+        ).order_by(IndexHistory.date.asc()).all()
 
-        end_idx = db.query(IndexHistory).filter(
-            IndexHistory.index_name == "NEPSE Index",
-        ).order_by(IndexHistory.date.desc()).first()
+        if nepse_history_query:
+            start_idx = nepse_history_query[0]
+            end_idx = nepse_history_query[-1]
+            if start_idx.close and end_idx.close:
+                history_data = []
+                for row in nepse_history_query:
+                    if row.close:
+                        history_data.append({
+                            "date": row.date.isoformat(),
+                            "value": round(principal * (row.close / start_idx.close), 2)
+                        })
 
-        if start_idx and end_idx and start_idx.close and end_idx.close:
-            ratio = end_idx.close / start_idx.close
-            final = principal * ratio
-            total_return = (ratio - 1) * 100
-            cagr = (math.pow(ratio, 1 / years_held) - 1) * 100
-            results.append({
-                "label": "NEPSE Index",
-                "icon": "stock",
-                "start_value": round(start_idx.close, 2),
-                "end_value": round(end_idx.close, 2),
-                "start_date": start_idx.date.isoformat(),
-                "end_date": end_idx.date.isoformat(),
-                "final_amount": round(final, 2),
-                "total_return_pct": round(total_return, 2),
-                "annualized_return_pct": round(cagr, 2),
-                "years_held": round(years_held, 2),
-            })
+                ratio = end_idx.close / start_idx.close
+                final = principal * ratio
+                total_return = (ratio - 1) * 100
+                cagr = (math.pow(ratio, 1 / years_held) - 1) * 100
+                results.append({
+                    "label": "NEPSE Index",
+                    "icon": "stock",
+                    "start_value": round(start_idx.close, 2),
+                    "end_value": round(end_idx.close, 2),
+                    "start_date": start_idx.date.isoformat(),
+                    "end_date": end_idx.date.isoformat(),
+                    "final_amount": round(final, 2),
+                    "total_return_pct": round(total_return, 2),
+                    "annualized_return_pct": round(cagr, 2),
+                    "years_held": round(years_held, 2),
+                    "history": history_data,
+                })
     except Exception:
         pass
 
@@ -315,6 +323,7 @@ def get_alternatives_comparison(db: Session, principal: float, start_date: datet
     try:
         current_date = start_date
         current_principal = principal
+        history_data = [{"date": start_date.isoformat(), "value": round(principal, 2)}]
         
         # Get initial rate for the start date
         initial_rate_row = db.query(MacroData).filter(
@@ -350,6 +359,7 @@ def get_alternatives_comparison(db: Session, principal: float, start_date: datet
             # Simple interest for the fraction/year, compounded at the end of the term
             current_principal += current_principal * (rate * fraction_of_year)
             current_date = next_date
+            history_data.append({"date": current_date.isoformat(), "value": round(current_principal, 2)})
 
         final = current_principal
         total_return = ((final / principal) - 1) * 100
@@ -374,71 +384,88 @@ def get_alternatives_comparison(db: Session, principal: float, start_date: datet
             "annualized_return_pct": round(cagr, 2),
             "years_held": round(years_held, 2),
             "note": "Reinvested annually at prevailing FD rates",
+            "history": history_data,
         })
     except Exception:
         pass
 
     # --- Gold ---
     try:
-        start_gold = db.query(CommodityPrice).filter(
+        gold_history_query = db.query(CommodityPrice).filter(
             CommodityPrice.date >= start_date,
             CommodityPrice.gold_price.isnot(None),
-        ).order_by(CommodityPrice.date.asc()).first()
+        ).order_by(CommodityPrice.date.asc()).all()
 
-        end_gold = db.query(CommodityPrice).filter(
-            CommodityPrice.gold_price.isnot(None),
-        ).order_by(CommodityPrice.date.desc()).first()
+        if gold_history_query:
+            start_gold = gold_history_query[0]
+            end_gold = gold_history_query[-1]
+            if start_gold.gold_price and end_gold.gold_price:
+                history_data = []
+                for row in gold_history_query:
+                    if row.gold_price:
+                        history_data.append({
+                            "date": row.date.isoformat(),
+                            "value": round(principal * (row.gold_price / start_gold.gold_price), 2)
+                        })
 
-        if start_gold and end_gold and start_gold.gold_price and end_gold.gold_price:
-            ratio = end_gold.gold_price / start_gold.gold_price
-            final = principal * ratio
-            total_return = (ratio - 1) * 100
-            cagr = (math.pow(ratio, 1 / years_held) - 1) * 100
-            results.append({
-                "label": "Gold",
-                "icon": "gold",
-                "start_value": round(start_gold.gold_price, 2),
-                "end_value": round(end_gold.gold_price, 2),
-                "start_date": start_gold.date.isoformat(),
-                "end_date": end_gold.date.isoformat(),
-                "final_amount": round(final, 2),
-                "total_return_pct": round(total_return, 2),
-                "annualized_return_pct": round(cagr, 2),
-                "years_held": round(years_held, 2),
-                "unit": "NPR per tola",
-            })
+                ratio = end_gold.gold_price / start_gold.gold_price
+                final = principal * ratio
+                total_return = (ratio - 1) * 100
+                cagr = (math.pow(ratio, 1 / years_held) - 1) * 100
+                results.append({
+                    "label": "Gold",
+                    "icon": "gold",
+                    "start_value": round(start_gold.gold_price, 2),
+                    "end_value": round(end_gold.gold_price, 2),
+                    "start_date": start_gold.date.isoformat(),
+                    "end_date": end_gold.date.isoformat(),
+                    "final_amount": round(final, 2),
+                    "total_return_pct": round(total_return, 2),
+                    "annualized_return_pct": round(cagr, 2),
+                    "years_held": round(years_held, 2),
+                    "unit": "NPR per tola",
+                    "history": history_data,
+                })
     except Exception:
         pass
 
     # --- Silver ---
     try:
-        start_silver = db.query(CommodityPrice).filter(
+        silver_history_query = db.query(CommodityPrice).filter(
             CommodityPrice.date >= start_date,
             CommodityPrice.silver_price.isnot(None),
-        ).order_by(CommodityPrice.date.asc()).first()
+        ).order_by(CommodityPrice.date.asc()).all()
 
-        end_silver = db.query(CommodityPrice).filter(
-            CommodityPrice.silver_price.isnot(None),
-        ).order_by(CommodityPrice.date.desc()).first()
+        if silver_history_query:
+            start_silver = silver_history_query[0]
+            end_silver = silver_history_query[-1]
+            if start_silver.silver_price and end_silver.silver_price:
+                history_data = []
+                for row in silver_history_query:
+                    if row.silver_price:
+                        history_data.append({
+                            "date": row.date.isoformat(),
+                            "value": round(principal * (row.silver_price / start_silver.silver_price), 2)
+                        })
 
-        if start_silver and end_silver and start_silver.silver_price and end_silver.silver_price:
-            ratio = end_silver.silver_price / start_silver.silver_price
-            final = principal * ratio
-            total_return = (ratio - 1) * 100
-            cagr = (math.pow(ratio, 1 / years_held) - 1) * 100
-            results.append({
-                "label": "Silver",
-                "icon": "silver",
-                "start_value": round(start_silver.silver_price, 2),
-                "end_value": round(end_silver.silver_price, 2),
-                "start_date": start_silver.date.isoformat(),
-                "end_date": end_silver.date.isoformat(),
-                "final_amount": round(final, 2),
-                "total_return_pct": round(total_return, 2),
-                "annualized_return_pct": round(cagr, 2),
-                "years_held": round(years_held, 2),
-                "unit": "NPR per tola",
-            })
+                ratio = end_silver.silver_price / start_silver.silver_price
+                final = principal * ratio
+                total_return = (ratio - 1) * 100
+                cagr = (math.pow(ratio, 1 / years_held) - 1) * 100
+                results.append({
+                    "label": "Silver",
+                    "icon": "silver",
+                    "start_value": round(start_silver.silver_price, 2),
+                    "end_value": round(end_silver.silver_price, 2),
+                    "start_date": start_silver.date.isoformat(),
+                    "end_date": end_silver.date.isoformat(),
+                    "final_amount": round(final, 2),
+                    "total_return_pct": round(total_return, 2),
+                    "annualized_return_pct": round(cagr, 2),
+                    "years_held": round(years_held, 2),
+                    "unit": "NPR per tola",
+                    "history": history_data,
+                })
     except Exception:
         pass
 

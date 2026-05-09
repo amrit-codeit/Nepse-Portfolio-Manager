@@ -11,6 +11,10 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getEconomyMacro, triggerEconomyScrape, getEconomyAlternatives } from '../services/api';
 import dayjs from 'dayjs';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  ResponsiveContainer, Legend
+} from 'recharts';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -446,6 +450,59 @@ function AlternativesComparison() {
               description={`NEPSE index investment returned Rs. ${(nepseResult.final_amount - fdResult.final_amount).toLocaleString(undefined, { maximumFractionDigits: 0 })} more than a fixed deposit over this period.`}
               style={{ marginTop: 16 }}
             />
+          )}
+
+          {/* Historical Growth Chart */}
+          {results.results.some(r => r.history && r.history.length > 0) && (
+            <Card size="small" style={{ marginTop: 24 }}>
+              <Title level={5} style={{ marginBottom: 16 }}>📈 Growth Over Time</Title>
+              <div style={{ width: '100%', height: 400 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={Object.values(results.results.reduce((acc, r) => {
+                      if (r.history) {
+                        r.history.forEach(pt => {
+                          if (!acc[pt.date]) acc[pt.date] = { date: pt.date };
+                          acc[pt.date][r.label] = pt.value;
+                        });
+                      }
+                      return acc;
+                    }, {})).sort((a, b) => new Date(a.date) - new Date(b.date))}
+                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis
+                      dataKey="date"
+                      stroke="rgba(255,255,255,0.45)"
+                      tickFormatter={(val) => dayjs(val).format('MMM YYYY')}
+                      minTickGap={30}
+                    />
+                    <YAxis
+                      stroke="rgba(255,255,255,0.45)"
+                      tickFormatter={(val) => `Rs. ${(val / 1000).toFixed(0)}k`}
+                    />
+                    <RechartsTooltip
+                      contentStyle={{ backgroundColor: '#141414', borderColor: '#303030', color: '#fff' }}
+                      labelFormatter={(val) => dayjs(val).format('MMM DD, YYYY')}
+                      formatter={(value) => [`Rs. ${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, undefined]}
+                    />
+                    <Legend />
+                    {results.results.map(r => (
+                      <Line
+                        key={r.label}
+                        type="monotone"
+                        dataKey={r.label}
+                        stroke={r.label === 'NEPSE Index' ? '#1677ff' : r.label === 'Fixed Deposit' ? '#52c41a' : r.label === 'Gold' ? '#faad14' : '#d4b106'}
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{ r: 6 }}
+                        connectNulls
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
           )}
         </div>
       )}
